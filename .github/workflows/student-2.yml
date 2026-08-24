@@ -1,5 +1,5 @@
-# Build and validate the student-2 microservices (Account & Dashboard).
-# Owner: Aurelia Sari
+# Build and validate the student-2 microservices (Attractions & Dining).
+# Owner: Kevin Kim
 name: student-2
 
 on:
@@ -24,7 +24,7 @@ on:
 
 jobs:
   build-and-validate:
-    name: student-2 - Account & Dashboard
+    name: student-2 - Attractions & Dining
     runs-on: ubuntu-latest
 
     steps:

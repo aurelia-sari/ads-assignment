@@ -26,14 +26,14 @@ SERVICES = [
     ("ai-mode",           "http://ai-mode:5300/health",       "Shared AI-Mode service"),
     ("student-1-api",     "http://student-1-api:5101/health", "Trips & Itinerary"),
     ("student-1-db",      "http://student-1-db:5201/health",  "Trips & Itinerary database"),
-    ("student-2-api",     "http://student-2-api:5102/health", "Account & Dashboard"),
-    ("student-2-db",      "http://student-2-db:5202/health",  "Account & Dashboard database"),
-    ("student-3-api",     "http://student-3-api:5103/health", "Attractions & Dining"),
-    ("student-3-db",      "http://student-3-db:5203/health",  "Attractions & Dining database"),
-    ("student-4-api",     "http://student-4-api:5104/health", "Bookings & Budget"),
-    ("student-4-db",      "http://student-4-db:5204/health",  "Bookings & Budget database"),
-    ("student-5-api",     "http://student-5-api:5105/health", "Travel Mate"),
-    ("student-5-db",      "http://student-5-db:5205/health",  "Travel Mate database"),
+    ("student-2-api",     "http://student-2-api:5102/health", "Attractions & Dining"),
+    ("student-2-db",      "http://student-2-db:5202/health",  "Attractions & Dining database"),
+    ("student-3-api",     "http://student-3-api:5103/health", "Travel Mate"),
+    ("student-3-db",      "http://student-3-db:5203/health",  "Travel Mate database"),
+    ("student-4-api",     "http://student-4-api:5104/health", "Account & Dashboard"),
+    ("student-4-db",      "http://student-4-db:5204/health",  "Account & Dashboard database"),
+    ("student-5-api",     "http://student-5-api:5105/health", "Bookings & Budget"),
+    ("student-5-db",      "http://student-5-db:5205/health",  "Bookings & Budget database"),
 ]
 
 

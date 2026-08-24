@@ -3,7 +3,7 @@
 import requests
 from flask import Blueprint, request
 
-from services import database_api
+from services import database_api, shared_api
 from views.formatters import error_fragment, trip_form, trips_table
 
 trips_bp = Blueprint("trips", __name__)
@@ -23,14 +23,17 @@ def list_trips():
         "status": request.args.get("status", "").strip(),
     }
     try:
-        return trips_table(database_api.list_trips(params)), 200
+        trips = database_api.list_trips(params)
+        # Cross-feature read: traveller records belong to the shared access
+        # service, so they are fetched over HTTP rather than joined in SQL.
+        return trips_table(trips, shared_api.get_travellers()), 200
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
 
 
 @trips_bp.get("/trips/new")
 def new_trip_form():
-    return trip_form(), 200
+    return trip_form(travellers=shared_api.get_travellers()), 200
 
 
 @trips_bp.get("/trips/<int:trip_id>/edit")
@@ -40,7 +43,7 @@ def edit_trip_form(trip_id):
         if response.status_code == 404:
             return error_fragment("Trip not found."), 404
         response.raise_for_status()
-        return trip_form(response.json()), 200
+        return trip_form(response.json(), shared_api.get_travellers()), 200
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
 
@@ -54,7 +57,7 @@ def form_payload():
 
 
 def refreshed_table():
-    return trips_table(database_api.list_trips())
+    return trips_table(database_api.list_trips(), shared_api.get_travellers())
 
 
 @trips_bp.post("/trips")

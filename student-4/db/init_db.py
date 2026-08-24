@@ -1,6 +1,6 @@
-"""Create and seed the Bookings & Budget database (student-4, Aung Ko Khaing).
+"""Create and seed the Account & Dashboard database (student-4, Aurelia Sari).
 
-TODO (Aung Ko Khaing): replace `records` with the real schema for Bookings & Budget.
+TODO (Aurelia Sari): replace `records` with the real schema for Account & Dashboard.
 The project specification requires at least ten records per table, so keep the
 seed at ten or more when you change it.
 """
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS records (
 cursor.execute("DELETE FROM records")
 
 records = [
-    (i, "booking {}".format(i), "booking", "Placeholder Bookings & Budget record {}".format(i),
+    (i, "profile {}".format(i), "profile", "Placeholder Account & Dashboard record {}".format(i),
      "2026-08-{:02d}".format(i))
     for i in range(1, 13)
 ]

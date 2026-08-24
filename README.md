@@ -11,17 +11,22 @@ microservice; one shared Docker Compose configuration runs the whole thing.
 | Slot | Student | Feature | Frontend | API | Database |
 |------|---------|---------|----------|-----|----------|
 | student-1 | Caroline Zhou | Trips & Itinerary (day-by-day) + AI chatbot | 8081 | 5101 | 5201 |
-| student-2 | Aurelia Sari | Authentication, profile, onboarding, dashboard, travel guides | 8082 | 5102 | 5202 |
-| student-3 | Kevin Kim | Sightseeing, attractions, restaurants, recommendations | 8083 | 5103 | 5203 |
-| student-4 | Aung Ko Khaing | Flights, hotels, car rentals, budget | 8084 | 5104 | 5204 |
-| student-5 | Tanishpreet Kour | Travel mate matching | 8085 | 5105 | 5205 |
+| student-2 | Kevin Kim | Sightseeing, attractions, restaurants, recommendations | 8082 | 5102 | 5202 |
+| student-3 | Tanishpreet Kour | Travel mate matching | 8083 | 5103 | 5203 |
+| student-4 | Aurelia Sari | Authentication, profile, onboarding, dashboard, travel guides | 8084 | 5104 | 5204 |
+| student-5 | Aung Ko Khaing | Flights, hotels, car rentals, budget | 8085 | 5105 | 5205 |
 
 Shared services: `shared-frontend` (8080), `shared-api` (5000), `shared-db`
 (5200), `ai-mode` (5300).
 
-> The slot-to-student mapping above is the scaffold's assumption. If the group
-> registration form allocated the slots differently, rename the directories and
-> the matching `.github/workflows/student-N.yml` before doing any real work.
+> **Directory naming is fixed.** The project specification (section 7.1)
+> requires each student's artefacts to live in their designated `student-x/`
+> directory, so the directories are `student-1/` .. `student-5/` and the
+> workflows are `student-1.yml` .. `student-5.yml`. Do not rename them to
+> include owner names - it breaks every build context and workflow path filter,
+> and it reads as non-compliant against marking criterion 1. Ownership is
+> recorded in the table above, in a header comment in every source file, and on
+> each feature page.
 
 ## Prerequisites
 

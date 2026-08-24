@@ -1,6 +1,6 @@
-"""Create and seed the Account & Dashboard database (student-2, Aurelia Sari).
+"""Create and seed the Attractions & Dining database (student-2, Kevin Kim).
 
-TODO (Aurelia Sari): replace `records` with the real schema for Account & Dashboard.
+TODO (Kevin Kim): replace `records` with the real schema for Attractions & Dining.
 The project specification requires at least ten records per table, so keep the
 seed at ten or more when you change it.
 """
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS records (
 cursor.execute("DELETE FROM records")
 
 records = [
-    (i, "profile {}".format(i), "profile", "Placeholder Account & Dashboard record {}".format(i),
+    (i, "attraction {}".format(i), "attraction", "Placeholder Attractions & Dining record {}".format(i),
      "2026-08-{:02d}".format(i))
     for i in range(1, 13)
 ]

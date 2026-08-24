@@ -1,5 +1,5 @@
-# Build and validate the student-4 microservices (Bookings & Budget).
-# Owner: Aung Ko Khaing
+# Build and validate the student-4 microservices (Account & Dashboard).
+# Owner: Aurelia Sari
 name: student-4
 
 on:
@@ -24,7 +24,7 @@ on:
 
 jobs:
   build-and-validate:
-    name: student-4 - Bookings & Budget
+    name: student-4 - Account & Dashboard
     runs-on: ubuntu-latest
 
     steps:

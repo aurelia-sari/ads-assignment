@@ -1,5 +1,5 @@
-# Build and validate the student-3 microservices (Attractions & Dining).
-# Owner: Kevin Kim
+# Build and validate the student-3 microservices (Travel Mate).
+# Owner: Tanishpreet Kour
 name: student-3
 
 on:
@@ -24,7 +24,7 @@ on:
 
 jobs:
   build-and-validate:
-    name: student-3 - Attractions & Dining
+    name: student-3 - Travel Mate
     runs-on: ubuntu-latest
 
     steps:

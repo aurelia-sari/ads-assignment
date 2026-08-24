@@ -40,6 +40,8 @@ python3 scripts/smoke_test.py N     # your number
 - [ ] Full CRUD: create, read, update, delete, all reachable from the page
 - [ ] Backend/API reaches the database only over HTTP, never the SQLite file
 - [ ] AI feature calls `ai-mode`, never Ollama directly
+- [ ] Any data you do not own is read over HTTP from the owning service, and
+      your page still renders when that service is down
 - [ ] Page links `/shared/css/theme.css` and no other stylesheet
 - [ ] Feature reachable from the unified home page at <http://localhost:8080>
 - [ ] `scripts/smoke_test.py N` passes
@@ -49,6 +51,28 @@ python3 scripts/smoke_test.py N     # your number
 The last two matter as much as the code. The specification is explicit that a
 feature which is not integrated into the group application scores zero, and the
 individual report sections are marked per student.
+
+## Reading another feature's data
+
+You will need data you do not own - a trip, a traveller, an attraction. The rule
+is that you call the owning service's API. You never open another service's
+SQLite file, and you never add a column that copies data another feature owns.
+
+`student-1/api/services/shared_api.py` is the worked example. Copy its three
+properties:
+
+1. **Fetch once and index**, rather than one request per row.
+2. **Cache briefly** if the data is re-read on every render. 30 seconds is
+   plenty and avoids cross-service invalidation.
+3. **Degrade, never fail.** If the other service is down, render what you have.
+   A trip row shows `#7` instead of a name; it does not 503.
+
+Point 3 decides whether the Week 6 demo survives one slow container.
+
+Ownership boundary for traveller data, from ADR-001: `shared-db` owns identity
+(name, email, home city). student-4 owns profile (preferences, onboarding,
+dashboard). `traveller_id` is the join key and the only traveller field you may
+store in your own tables.
 
 ## Evidence to collect as you go
 

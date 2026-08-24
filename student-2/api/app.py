@@ -1,10 +1,10 @@
-"""Account & Dashboard backend/API (student-2, Aurelia Sari).
+"""Attractions & Dining backend/API (student-2, Kevin Kim).
 
 Serves HTMX fragments to the student-2 frontend, reads and writes through
 student-2-db only, and reaches the LLM only through the shared AI-Mode
 service.
 
-TODO (Aurelia Sari): replace the generic record routes with the real Account & Dashboard
+TODO (Kevin Kim): replace the generic record routes with the real Attractions & Dining
 routes. student-1/api shows the fuller structure (routes/, services/, views/)
 once a feature outgrows a single module.
 """
@@ -22,7 +22,7 @@ CORS(app)
 DB_SERVICE_URL = os.getenv("DB_SERVICE_URL", "http://student-2-db:5202")
 AI_MODE_URL = os.getenv("AI_MODE_URL", "http://ai-mode:5300")
 
-DB_DOWN = "Could not reach the Account & Dashboard database service."
+DB_DOWN = "Could not reach the Attractions & Dining database service."
 
 
 def error_fragment(message, detail=""):

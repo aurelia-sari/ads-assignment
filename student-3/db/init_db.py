@@ -1,6 +1,6 @@
-"""Create and seed the Attractions & Dining database (student-3, Kevin Kim).
+"""Create and seed the Travel Mate database (student-3, Tanishpreet Kour).
 
-TODO (Kevin Kim): replace `records` with the real schema for Attractions & Dining.
+TODO (Tanishpreet Kour): replace `records` with the real schema for Travel Mate.
 The project specification requires at least ten records per table, so keep the
 seed at ten or more when you change it.
 """
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS records (
 cursor.execute("DELETE FROM records")
 
 records = [
-    (i, "attraction {}".format(i), "attraction", "Placeholder Attractions & Dining record {}".format(i),
+    (i, "mate {}".format(i), "mate", "Placeholder Travel Mate record {}".format(i),
      "2026-08-{:02d}".format(i))
     for i in range(1, 13)
 ]

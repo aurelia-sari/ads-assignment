@@ -30,10 +30,10 @@ through a shared AI-Mode service.
 | Slot | Student | Feature | Frontend | Backend/API | Database |
 |------|---------|---------|----------|-------------|----------|
 | student-1 | Caroline Zhou | Trips & Itinerary (day-by-day) + AI chatbot | :8081 | :5101 | :5201 `trips`, `itinerary_days` |
-| student-2 | Aurelia Sari | Auth, profile, onboarding, dashboard, travel guides | :8082 | :5102 | :5202 |
-| student-3 | Kevin Kim | Sightseeing, attractions, restaurants, recommendations | :8083 | :5103 | :5203 |
-| student-4 | Aung Ko Khaing | Flights, hotels, car rentals, budget | :8084 | :5104 | :5204 |
-| student-5 | Tanishpreet Kour | Travel mate matching | :8085 | :5105 | :5205 |
+| student-2 | Kevin Kim | Sightseeing, attractions, restaurants, recommendations | :8082 | :5102 | :5202 |
+| student-3 | Tanishpreet Kour | Travel mate matching | :8083 | :5103 | :5203 |
+| student-4 | Aurelia Sari | Auth, profile, onboarding, dashboard, travel guides | :8084 | :5104 | :5204 |
+| student-5 | Aung Ko Khaing | Flights, hotels, car rentals, budget | :8085 | :5105 | :5205 |
 
 For each feature the specification (section 2.4) requires a feature name, a
 brief description, and a description of the frontend, backend/API, and database
@@ -132,6 +132,26 @@ CREATE TABLE itinerary_days (
 ```
 
 Seeded with 12 trips and 15 itinerary days, above the ten-record minimum.
+
+`traveller_id` is a **cross-feature reference, not a foreign key**. Traveller
+records live in the shared access database, which is a different service, so
+SQLite cannot enforce the relationship. student-1 resolves it over HTTP through
+`services/shared_api.py` and renders the traveller's name in the trip table.
+
+This is the application's data-ownership model in miniature, and ADR-001
+records why it was chosen over one shared database: SQLite takes a
+database-level write lock, so a single file behind fifteen writer containers
+would serialise every write and risk corruption. The accepted cost is that
+referential integrity across features is advisory - a trip can reference a
+traveller that no longer exists, and the table falls back to `#<id>`.
+
+| Owner | Holds | Examples |
+|-------|-------|----------|
+| `shared-db.travellers` | Identity - what every feature needs to answer "who" | traveller_id, name, email, home city |
+| `student-4` database | Profile - what only the account feature needs | preferences, onboarding state, dashboard layout |
+
+`traveller_id` is the join key across all five features and is the only
+traveller field another feature may store.
 
 ---
 
@@ -295,7 +315,7 @@ student's feature, and the AI chatbot answering.*
 | 2 | Ollama runs on the host, not in a container | Deployment has a manual prerequisite | Document in the video; containerise if RAM allows |
 | 3 | `qwen2.5:0.5b` is small and its answers are shallow | Demo quality | Raise `OLLAMA_MODEL` on a larger machine |
 | 4 | AI-Mode adds one hop over the specification's direct Backend -> Ollama flow | Deviation from the spec diagram | Justified in ADR-001 |
-| 5 | The shared access API and student-2's auth feature overlap | Risk of duplicate user data | Agree the boundary before Release 1 |
+| 5 | Cross-feature referential integrity is advisory - SQLite cannot enforce a reference across service boundaries | A trip can point at a deleted traveller | Display degrades to `#<id>`; a reconciliation check is a Release 1 candidate |
 | 6 | No automated tests beyond the smoke test | Limited regression cover | pytest is a Release 2 requirement |
 | 7 | The agentic loop's ACT evidence is accurate, but `llama3.2:latest` (3B) still miscounts it and occasionally names files that do not exist | Review findings need a human check before being acted on | Tightened grounding prompts (Appendix A.1) removed the worst of it; a larger review model on a 16 GB machine is the real fix |
 

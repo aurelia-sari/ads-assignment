@@ -7,7 +7,7 @@ chatbot talks about trips that exist rather than inventing them.
 import requests
 from flask import Blueprint, request
 
-from services import ai_mode, database_api
+from services import ai_mode, database_api, shared_api
 from views.formatters import chat_exchange, error_fragment
 
 ai_chat_bp = Blueprint("ai_chat", __name__)
@@ -22,8 +22,12 @@ def build_context(trip_id=None):
                 return ""
             trip = trip_response.json()
             days = database_api.list_days(trip_id)
+            traveller = shared_api.describe_traveller(
+                trip["traveller_id"], shared_api.get_travellers()
+            )
             lines = [
                 f"Trip: {trip['trip_name']} to {trip['destination']}, "
+                f"traveller {traveller}, "
                 f"{trip['start_date']} to {trip['end_date']}, "
                 f"budget AUD {trip['budget_aud']:.0f}, status {trip['status']}.",
                 f"Itinerary has {len(days)} day(s):",

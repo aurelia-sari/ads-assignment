@@ -502,6 +502,21 @@ buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)
 """
 
 
+TESTS_README = """# student-{n} tests
+
+Release 0 validates this feature through `scripts/smoke_test.py {n}`, which the
+`student-{n}` GitHub Actions workflow runs against the live services:
+
+```bash
+python3 scripts/smoke_test.py {n}
+```
+
+Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted
+unit testing (project specification, section 7.3). Unit tests for this feature
+belong in this directory.
+"""
+
+
 def write(path, content):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
@@ -529,6 +544,8 @@ def scaffold(n, feature, owner, noun):
     write(root / "frontend" / "Dockerfile", FRONTEND_DOCKERFILE)
     write(root / "frontend" / "nginx.conf", FRONTEND_NGINX.format(**fields))
     write(root / "frontend" / "templates" / "index.html", FRONTEND_HTML.format(**fields))
+
+    write(root / "tests" / "README.md", TESTS_README.format(**fields))
 
 
 def main():

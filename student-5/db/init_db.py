@@ -1,6 +1,6 @@
-"""Create and seed the Travel Mate database (student-5, Tanishpreet Kour).
+"""Create and seed the Bookings & Budget database (student-5, Aung Ko Khaing).
 
-TODO (Tanishpreet Kour): replace `records` with the real schema for Travel Mate.
+TODO (Aung Ko Khaing): replace `records` with the real schema for Bookings & Budget.
 The project specification requires at least ten records per table, so keep the
 seed at ten or more when you change it.
 """
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS records (
 cursor.execute("DELETE FROM records")
 
 records = [
-    (i, "mate {}".format(i), "mate", "Placeholder Travel Mate record {}".format(i),
+    (i, "booking {}".format(i), "booking", "Placeholder Bookings & Budget record {}".format(i),
      "2026-08-{:02d}".format(i))
     for i in range(1, 13)
 ]

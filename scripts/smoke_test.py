@@ -103,6 +103,30 @@ def check_resource(db_base, resource, create_payload, update_payload, id_field):
     expect(status == 404, f"GET /{resource}/{new_id} is 404 after delete")
 
 
+def check_cross_feature(trips_fragment):
+    """student-1 stores traveller_id but does not own traveller records.
+
+    The rendered table must show a name resolved from the shared access API,
+    which proves the cross-feature read happened over HTTP. A bare "#<id>" means
+    the lookup silently fell back, so the integration is not actually working.
+    """
+    status, body = request("GET", "http://localhost:5000/travellers")
+    expect(status == 200, "shared access API serves traveller records")
+    travellers = json.loads(body)
+    expect(len(travellers) >= 10, f"shared access DB is seeded ({len(travellers)} travellers)")
+
+    names = [row["full_name"] for row in travellers]
+    resolved = [name for name in names if f"<td>{name}</td>" in trips_fragment]
+    expect(
+        bool(resolved),
+        f"trip table resolves traveller names cross-service (e.g. {resolved[:1]})",
+    )
+    expect(
+        "<td>#" not in trips_fragment,
+        "no trip fell back to a raw traveller id",
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("student", type=int, choices=range(1, 6))
@@ -132,6 +156,9 @@ def main():
             "<table" in body or "muted" in body,
             "backend/API returns an HTML fragment, not JSON",
         )
+
+        if n == 1:
+            check_cross_feature(body)
     except SmokeFailure as failure:
         print(f"\nFAIL: {failure}")
         return 1

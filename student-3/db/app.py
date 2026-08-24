@@ -1,9 +1,9 @@
-"""Attractions & Dining database API (student-3, Kevin Kim).
+"""Travel Mate database API (student-3, Tanishpreet Kour).
 
 This service exclusively owns student3.db. Other backend/API microservices
 must call these endpoints and must not open the SQLite file directly.
 
-TODO (Kevin Kim): replace the generic `records` resource with the real Attractions & Dining
+TODO (Tanishpreet Kour): replace the generic `records` resource with the real Travel Mate
 resources.
 """
 

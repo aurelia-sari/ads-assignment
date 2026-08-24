@@ -5,6 +5,8 @@ Everything user-supplied goes through escape() before it reaches the page.
 
 from html import escape
 
+from services.shared_api import describe_traveller
+
 STATUS_PILLS = {
     "planned": "pill-planned",
     "booked": "pill-booked",
@@ -29,18 +31,27 @@ def status_pill(status):
     return f"<span class='pill {css}'>{escape(status)}</span>"
 
 
-def trips_table(trips):
+def trips_table(trips, travellers=None):
+    """Render the trip table.
+
+    `travellers` comes from the shared access API. When it is empty - because
+    that service is unreachable - the table still renders, showing the raw
+    traveller id instead of a name.
+    """
     if not trips:
         return "<p class='muted'>No trips match this search.</p>"
 
+    travellers = travellers or {}
     rows = []
     for trip in trips:
         trip_id = trip["trip_id"]
+        traveller = describe_traveller(trip["traveller_id"], travellers)
         rows.append(
             "<tr>"
             f"<td>{trip_id}</td>"
             f"<td>{escape(trip['trip_name'])}</td>"
             f"<td>{escape(trip['destination'])}</td>"
+            f"<td>{escape(traveller)}</td>"
             f"<td>{escape(trip['start_date'])}</td>"
             f"<td>{escape(trip['end_date'])}</td>"
             f"<td>${trip['budget_aud']:,.0f}</td>"
@@ -59,18 +70,19 @@ def trips_table(trips):
 
     return (
         "<div class='table-wrap'><table>"
-        "<thead><tr><th>ID</th><th>Trip</th><th>Destination</th><th>Start</th>"
-        "<th>End</th><th>Budget</th><th>Status</th><th>Actions</th></tr></thead>"
+        "<thead><tr><th>ID</th><th>Trip</th><th>Destination</th><th>Traveller</th>"
+        "<th>Start</th><th>End</th><th>Budget</th><th>Status</th><th>Actions</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody></table></div>"
         f"<p class='muted'>{len(trips)} trip(s).</p>"
     )
 
 
-def trip_form(trip=None):
+def trip_form(trip=None, travellers=None):
     """Create form when trip is None, otherwise an update form."""
     is_edit = trip is not None
     trip = trip or {}
     trip_id = trip.get("trip_id")
+    travellers = travellers or {}
 
     attrs = (
         f"hx-put='/api/student-1/trips/{trip_id}'"
@@ -86,6 +98,24 @@ def trip_form(trip=None):
         for key in STATUS_PILLS
     )
 
+    # Traveller options come from the shared access API. If it is unreachable we
+    # fall back to a plain number input so a trip can still be created.
+    if travellers:
+        traveller_options = "".join(
+            f"<option value='{tid}'"
+            f"{' selected' if str(trip.get('traveller_id')) == str(tid) else ''}>"
+            f"{escape(row['full_name'])} ({escape(row['home_city'])})</option>"
+            for tid, row in sorted(travellers.items())
+        )
+        traveller_field = f"<select name='traveller_id' required>{traveller_options}</select>"
+    else:
+        current = value("traveller_id", 1)
+        traveller_field = (
+            f"<input type='number' name='traveller_id' value='{current}' required>"
+            "<span class='muted' style='font-size:0.78rem'>"
+            "shared access API unreachable, enter an id</span>"
+        )
+
     return f"""
 <form {attrs} hx-target='#trips-panel' hx-swap='innerHTML'>
   <h3 style='margin-top:0'>{'Update trip ' + str(trip_id) if is_edit else 'Add a trip'}</h3>
@@ -94,7 +124,7 @@ def trip_form(trip=None):
     <div><label>Destination</label><input name='destination' value='{value("destination")}' required></div>
     <div><label>Start date</label><input type='date' name='start_date' value='{value("start_date")}' required></div>
     <div><label>End date</label><input type='date' name='end_date' value='{value("end_date")}' required></div>
-    <div><label>Traveller ID</label><input type='number' name='traveller_id' value='{value("traveller_id", 1)}' required></div>
+    <div><label>Traveller</label>{traveller_field}</div>
     <div><label>Budget (AUD)</label><input type='number' step='0.01' name='budget_aud' value='{value("budget_aud", 0)}' required></div>
     <div><label>Status</label><select name='status'>{options}</select></div>
   </div>

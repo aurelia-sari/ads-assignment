@@ -8,7 +8,8 @@ graph LR
         RT["routes/trips.py<br/>CRUD on trips"]
         RI["routes/itinerary.py<br/>CRUD on itinerary days"]
         RA["routes/ai_chat.py<br/>grounded chatbot"]
-        SV["services/database_api.py<br/>the only path to the database"]
+        SV["services/database_api.py<br/>the only path to its own database"]
+        SS["services/shared_api.py<br/>cross-feature reads, 30s cache,<br/>degrades to #id"]
         SA["services/ai_mode.py"]
         VW["views/formatters.py<br/>HTML fragments"]
     end
@@ -19,10 +20,13 @@ graph LR
     end
 
     AM["ai-mode :5300"]
+    SH["shared-api :5000<br/>owns travellers"]
 
     HTML --> HTMX
     HTMX -->|"HTML fragments"| RT & RI & RA
     RT & RI --> SV
+    RT --> SS
+    SS -->|"HTTP: resolve traveller_id"| SH
     RA --> SV
     RA --> SA
     SA --> AM

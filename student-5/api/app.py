@@ -1,10 +1,10 @@
-"""Travel Mate backend/API (student-5, Tanishpreet Kour).
+"""Bookings & Budget backend/API (student-5, Aung Ko Khaing).
 
 Serves HTMX fragments to the student-5 frontend, reads and writes through
 student-5-db only, and reaches the LLM only through the shared AI-Mode
 service.
 
-TODO (Tanishpreet Kour): replace the generic record routes with the real Travel Mate
+TODO (Aung Ko Khaing): replace the generic record routes with the real Bookings & Budget
 routes. student-1/api shows the fuller structure (routes/, services/, views/)
 once a feature outgrows a single module.
 """
@@ -22,7 +22,7 @@ CORS(app)
 DB_SERVICE_URL = os.getenv("DB_SERVICE_URL", "http://student-5-db:5205")
 AI_MODE_URL = os.getenv("AI_MODE_URL", "http://ai-mode:5300")
 
-DB_DOWN = "Could not reach the Travel Mate database service."
+DB_DOWN = "Could not reach the Bookings & Budget database service."
 
 
 def error_fragment(message, detail=""):

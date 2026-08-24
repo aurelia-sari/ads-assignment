@@ -123,6 +123,8 @@ services:
     depends_on:
       - student-1-db
       - ai-mode
+      # Cross-feature reads: traveller records come from the shared access API.
+      - shared-api
     networks:
       - travel-network
     restart: unless-stopped
@@ -138,7 +140,7 @@ services:
       - travel-network
     restart: unless-stopped
 
-  # --- Student 2 : Aurelia Sari - Auth, Profile, Dashboard, Guides --------
+  # --- Student 2 : Kevin Kim - Attractions, Dining, Recommendations -------
 
   student-2-frontend:
     build: ./student-2/frontend
@@ -177,7 +179,7 @@ services:
       - travel-network
     restart: unless-stopped
 
-  # --- Student 3 : Kevin Kim - Attractions, Dining, Recommendations -------
+  # --- Student 3 : Tanishpreet Kour - Travel Mate -------------------------
 
   student-3-frontend:
     build: ./student-3/frontend
@@ -216,7 +218,7 @@ services:
       - travel-network
     restart: unless-stopped
 
-  # --- Student 4 : Aung Ko Khaing - Flights, Hotels, Cars, Budget ---------
+  # --- Student 4 : Aurelia Sari - Auth, Profile, Dashboard, Guides --------
 
   student-4-frontend:
     build: ./student-4/frontend
@@ -255,7 +257,7 @@ services:
       - travel-network
     restart: unless-stopped
 
-  # --- Student 5 : Tanishpreet Kour - Travel Mate -------------------------
+  # --- Student 5 : Aung Ko Khaing - Flights, Hotels, Cars, Budget ---------
 
   student-5-frontend:
     build: ./student-5/frontend

@@ -15,16 +15,16 @@ graph TD
     subgraph S1["student-1 - Trips & Itinerary"]
         F1["frontend :8081"] --> A1["api :5101"] --> D1["db :5201<br/>trips, itinerary_days"]
     end
-    subgraph S2["student-2 - Account & Dashboard"]
+    subgraph S2["student-2 - Attractions & Dining"]
         F2["frontend :8082"] --> A2["api :5102"] --> D2["db :5202"]
     end
-    subgraph S3["student-3 - Attractions & Dining"]
+    subgraph S3["student-3 - Travel Mate"]
         F3["frontend :8083"] --> A3["api :5103"] --> D3["db :5203"]
     end
-    subgraph S4["student-4 - Bookings & Budget"]
+    subgraph S4["student-4 - Account & Dashboard"]
         F4["frontend :8084"] --> A4["api :5104"] --> D4["db :5204"]
     end
-    subgraph S5["student-5 - Travel Mate"]
+    subgraph S5["student-5 - Bookings & Budget"]
         F5["frontend :8085"] --> A5["api :5105"] --> D5["db :5205"]
     end
 
@@ -33,4 +33,5 @@ graph TD
     SF --> SA
     SA --> SD
     A1 & A2 & A3 & A4 & A5 --> AM
+    A1 -.->|"cross-feature read:<br/>resolve traveller_id"| SA
     AM --> OL

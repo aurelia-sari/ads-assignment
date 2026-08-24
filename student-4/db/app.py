@@ -1,9 +1,9 @@
-"""Bookings & Budget database API (student-4, Aung Ko Khaing).
+"""Account & Dashboard database API (student-4, Aurelia Sari).
 
 This service exclusively owns student4.db. Other backend/API microservices
 must call these endpoints and must not open the SQLite file directly.
 
-TODO (Aung Ko Khaing): replace the generic `records` resource with the real Bookings & Budget
+TODO (Aurelia Sari): replace the generic `records` resource with the real Account & Dashboard
 resources.
 """
 

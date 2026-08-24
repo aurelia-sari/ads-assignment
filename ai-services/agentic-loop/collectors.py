@@ -15,10 +15,10 @@ REPO_ROOT = Path(os.getenv("REPO_ROOT", "/repo"))
 
 STUDENTS = [
     ("student-1", "Trips & Itinerary",     5101, 5201, ["/trips", "/days"]),
-    ("student-2", "Account & Dashboard",   5102, 5202, ["/records"]),
-    ("student-3", "Attractions & Dining",  5103, 5203, ["/records"]),
-    ("student-4", "Bookings & Budget",     5104, 5204, ["/records"]),
-    ("student-5", "Travel Mate",           5105, 5205, ["/records"]),
+    ("student-2", "Attractions & Dining",  5102, 5202, ["/records"]),
+    ("student-3", "Travel Mate",           5103, 5203, ["/records"]),
+    ("student-4", "Account & Dashboard",   5104, 5204, ["/records"]),
+    ("student-5", "Bookings & Budget",     5105, 5205, ["/records"]),
 ]
 
 

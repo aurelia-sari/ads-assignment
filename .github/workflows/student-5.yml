@@ -1,5 +1,5 @@
-# Build and validate the student-5 microservices (Travel Mate).
-# Owner: Tanishpreet Kour
+# Build and validate the student-5 microservices (Bookings & Budget).
+# Owner: Aung Ko Khaing
 name: student-5
 
 on:
@@ -24,7 +24,7 @@ on:
 
 jobs:
   build-and-validate:
-    name: student-5 - Travel Mate
+    name: student-5 - Bookings & Budget
     runs-on: ubuntu-latest
 
     steps:

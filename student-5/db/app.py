@@ -1,9 +1,9 @@
-"""Travel Mate database API (student-5, Tanishpreet Kour).
+"""Bookings & Budget database API (student-5, Aung Ko Khaing).
 
 This service exclusively owns student5.db. Other backend/API microservices
 must call these endpoints and must not open the SQLite file directly.
 
-TODO (Tanishpreet Kour): replace the generic `records` resource with the real Travel Mate
+TODO (Aung Ko Khaing): replace the generic `records` resource with the real Bookings & Budget
 resources.
 """
 

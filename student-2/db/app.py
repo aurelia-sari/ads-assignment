@@ -1,9 +1,9 @@
-"""Account & Dashboard database API (student-2, Aurelia Sari).
+"""Attractions & Dining database API (student-2, Kevin Kim).
 
 This service exclusively owns student2.db. Other backend/API microservices
 must call these endpoints and must not open the SQLite file directly.
 
-TODO (Aurelia Sari): replace the generic `records` resource with the real Account & Dashboard
+TODO (Kevin Kim): replace the generic `records` resource with the real Attractions & Dining
 resources.
 """
 
