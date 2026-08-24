@@ -297,6 +297,7 @@ student's feature, and the AI chatbot answering.*
 | 4 | AI-Mode adds one hop over the specification's direct Backend -> Ollama flow | Deviation from the spec diagram | Justified in ADR-001 |
 | 5 | The shared access API and student-2's auth feature overlap | Risk of duplicate user data | Agree the boundary before Release 1 |
 | 6 | No automated tests beyond the smoke test | Limited regression cover | pytest is a Release 2 requirement |
+| 7 | The agentic loop's ACT evidence is accurate, but `llama3.2:latest` (3B) still miscounts it and occasionally names files that do not exist | Review findings need a human check before being acted on | Tightened grounding prompts (Appendix A.1) removed the worst of it; a larger review model on a 16 GB machine is the real fix |
 
 ---
 
@@ -336,3 +337,65 @@ The video must show:
 
 All five students must appear. All five must attend the Week 6 showcase -
 non-attendance scores 0.
+
+---
+
+## Appendix A: prompt engineering iterations
+
+Evidence for marking criterion 5 (prompt engineering and context management).
+
+### A.1 Grounding the agentic loop's reviewer
+
+**Problem observed.** The first version of `review/planner_system_prompt.txt`
+described the reviewer's role but said nothing about what the project is made
+of. Running the loop against the DevOps target with `llama3.2:latest`, the
+model's ADAPT step proposed creating `schemaRepository.js`, adding settings to
+`config.json`, and checking
+`src/main/java/com/example/student/frontend/StudentFrontend.java` - none of
+which exist. The ACT step's evidence was correct; the model invented a
+JavaScript and Java codebase around it.
+
+**Change.** Three additions to the prompts:
+
+1. The system prompt now states the actual stack (Flask, nginx, HTMX, SQLite,
+   GitHub Actions, Docker Compose) and adds explicit grounding rules, including
+   "there are no .js, .json, or .java files in this project".
+2. The OBSERVE prompt now forces a planned check that the evidence is silent
+   about into ISSUE as "not shown by the evidence", rather than letting the
+   model credit it as a PASS.
+3. The ADAPT prompt now requires the proposed change to address something the
+   observations actually flagged, and to say so when every check passed instead
+   of inventing a defect.
+
+**Why it matters.** The value of this loop is that ACT collects real evidence.
+A model that invents filenames discards that advantage. Constraining the output
+vocabulary to what appears in the evidence is what makes the review usable.
+
+**Result.** The invented JavaScript and Java vocabulary disappeared, and the
+model stayed within the project's real file names. It still miscounted the
+services in `docker-compose.yml` and referred once to a `main.yml`. Prompt
+grounding fixed the vocabulary problem but not the counting problem, which is
+a capability limit of a 3B model rather than a prompt defect.
+
+A sample run is committed at `docs/evidence/agentic-loop-sample-run.md`.
+
+*To do: attach the before/after ADAPT output side by side for the report.*
+
+### A.2 Grounding the traveller chatbot
+
+`routes/ai_chat.py` builds a plain-text summary of the traveller's real trips
+and itinerary days and passes it as context, so answers reference trips that
+exist. `implementation/system_prompt.txt` adds two rules that matter for a
+travel assistant: say so plainly when the data does not contain the answer, and
+never claim to have made or changed a booking.
+
+*To do: record an example answer with and without the grounding context.*
+
+### A.3 Model selection
+
+`qwen2.5:0.5b` serves the application because it responds fast enough to
+demonstrate live. `llama3.2:latest` runs the review loop, where a slower and
+more capable model is worth the wait. Both are configurable per machine through
+`.env`, because team hardware differs - see ADR-001, decision 3.
+
+*To do: note any further model changes and the reason for each.*

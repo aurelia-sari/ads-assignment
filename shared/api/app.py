@@ -9,6 +9,7 @@ owns its own schema and exposes it through its own API.
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from flask import Flask, jsonify
@@ -46,9 +47,15 @@ def services():
     return jsonify([{"name": name, "description": desc} for name, _, desc in SERVICES])
 
 
+# Probes run concurrently with a tolerant timeout. A short sequential probe
+# reported healthy services as down whenever the host was busy serving the LLM,
+# which is exactly when someone is demonstrating the application.
+PROBE_TIMEOUT_SECONDS = 6
+
+
 def probe(url):
     try:
-        response = requests.get(url, timeout=2)
+        response = requests.get(url, timeout=PROBE_TIMEOUT_SECONDS)
         return response.status_code == 200
     except requests.RequestException:
         return False
@@ -57,11 +64,13 @@ def probe(url):
 @app.get("/health/all")
 def health_all():
     """HTMX fragment: one row per service in the integrated application."""
+    with ThreadPoolExecutor(max_workers=len(SERVICES)) as pool:
+        results = list(pool.map(probe, [url for _, url, _ in SERVICES]))
+
     rows = []
     up_count = 0
 
-    for name, url, description in SERVICES:
-        is_up = probe(url)
+    for (name, _url, description), is_up in zip(SERVICES, results):
         up_count += is_up
         pill = "pill-booked" if is_up else "pill-cancelled"
         label = "up" if is_up else "down"

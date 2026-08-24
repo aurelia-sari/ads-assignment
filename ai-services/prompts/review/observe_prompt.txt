@@ -3,8 +3,18 @@ OBSERVE step.
 Below is the plan you produced and the evidence that was actually collected by
 executing it. Compare them.
 
-Report:
-- PASS items: what the evidence confirms, with the specific value that confirms it.
-- ISSUE items: what the evidence contradicts or leaves unproven.
+Report two labelled lists:
 
-Be specific. Quote endpoint names, table names, service names, or file names.
+PASS:
+- what the evidence confirms, each with the specific value that confirms it
+
+ISSUE:
+- what the evidence contradicts, or what the plan asked for that the evidence
+  does not cover
+
+If a planned check could not be evaluated from this evidence, put it under
+ISSUE as "not shown by the evidence", not under PASS. Do not credit a check
+that the evidence is silent about.
+
+Quote endpoint names, table names, service names, or file names exactly as they
+appear in the evidence.
