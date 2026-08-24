@@ -358,7 +358,7 @@ def ai_chat():
         return (
             "<div class='chat-msg user'><div class='who'>You</div>"
             f"<div class='bubble'>{{escape(question)}}</div></div>"
-            "<div class='chat-msg bot'><div class='who'>Wander AI</div>"
+            "<div class='chat-msg bot'><div class='who'>NextStop AI</div>"
             f"<div class='bubble'>{{escape(answer)}}</div></div>"
         ), 200
     except requests.RequestException as exc:
@@ -385,7 +385,11 @@ server {{
     listen 80;
     server_name _;
 
-    resolver 127.0.0.11 valid=10s;
+    # Docker's embedded DNS. Only effective because proxy_pass below targets a
+    # VARIABLE - nginx resolves a literal hostname once at startup and refuses
+    # to boot if it is missing, which made this container's start order depend
+    # on the hub's and vice versa.
+    resolver 127.0.0.11 valid=10s ipv6=off;
 
     location / {{
         root /usr/share/nginx/html;
@@ -393,12 +397,15 @@ server {{
     }}
 
     location /shared/ {{
-        proxy_pass http://shared-frontend:80/shared/;
+        set $shared_frontend http://shared-frontend:80;
+        proxy_pass $shared_frontend;
         proxy_set_header Host $host;
     }}
 
     location /api/student-{n}/ {{
-        proxy_pass http://student-{n}-api:{api_port}/;
+        set $own_api http://student-{n}-api:{api_port};
+        rewrite ^/api/student-{n}/(.*)$ /$1 break;
+        proxy_pass $own_api;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_read_timeout 300s;
@@ -411,7 +418,7 @@ FRONTEND_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{feature} - Wander</title>
+    <title>{feature} - NextStop</title>
     <link rel="stylesheet" href="/shared/css/theme.css">
     <script src="/shared/js/htmx.min.js"></script>
 </head>
@@ -458,7 +465,7 @@ FRONTEND_HTML = """<!DOCTYPE html>
     </section>
 
     <section class="tab-panel card" id="panel-ai">
-        <h3 style="margin-top:0">Wander AI</h3>
+        <h3 style="margin-top:0">NextStop AI</h3>
         <p class="muted">Runs locally through AI-Mode and Ollama.</p>
 
         <div class="chat-log" id="chat-log">
