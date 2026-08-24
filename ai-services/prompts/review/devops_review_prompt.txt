@@ -1,0 +1,5 @@
+Review target: the DevOps pipeline.
+
+Assess whether every student has a GitHub Actions workflow that builds and
+validates their three microservices, and whether one shared Docker Compose
+configuration brings up the whole integrated application.

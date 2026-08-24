@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attractions & Dining - Wander</title>
+    <link rel="stylesheet" href="/shared/css/theme.css">
+    <script src="/shared/js/htmx.min.js"></script>
+</head>
+<body>
+<main class="app-shell">
+    <header class="app-header card">
+        <h1>Attractions & Dining</h1>
+        <p>Student 3 &middot; Kevin Kim &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
+    </header>
+
+    <div class="notice notice-error">
+        Release 0 scaffold. Kevin Kim: replace the generic records below with the
+        real Attractions & Dining feature. The wiring (frontend to API to database to
+        AI-Mode) already works, so start by changing the schema in
+        <code>student-3/db/init_db.py</code>.
+    </div>
+
+    <nav class="tab-nav">
+        <button class="tab-btn is-active" data-tab="records" type="button">Records</button>
+        <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
+    </nav>
+
+    <section class="tab-panel is-active card" id="panel-records">
+        <div id="records-panel"
+             hx-get="/api/student-3/records"
+             hx-trigger="load"
+             hx-swap="innerHTML"></div>
+
+        <form hx-post="/api/student-3/records"
+              hx-target="#records-panel"
+              hx-swap="innerHTML"
+              hx-on::after-request="this.reset()"
+              style="margin-top:1.5rem">
+            <h3 style="margin-top:0">Add a record</h3>
+            <div class="form-grid">
+                <div><label>Title</label><input name="title" required></div>
+                <div><label>Category</label><input name="category" required></div>
+                <div><label>Detail</label><input name="detail"></div>
+                <div><label>Created on</label><input type="date" name="created_on" required></div>
+            </div>
+            <button type="submit">Create</button>
+            <span class="spinner">saving...</span>
+        </form>
+    </section>
+
+    <section class="tab-panel card" id="panel-ai">
+        <h3 style="margin-top:0">Wander AI</h3>
+        <p class="muted">Runs locally through AI-Mode and Ollama.</p>
+
+        <div class="chat-log" id="chat-log">
+            <p class="muted">Ask a question about this feature's data.</p>
+        </div>
+
+        <form hx-post="/api/student-3/ai/chat"
+              hx-target="#chat-log"
+              hx-swap="beforeend"
+              hx-on::after-request="this.reset()">
+            <div class="form-grid">
+                <div style="grid-column:1/-1">
+                    <label>Question</label>
+                    <input name="question" required>
+                </div>
+            </div>
+            <button type="submit">Ask</button>
+            <span class="spinner">thinking...</span>
+        </form>
+    </section>
+</main>
+
+<script>
+const buttons = Array.from(document.querySelectorAll(".tab-btn"));
+const panels = {
+    records: document.getElementById("panel-records"),
+    ai: document.getElementById("panel-ai"),
+};
+
+function activate(name) {
+    buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
+    Object.entries(panels).forEach(([key, panel]) =>
+        panel.classList.toggle("is-active", key === name)
+    );
+}
+
+buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+graph LR
+    DEV["Developer<br/>branch: student-N/feature"] --> PR["Pull request<br/>into main"]
+    PR --> GH["GitHub<br/>shared repository"]
+    GH --> WF{"GitHub Actions<br/>student-N.yml"}
+
+    WF --> S1["Byte-compile student-N"]
+    S1 --> S2["docker compose config --quiet"]
+    S2 --> S3["docker compose build<br/>frontend + api + db"]
+    S3 --> S4["docker compose up -d"]
+    S4 --> S5["wait_for_health.py<br/>520N, 510N, 5300"]
+    S5 --> S6["smoke_test.py N<br/>full CRUD + fragment check"]
+    S6 --> S7["curl the frontend"]
+    S7 --> RESULT{"Pass?"}
+
+    RESULT -->|yes| MERGE["Merge to main"]
+    RESULT -->|no| LOGS["docker compose logs<br/>then fix and push again"]
+    LOGS --> DEV
+    MERGE --> LOCAL["Local integrated deployment<br/>docker compose up --build"]

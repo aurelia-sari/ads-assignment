@@ -1,0 +1,7 @@
+PLAN step.
+
+You are about to review the target described below. Produce a numbered plan of
+at most four checks. Each check must be something that can be verified from
+HTTP responses, source files, or configuration files in this repository.
+
+Output only the numbered plan.

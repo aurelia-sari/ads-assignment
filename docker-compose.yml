@@ -1,0 +1,307 @@
+# ---------------------------------------------------------------------------
+# Group 25 - Travel App - Release 0
+# One shared Docker Compose configuration for the whole integrated application.
+#
+#   docker compose up --build          start the integrated application
+#   open http://localhost:8080         unified home page
+#   docker compose run --rm agentic-loop   Plan -> Act -> Observe -> Adapt demo
+#
+# Container inventory (18 core + 1 shared AI service):
+#   shared-frontend, shared-api, shared-db                        (3)
+#   student-{1..5}-{frontend,api,db}                             (15)
+#   ai-mode                                                       (1)
+# ---------------------------------------------------------------------------
+
+x-api-env: &api-env
+  AI_MODE_URL: ${AI_MODE_URL:-http://ai-mode:5300}
+  SHARED_API_URL: http://shared-api:5000
+
+services:
+
+  # --- Shared services ----------------------------------------------------
+
+  shared-frontend:
+    build: ./shared
+    container_name: shared-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - shared-api
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  shared-api:
+    build:
+      context: ./shared/api
+    container_name: shared-api
+    ports:
+      - "5000:5000"
+    environment:
+      SHARED_DB_URL: http://shared-db:5200
+    depends_on:
+      - shared-db
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  shared-db:
+    build:
+      context: ./shared/db
+    container_name: shared-db
+    ports:
+      - "5200:5200"
+    volumes:
+      - shared_db_data:/app/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # --- Shared AI services -------------------------------------------------
+
+  ai-mode:
+    build:
+      context: ./ai-services
+      dockerfile: ai-mode/Dockerfile
+    container_name: ai-mode
+    ports:
+      - "5300:5300"
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # Terminal-only service. Not started by `up`; run it on demand:
+  #   docker compose run --rm agentic-loop
+  agentic-loop:
+    build:
+      context: ./ai-services
+      dockerfile: agentic-loop/Dockerfile
+    container_name: agentic-loop
+    profiles: ["tools"]
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
+      OLLAMA_REVIEW_MODEL: ${OLLAMA_REVIEW_MODEL:-llama3.2:latest}
+      SHARED_API_URL: http://shared-api:5000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./ai-services/agentic-loop/runs:/app/runs
+      # Read-only view of the repo so the loop can review compose and workflow files.
+      - ./:/repo:ro
+    stdin_open: true
+    tty: true
+    networks:
+      - travel-network
+
+  # --- Student 1 : Caroline Zhou - Trips & Itinerary (AI chatbot) ---------
+
+  student-1-frontend:
+    build: ./student-1/frontend
+    container_name: student-1-frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      - student-1-api
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-1-api:
+    build: ./student-1/api
+    container_name: student-1-api
+    ports:
+      - "5101:5101"
+    environment:
+      <<: *api-env
+      DB_SERVICE_URL: http://student-1-db:5201
+    depends_on:
+      - student-1-db
+      - ai-mode
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-1-db:
+    build: ./student-1/db
+    container_name: student-1-db
+    ports:
+      - "5201:5201"
+    volumes:
+      - student_1_db_data:/app/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # --- Student 2 : Aurelia Sari - Auth, Profile, Dashboard, Guides --------
+
+  student-2-frontend:
+    build: ./student-2/frontend
+    container_name: student-2-frontend
+    ports:
+      - "8082:80"
+    depends_on:
+      - student-2-api
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-2-api:
+    build: ./student-2/api
+    container_name: student-2-api
+    ports:
+      - "5102:5102"
+    environment:
+      <<: *api-env
+      DB_SERVICE_URL: http://student-2-db:5202
+    depends_on:
+      - student-2-db
+      - ai-mode
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-2-db:
+    build: ./student-2/db
+    container_name: student-2-db
+    ports:
+      - "5202:5202"
+    volumes:
+      - student_2_db_data:/app/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # --- Student 3 : Kevin Kim - Attractions, Dining, Recommendations -------
+
+  student-3-frontend:
+    build: ./student-3/frontend
+    container_name: student-3-frontend
+    ports:
+      - "8083:80"
+    depends_on:
+      - student-3-api
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-3-api:
+    build: ./student-3/api
+    container_name: student-3-api
+    ports:
+      - "5103:5103"
+    environment:
+      <<: *api-env
+      DB_SERVICE_URL: http://student-3-db:5203
+    depends_on:
+      - student-3-db
+      - ai-mode
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-3-db:
+    build: ./student-3/db
+    container_name: student-3-db
+    ports:
+      - "5203:5203"
+    volumes:
+      - student_3_db_data:/app/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # --- Student 4 : Aung Ko Khaing - Flights, Hotels, Cars, Budget ---------
+
+  student-4-frontend:
+    build: ./student-4/frontend
+    container_name: student-4-frontend
+    ports:
+      - "8084:80"
+    depends_on:
+      - student-4-api
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-4-api:
+    build: ./student-4/api
+    container_name: student-4-api
+    ports:
+      - "5104:5104"
+    environment:
+      <<: *api-env
+      DB_SERVICE_URL: http://student-4-db:5204
+    depends_on:
+      - student-4-db
+      - ai-mode
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-4-db:
+    build: ./student-4/db
+    container_name: student-4-db
+    ports:
+      - "5204:5204"
+    volumes:
+      - student_4_db_data:/app/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # --- Student 5 : Tanishpreet Kour - Travel Mate -------------------------
+
+  student-5-frontend:
+    build: ./student-5/frontend
+    container_name: student-5-frontend
+    ports:
+      - "8085:80"
+    depends_on:
+      - student-5-api
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-5-api:
+    build: ./student-5/api
+    container_name: student-5-api
+    ports:
+      - "5105:5105"
+    environment:
+      <<: *api-env
+      DB_SERVICE_URL: http://student-5-db:5205
+    depends_on:
+      - student-5-db
+      - ai-mode
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  student-5-db:
+    build: ./student-5/db
+    container_name: student-5-db
+    ports:
+      - "5205:5205"
+    volumes:
+      - student_5_db_data:/app/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+volumes:
+  shared_db_data:
+  student_1_db_data:
+  student_2_db_data:
+  student_3_db_data:
+  student_4_db_data:
+  student_5_db_data:
+
+networks:
+  travel-network:
+    driver: bridge

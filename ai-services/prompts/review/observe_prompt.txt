@@ -1,0 +1,10 @@
+OBSERVE step.
+
+Below is the plan you produced and the evidence that was actually collected by
+executing it. Compare them.
+
+Report:
+- PASS items: what the evidence confirms, with the specific value that confirms it.
+- ISSUE items: what the evidence contradicts or leaves unproven.
+
+Be specific. Quote endpoint names, table names, service names, or file names.

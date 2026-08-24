@@ -1,0 +1,5 @@
+Task: answer the traveller's question about their trip planning.
+
+Prefer concrete, actionable advice over general travel writing. If the question
+is about timing or sequencing, take the itinerary's existing days into account
+so your suggestion fits what is already planned.

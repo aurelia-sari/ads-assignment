@@ -1,0 +1,9 @@
+ADAPT step.
+
+Based on the observations below, propose the single highest-value change the
+team should make next, and state what the next iteration of this loop should
+check to confirm the change worked.
+
+Output exactly two labelled lines:
+NEXT CHANGE: <one sentence>
+NEXT CHECK: <one sentence>

@@ -1,0 +1,272 @@
+/* ---------------------------------------------------------------------------
+   Group 25 - shared travel application theme.
+   Every student frontend links this file at /shared/css/theme.css so the whole
+   integrated application presents one consistent user interface.
+   --------------------------------------------------------------------------- */
+
+:root {
+    --bg-0: #071a24;
+    --bg-1: #0c2733;
+    --bg-2: #123845;
+    --surface: #0d2430;
+    --surface-alt: #14323f;
+    --text: #e9f4f7;
+    --muted: #9dc0cc;
+    --accent: #3fd0c9;
+    --accent-strong: #17b3ab;
+    --warn: #f2b544;
+    --danger: #f2695c;
+    --border: #1f4a5a;
+    --radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.5;
+    color: var(--text);
+    background:
+        radial-gradient(1100px 540px at 8% -12%, #10485c 0%, transparent 60%),
+        radial-gradient(900px 480px at 100% 0%, #135f66 0%, transparent 58%),
+        linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 46%, var(--bg-2) 100%);
+    background-attachment: fixed;
+}
+
+.app-shell {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.25rem;
+}
+
+.app-header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.75rem;
+    letter-spacing: -0.01em;
+}
+
+.app-header p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+/* --- Feature grid on the unified home page ------------------------------ */
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.feature-card {
+    display: block;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.feature-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.feature-card h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
+    color: var(--accent);
+}
+
+.feature-card p {
+    margin: 0 0 0.6rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.owner {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+/* --- Tabs ---------------------------------------------------------------- */
+
+.tab-nav {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    color: var(--muted);
+    padding: 0.55rem 1rem;
+    border-radius: var(--radius) var(--radius) 0 0;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.tab-btn.is-active {
+    background: var(--surface-alt);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.tab-panel { display: none; }
+.tab-panel.is-active { display: block; }
+
+/* --- Forms and buttons --------------------------------------------------- */
+
+label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--accent-strong);
+    outline-offset: 1px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+button, .btn {
+    background: var(--accent-strong);
+    color: #04222a;
+    border: none;
+    border-radius: 8px;
+    padding: 0.55rem 1rem;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+}
+
+button:hover, .btn:hover { background: var(--accent); }
+
+.btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover { background: var(--surface-alt); color: var(--text); }
+
+.btn-danger { background: var(--danger); color: #2a0b08; }
+
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.82rem; }
+
+/* --- Tables -------------------------------------------------------------- */
+
+.table-wrap { overflow-x: auto; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
+
+th, td {
+    text-align: left;
+    padding: 0.55rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+th {
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+tbody tr:hover { background: var(--surface-alt); }
+
+/* --- Status pills and messages ------------------------------------------ */
+
+.pill {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pill-planned   { background: #143d52; color: #8fd3ee; }
+.pill-booked    { background: #0f5c46; color: #8ff0cd; }
+.pill-completed { background: #3d3a15; color: #f0e18f; }
+.pill-cancelled { background: #521c19; color: #f6b5ad; }
+
+.notice { padding: 0.6rem 0.8rem; border-radius: 8px; margin: 0.5rem 0; font-size: 0.9rem; }
+.notice-ok    { background: #0f4a3a; color: #b7f4de; }
+.notice-error { background: #4a1b17; color: #f8c8c1; }
+
+.muted { color: var(--muted); }
+
+pre {
+    background: var(--bg-0);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+}
+
+/* --- Chat ---------------------------------------------------------------- */
+
+.chat-log {
+    min-height: 140px;
+    max-height: 380px;
+    overflow-y: auto;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.chat-msg { margin-bottom: 0.7rem; }
+.chat-msg .who { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.chat-msg.user .bubble { border-left: 3px solid var(--accent); padding-left: 0.6rem; }
+.chat-msg.bot  .bubble { border-left: 3px solid var(--warn); padding-left: 0.6rem; }
+
+.htmx-request .spinner { display: inline; }
+.spinner { display: none; color: var(--muted); font-size: 0.85rem; }

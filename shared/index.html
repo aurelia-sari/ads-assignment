@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Wander - Group 25 Travel Application</title>
+    <link rel="stylesheet" href="/shared/css/theme.css">
+    <script src="/shared/js/htmx.min.js" defer></script>
+</head>
+<body>
+<main class="app-shell">
+    <header class="app-header card">
+        <h1>Wander</h1>
+        <p>Agentic AI travel planning - 41026 Advanced Software Development, Group 25, Release 0</p>
+    </header>
+
+    <section class="card">
+        <h2 style="margin-top:0">Features</h2>
+        <div class="feature-grid">
+            <a class="feature-card" href="/student-1/">
+                <h3>Trips &amp; Itinerary</h3>
+                <p>Plan trips and build a day-by-day itinerary, with an AI travel chatbot.</p>
+                <span class="owner">Student 1 &middot; Caroline Zhou</span>
+            </a>
+            <a class="feature-card" href="/student-2/">
+                <h3>Account &amp; Dashboard</h3>
+                <p>Authentication, traveller profile, onboarding, dashboard and travel guides.</p>
+                <span class="owner">Student 2 &middot; Aurelia Sari</span>
+            </a>
+            <a class="feature-card" href="/student-3/">
+                <h3>Attractions &amp; Dining</h3>
+                <p>Sightseeing, attractions, restaurants and AI-assisted recommendations.</p>
+                <span class="owner">Student 3 &middot; Kevin Kim</span>
+            </a>
+            <a class="feature-card" href="/student-4/">
+                <h3>Bookings &amp; Budget</h3>
+                <p>Flights, hotels, car rentals and trip budget tracking.</p>
+                <span class="owner">Student 4 &middot; Aung Ko Khaing</span>
+            </a>
+            <a class="feature-card" href="/student-5/">
+                <h3>Travel Mate</h3>
+                <p>Find and match travel companions for a planned trip.</p>
+                <span class="owner">Student 5 &middot; Tanishpreet Kour</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2 style="margin-top:0">Integration status</h2>
+        <p class="muted">Live health of every microservice in the integrated application.</p>
+        <button hx-get="/api/shared/health/all"
+                hx-target="#health-panel"
+                hx-swap="innerHTML"
+                hx-trigger="click, load">
+            Refresh
+        </button>
+        <span class="spinner">checking...</span>
+        <div id="health-panel" style="margin-top:0.9rem"></div>
+    </section>
+</main>
+</body>
+</html>

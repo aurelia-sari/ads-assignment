@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Trips &amp; Itinerary - Wander</title>
+    <link rel="stylesheet" href="/shared/css/theme.css">
+    <script src="/shared/js/htmx.min.js"></script>
+</head>
+<body>
+<main class="app-shell">
+    <header class="app-header card">
+        <h1>Trips &amp; Itinerary</h1>
+        <p>Student 1 &middot; Caroline Zhou &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
+    </header>
+
+    <nav class="tab-nav">
+        <button class="tab-btn is-active" data-tab="trips" type="button">Trips</button>
+        <button class="tab-btn" data-tab="itinerary" type="button">Day-by-day</button>
+        <button class="tab-btn" data-tab="ai" type="button">AI chatbot</button>
+    </nav>
+
+    <!-- Trips: full CRUD ------------------------------------------------ -->
+    <section class="tab-panel is-active card" id="panel-trips">
+        <form hx-get="/api/student-1/trips"
+              hx-target="#trips-panel"
+              hx-swap="innerHTML"
+              hx-trigger="submit, change from:select">
+            <div class="form-grid">
+                <div>
+                    <label>Search destination</label>
+                    <input name="destination" placeholder="e.g. Kyoto">
+                </div>
+                <div>
+                    <label>Status</label>
+                    <select name="status">
+                        <option value="">any</option>
+                        <option value="planned">planned</option>
+                        <option value="booked">booked</option>
+                        <option value="completed">completed</option>
+                        <option value="cancelled">cancelled</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit">Search</button>
+            <span class="spinner">loading...</span>
+        </form>
+
+        <div id="trips-panel"
+             hx-get="/api/student-1/trips"
+             hx-trigger="load"
+             hx-swap="innerHTML"
+             style="margin-top:1rem"></div>
+
+        <div id="trip-form-panel"
+             hx-get="/api/student-1/trips/new"
+             hx-trigger="load"
+             hx-swap="innerHTML"
+             style="margin-top:1.5rem"></div>
+    </section>
+
+    <!-- Itinerary --------------------------------------------------------- -->
+    <section class="tab-panel card" id="panel-itinerary">
+        <p class="muted">Pick a trip on the Trips tab and choose <strong>Days</strong>, or load every day below.</p>
+        <button hx-get="/api/student-1/days" hx-target="#itinerary-panel" hx-swap="innerHTML">
+            Load all itinerary days
+        </button>
+        <span class="spinner">loading...</span>
+        <div id="itinerary-panel" style="margin-top:1rem"></div>
+    </section>
+
+    <!-- AI chatbot -------------------------------------------------------- -->
+    <section class="tab-panel card" id="panel-ai">
+        <h3 style="margin-top:0">Wander AI</h3>
+        <p class="muted">
+            Grounded in your real trip data. Runs locally through AI-Mode and Ollama.
+        </p>
+
+        <div class="chat-log" id="chat-log">
+            <p class="muted">Ask something like "which of my trips has the tightest budget?"</p>
+        </div>
+
+        <form hx-post="/api/student-1/ai/chat"
+              hx-target="#chat-log"
+              hx-swap="beforeend"
+              hx-on::after-request="this.reset(); document.getElementById('chat-log').scrollTop = 99999">
+            <div class="form-grid">
+                <div style="grid-column:1/-1">
+                    <label>Question</label>
+                    <input name="question" placeholder="Ask about your trips or itinerary" required>
+                </div>
+                <div>
+                    <label>Ground in one trip (optional trip ID)</label>
+                    <input name="trip_id" type="number" min="1" placeholder="e.g. 1">
+                </div>
+            </div>
+            <button type="submit">Ask</button>
+            <span class="spinner">thinking, this can take a moment on a local model...</span>
+        </form>
+    </section>
+</main>
+
+<script>
+const buttons = Array.from(document.querySelectorAll(".tab-btn"));
+const panels = {
+    trips: document.getElementById("panel-trips"),
+    itinerary: document.getElementById("panel-itinerary"),
+    ai: document.getElementById("panel-ai"),
+};
+
+function activate(name) {
+    buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
+    Object.entries(panels).forEach(([key, panel]) =>
+        panel.classList.toggle("is-active", key === name)
+    );
+    window.location.hash = name;
+}
+
+buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
+
+const initial = window.location.hash.replace("#", "");
+activate(panels[initial] ? initial : "trips");
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+graph TD
+    Browser["Browser"]
+
+    subgraph Shared["Shared services"]
+        SF["shared-frontend<br/>nginx :8080<br/>unified index.html + CSS theme"]
+        SA["shared-api<br/>Flask :5000<br/>access API + health"]
+        SD["shared-db<br/>SQLite :5200<br/>travellers"]
+    end
+
+    subgraph AI["Shared AI services"]
+        AM["ai-mode<br/>Flask :5300"]
+        OL["Ollama runtime<br/>host :11434<br/>qwen2.5 / llama3.2"]
+    end
+
+    subgraph S1["student-1 - Trips & Itinerary"]
+        F1["frontend :8081"] --> A1["api :5101"] --> D1["db :5201<br/>trips, itinerary_days"]
+    end
+    subgraph S2["student-2 - Account & Dashboard"]
+        F2["frontend :8082"] --> A2["api :5102"] --> D2["db :5202"]
+    end
+    subgraph S3["student-3 - Attractions & Dining"]
+        F3["frontend :8083"] --> A3["api :5103"] --> D3["db :5203"]
+    end
+    subgraph S4["student-4 - Bookings & Budget"]
+        F4["frontend :8084"] --> A4["api :5104"] --> D4["db :5204"]
+    end
+    subgraph S5["student-5 - Travel Mate"]
+        F5["frontend :8085"] --> A5["api :5105"] --> D5["db :5205"]
+    end
+
+    Browser --> SF
+    SF --> F1 & F2 & F3 & F4 & F5
+    SF --> SA
+    SA --> SD
+    A1 & A2 & A3 & A4 & A5 --> AM
+    AM --> OL
