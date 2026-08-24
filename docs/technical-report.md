@@ -1,7 +1,7 @@
 # Release 0 Technical Report - Group 25
 
 **41026 Advanced Software Development, Spring 2026**
-**Project: Wander - Agentic AI travel planning application**
+**Project: NextStop - Agentic AI travel planning application**
 
 > Working draft. Export to PDF for submission - Canvas accepts one group PDF.
 >
@@ -18,7 +18,7 @@
 
 ## 1. Project overview
 
-Wander is an Agentic AI travel planning application. A traveller plans trips,
+NextStop is an Agentic AI travel planning application. A traveller plans trips,
 builds a day-by-day itinerary, discovers attractions and dining, tracks
 bookings and budget, and finds a travel companion. Local LLM support runs
 through a shared AI-Mode service.

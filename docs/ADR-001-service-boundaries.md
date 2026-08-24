@@ -71,6 +71,19 @@ HTMX therefore makes same-origin requests, and the group avoids CORS
 configuration in five separate services. Each student frontend still runs
 standalone on its own port for individual development.
 
+**Every proxy_pass targets a variable, not a literal hostname.** This is not
+style. nginx resolves a literal upstream hostname once at startup and refuses
+to boot if it cannot, so the hub would not start until all five student
+frontends existed - while each student frontend needs the hub for `/shared/`.
+That circular startup dependency failed whichever container lost the race, and
+it took the whole application down rather than one route.
+
+With `set $upstream ...; proxy_pass $upstream;` and the `resolver` directive,
+nginx resolves per request instead. A missing frontend now returns 502 on its
+own route only, and recovers by itself when the container comes back - no
+restart of the hub required. Verified by stopping `student-3-frontend`: the hub
+and the other four features stayed up.
+
 ## Decision 5: identity is shared, profile is a feature
 
 The shared access database holds `travellers` while student-4 owns

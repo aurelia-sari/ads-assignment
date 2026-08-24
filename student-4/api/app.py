@@ -131,7 +131,7 @@ def ai_chat():
         return (
             "<div class='chat-msg user'><div class='who'>You</div>"
             f"<div class='bubble'>{escape(question)}</div></div>"
-            "<div class='chat-msg bot'><div class='who'>Wander AI</div>"
+            "<div class='chat-msg bot'><div class='who'>NextStop AI</div>"
             f"<div class='bubble'>{escape(answer)}</div></div>"
         ), 200
     except requests.RequestException as exc:
