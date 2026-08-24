@@ -263,7 +263,28 @@ the shared directories, or `docker-compose.yml`.
 
 ### 6.2 GitHub Actions execution evidence
 
-*Screenshots of green runs for all five workflows into `docs/evidence/`.*
+All five workflows passed on pull request #1 and again on `main` after the
+merge - ten green runs, 57s to 1m8s each, on clean GitHub-hosted runners.
+
+Full logs: **`docs/evidence/github-actions-execution.md`**, which for each
+workflow records the run URL, trigger, commit, the three images built, the
+compose start-up, the health wait, and the complete CRUD validation output.
+
+| Workflow | Feature | Owner | Result |
+|----------|---------|-------|--------|
+| `student-1.yml` | Trips & Itinerary | Caroline Zhou | success |
+| `student-2.yml` | Attractions & Dining | Kevin Kim | success |
+| `student-3.yml` | Travel Mate | Tanishpreet Kour | success |
+| `student-4.yml` | Account & Dashboard | Aurelia Sari | success |
+| `student-5.yml` | Bookings & Budget | Aung Ko Khaing | success |
+
+One detail worth drawing out for the architecture section: each workflow starts
+only `shared-frontend` and that student's three services, yet the compose
+start-up log shows `shared-db` and `shared-api` coming up as well. Docker
+Compose resolved the `depends_on` chain, which is what allows the cross-feature
+traveller lookup to be exercised in CI rather than only on a developer machine.
+
+*Still to add: screenshots of the Actions tab and the PR checks view.*
 
 ### 6.3 Docker Compose execution evidence
 
