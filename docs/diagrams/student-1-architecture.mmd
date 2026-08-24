@@ -1,0 +1,36 @@
+graph LR
+    subgraph FE["student-1-frontend (nginx :8081)"]
+        HTML["index.html<br/>Trips / Day-by-day / AI chatbot tabs"]
+        HTMX["HTMX<br/>hx-get, hx-post, hx-put, hx-delete"]
+    end
+
+    subgraph API["student-1-api (Flask :5101)"]
+        RT["routes/trips.py<br/>CRUD on trips"]
+        RI["routes/itinerary.py<br/>CRUD on itinerary days"]
+        RA["routes/ai_chat.py<br/>grounded chatbot"]
+        SV["services/database_api.py<br/>the only path to its own database"]
+        SS["services/shared_api.py<br/>cross-feature reads, 30s cache,<br/>degrades to #id"]
+        SA["services/ai_mode.py"]
+        VW["views/formatters.py<br/>HTML fragments"]
+    end
+
+    subgraph DB["student-1-db (Flask + SQLite :5201)"]
+        T1[("trips<br/>12 rows")]
+        T2[("itinerary_days<br/>15 rows")]
+    end
+
+    AM["ai-mode :5300"]
+    SH["shared-api :5000<br/>owns travellers"]
+
+    HTML --> HTMX
+    HTMX -->|"HTML fragments"| RT & RI & RA
+    RT & RI --> SV
+    RT --> SS
+    SS -->|"HTTP: resolve traveller_id"| SH
+    RA --> SV
+    RA --> SA
+    SA --> AM
+    SV -->|"HTTP JSON"| DB
+    RT & RI & RA --> VW
+    DB --- T1
+    DB --- T2

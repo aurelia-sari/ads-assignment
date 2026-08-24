@@ -1,0 +1,5 @@
+Review target: the backend/API implementation.
+
+Assess whether the API layer exposes working CRUD, calls the database only
+through its database API, handles database and AI failures without returning a
+stack trace to the browser, and integrates AI-Mode correctly.

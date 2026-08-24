@@ -1,0 +1,24 @@
+graph TB
+    subgraph Compose["docker-compose.yml - network: travel-network"]
+        direction TB
+        SF["shared-frontend<br/>8080:80"]
+        SA["shared-api<br/>5000:5000"]
+        SD["shared-db<br/>5200:5200"]
+        AM["ai-mode<br/>5300:5300"]
+        AL["agentic-loop<br/>profile: tools"]
+        SG["student-N-frontend  808N:80<br/>student-N-api  510N<br/>student-N-db  520N<br/>(N = 1..5, 15 containers)"]
+    end
+
+    subgraph Volumes["Named volumes"]
+        V1[("shared_db_data")]
+        V2[("student_1_db_data .. student_5_db_data")]
+    end
+
+    HOST["Host: Ollama :11434<br/>via host.docker.internal"]
+    REPO[/"./ mounted read-only at /repo"/]
+
+    SD --- V1
+    SG --- V2
+    AM --> HOST
+    AL --> HOST
+    AL --- REPO

@@ -1,0 +1,5 @@
+Review target: the microservices architecture.
+
+Assess service boundaries, data ownership, the frontend -> backend/API ->
+AI-Mode -> Ollama request flow, and whether the unified index routes to all
+five student frontends.

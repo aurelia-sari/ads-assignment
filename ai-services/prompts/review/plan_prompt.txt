@@ -1,0 +1,11 @@
+PLAN step.
+
+You are about to review the target described below. Produce a numbered plan of
+at most four checks.
+
+Each check must be verifiable from one of: an HTTP response from a running
+service, the contents of docker-compose.yml, the contents of
+shared/nginx.conf, or the contents of a file in .github/workflows/. Do not plan
+a check that needs any other source.
+
+Output only the numbered plan.

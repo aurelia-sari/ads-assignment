@@ -1,0 +1,5 @@
+Review target: the database microservices.
+
+Assess whether each database service owns its schema, exposes full CRUD over
+HTTP, seeds at least ten records per table, and is never accessed directly by
+another service's code.

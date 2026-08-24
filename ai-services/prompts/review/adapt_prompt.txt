@@ -1,0 +1,15 @@
+ADAPT step.
+
+Based on the observations below, propose the single highest-value change the
+team should make next, and state what the next iteration of this loop should
+check to confirm the change worked.
+
+The change must address something the observations actually flagged as an
+ISSUE. If every observation was a PASS, say so and propose the next area to
+examine instead of inventing a defect.
+
+Name only files and services that appear in the observations. Output exactly
+two labelled lines and nothing else:
+
+NEXT CHANGE: <one sentence>
+NEXT CHECK: <one sentence>

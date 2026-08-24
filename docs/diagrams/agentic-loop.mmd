@@ -1,0 +1,11 @@
+graph LR
+    START(["Review target:<br/>db / implementation /<br/>architecture / devops"]) --> PLAN
+
+    PLAN["<b>PLAN</b><br/>LLM proposes up to<br/>four verifiable checks"]
+    ACT["<b>ACT</b><br/>Execute for real:<br/>HTTP calls to live services,<br/>read compose + workflow files"]
+    OBSERVE["<b>OBSERVE</b><br/>LLM compares plan<br/>against evidence:<br/>PASS items vs ISSUE items"]
+    ADAPT["<b>ADAPT</b><br/>LLM names the next change<br/>and the next check"]
+
+    PLAN --> ACT --> OBSERVE --> ADAPT
+    ADAPT -->|"NEXT CHECK seeds<br/>the next iteration"| PLAN
+    ADAPT --> REC[/"Run record<br/>ai-services/agentic-loop/runs/*.md"/]

@@ -1,0 +1,79 @@
+# Build and validate the student-4 microservices (Account & Dashboard).
+# Owner: Aurelia Sari
+name: student-4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'student-4/**'
+      - 'shared/**'
+      - 'ai-services/**'
+      - 'scripts/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/student-4.yml'
+  pull_request:
+    paths:
+      - 'student-4/**'
+      - 'shared/**'
+      - 'ai-services/**'
+      - 'scripts/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/student-4.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-validate:
+    name: student-4 - Account & Dashboard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the shared repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Byte-compile the student-4 source
+        run: python -m compileall -q student-4
+
+      - name: Validate the shared Docker Compose configuration
+        run: docker compose config --quiet
+
+      - name: Create the environment file
+        run: cp .env.example .env
+
+      - name: Build the student-4 microservices
+        run: |
+          docker compose build \
+            student-4-frontend \
+            student-4-api \
+            student-4-db
+
+      - name: Start the student-4 microservices
+        run: |
+          docker compose up -d \
+            shared-frontend \
+            ai-mode \
+            student-4-db \
+            student-4-api \
+            student-4-frontend
+
+      - name: Wait for the services to report healthy
+        run: python3 scripts/wait_for_health.py 5204 5104 5300
+
+      - name: Validate CRUD through the database and backend APIs
+        run: python3 scripts/smoke_test.py 4
+
+      - name: Confirm the frontend microservice serves its page
+        run: curl --fail --silent --show-error http://localhost:8084 > /dev/null
+
+      - name: Show container logs if anything failed
+        if: failure()
+        run: docker compose logs --tail 80
+
+      - name: Tear down
+        if: always()
+        run: docker compose down --volumes
