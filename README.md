@@ -1,4 +1,4 @@
-# Wander - Group 25 Agentic AI Travel Application
+# NextStop - Group 25 Agentic AI Travel Application
 
 41026 Advanced Software Development, Spring 2026 - Release 0.
 
