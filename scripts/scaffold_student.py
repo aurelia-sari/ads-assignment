@@ -396,6 +396,15 @@ server {{
         try_files $uri /index.html;
     }}
 
+    # Readiness probe. Every other service exposes /health, so the frontends do
+    # too - otherwise nothing can wait for nginx to actually bind the port, and
+    # CI races the container's startup.
+    location = /health {{
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "student-{n}-frontend ok\n";
+    }}
+
     location /shared/ {{
         set $shared_frontend http://shared-frontend:80;
         proxy_pass $shared_frontend;

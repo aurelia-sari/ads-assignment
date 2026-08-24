@@ -62,7 +62,7 @@ jobs:
             student-1-frontend
 
       - name: Wait for the services to report healthy
-        run: python3 scripts/wait_for_health.py 5201 5101 5300
+        run: python3 scripts/wait_for_health.py 5201 5101 5300 8081 8080
 
       - name: Validate CRUD through the database and backend APIs
         run: python3 scripts/smoke_test.py 1

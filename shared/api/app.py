@@ -34,6 +34,12 @@ SERVICES = [
     ("student-4-db",      "http://student-4-db:5204/health",  "Account & Dashboard database"),
     ("student-5-api",     "http://student-5-api:5105/health", "Bookings & Budget"),
     ("student-5-db",      "http://student-5-db:5205/health",  "Bookings & Budget database"),
+    ("shared-frontend",    "http://shared-frontend:80/health",    "Unified home page"),
+    ("student-1-frontend", "http://student-1-frontend:80/health", "Trips & Itinerary page"),
+    ("student-2-frontend", "http://student-2-frontend:80/health", "Attractions & Dining page"),
+    ("student-3-frontend", "http://student-3-frontend:80/health", "Travel Mate page"),
+    ("student-4-frontend", "http://student-4-frontend:80/health", "Account & Dashboard page"),
+    ("student-5-frontend", "http://student-5-frontend:80/health", "Bookings & Budget page"),
 ]
 
 
