@@ -129,7 +129,18 @@ def get_favourites():
     conn.close()
     return jsonify([dict(row) for row in rows])
 
-"""
+# ------------------------------------------------------------------
+# For smoke_test.py
+# ------------------------------------------------------------------
+FIELDS = ("title", "category", "detail", "created_on")
+
+@app.get("/records")
+def list_records():
+    conn = get_db_connection()
+    rows = conn.execute("SELECT * FROM records ORDER BY record_id").fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in rows])
+
 @app.get("/records/<int:record_id>")
 def get_record(record_id):
     conn = get_db_connection()
@@ -207,8 +218,9 @@ def delete_record(record_id):
 
     return jsonify({"deleted": record_id})
 
-"""
-
+# ------------------------------------------------------------------
+# For smoke_test.py
+# ------------------------------------------------------------------
 
 
 

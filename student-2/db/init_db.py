@@ -22,12 +22,17 @@ The script is idempotent.
 Existing table data is preserved when the script is re-run.
 """
 
+
+
 import json
 import os
 import sqlite3
 from pathlib import Path
 
+
+# ------------------------------------------------------------------
 # Database configuration
+# ------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -38,8 +43,17 @@ DB_PATH = Path(
     )
 )
 
+
+# ------------------------------------------------------------------
 # Seed data - Places
-WIKIMEDIA = "https://commons.wikimedia.org/wiki/Special:FilePath/{}?width=400"
+# ------------------------------------------------------------------
+
+WIKIMEDIA = (
+    "https://commons.wikimedia.org/wiki/"
+    "Special:FilePath/{}?width=400"
+)
+
+
 PLACES = [
     {
         "external_place_id": None,
@@ -51,7 +65,9 @@ PLACES = [
         "rating": 4.8,
         "opening_hours": "09:00-17:00",
         "price_range": 0,
-        "description": "Iconic performing arts venue located on Sydney Harbour.",
+        "description": (
+            "Iconic performing arts venue located on Sydney Harbour."
+        ),
         "image_url": WIKIMEDIA.format(
             "Sydney_Opera_House%2C_2017_%2801%29.jpg"
         ),
@@ -66,7 +82,10 @@ PLACES = [
         "rating": 4.8,
         "opening_hours": "00:00-23:59",
         "price_range": 0,
-        "description": "Iconic steel arch bridge connecting Sydney CBD and the North Shore.",
+        "description": (
+            "Iconic steel arch bridge connecting Sydney CBD "
+            "and the North Shore."
+        ),
         "image_url": WIKIMEDIA.format(
             "Sydney_Harbour_Bridge.jpg"
         ),
@@ -81,7 +100,10 @@ PLACES = [
         "rating": 4.5,
         "opening_hours": "09:30-16:30",
         "price_range": 50,
-        "description": "Harbourside zoo featuring native and international wildlife.",
+        "description": (
+            "Harbourside zoo featuring native "
+            "and international wildlife."
+        ),
         "image_url": WIKIMEDIA.format(
             "Wallaby_at_Taronga_Zoo%2C_2016.jpg"
         ),
@@ -96,9 +118,12 @@ PLACES = [
         "rating": 4.7,
         "opening_hours": "07:00-17:00",
         "price_range": 0,
-        "description": "Large historic botanical garden beside Sydney Harbour.",
+        "description": (
+            "Large historic botanical garden beside Sydney Harbour."
+        ),
         "image_url": WIKIMEDIA.format(
-            "Gates_at_Royal_Botanic_Gardens_viewed_from_Art_Gallery_Road.jpg"
+            "Gates_at_Royal_Botanic_Gardens_"
+            "viewed_from_Art_Gallery_Road.jpg"
         ),
     },
     {
@@ -111,7 +136,9 @@ PLACES = [
         "rating": 4.6,
         "opening_hours": "00:00-23:59",
         "price_range": 0,
-        "description": "Popular Sydney beach known for surfing and coastal walks.",
+        "description": (
+            "Popular Sydney beach known for surfing and coastal walks."
+        ),
         "image_url": WIKIMEDIA.format(
             "Bondi_from_above.jpg"
         ),
@@ -126,7 +153,10 @@ PLACES = [
         "rating": 4.6,
         "opening_hours": "00:00-23:59",
         "price_range": 0,
-        "description": "Historic Sydney precinct with markets, restaurants and harbour views.",
+        "description": (
+            "Historic Sydney precinct with markets, restaurants "
+            "and harbour views."
+        ),
         "image_url": WIKIMEDIA.format(
             "Sydney_%28AU%29%2C_The_Rocks_--_2019_--_2133.jpg"
         ),
@@ -141,7 +171,10 @@ PLACES = [
         "rating": 4.7,
         "opening_hours": "00:00-23:59",
         "price_range": 0,
-        "description": "Popular beach destination accessible by ferry from Circular Quay.",
+        "description": (
+            "Popular beach destination accessible by ferry "
+            "from Circular Quay."
+        ),
         "image_url": WIKIMEDIA.format(
             "Summer_days_at_Manly_Beach.jpg"
         ),
@@ -156,12 +189,13 @@ PLACES = [
         "rating": 4.7,
         "opening_hours": "10:00-17:00",
         "price_range": 0,
-        "description": "Major public art museum located beside The Domain.",
+        "description": (
+            "Major public art museum located beside The Domain."
+        ),
         "image_url": WIKIMEDIA.format(
             "Art_Gallery_of_New_South_Wales%2C_2022%2C_09.jpg"
         ),
     },
-
     {
         "external_place_id": None,
         "name": "Harry's Cafe de Wheels",
@@ -172,8 +206,13 @@ PLACES = [
         "rating": 4.3,
         "opening_hours": "09:00-22:00",
         "price_range": 10,
-        "description": "Popular Sydney food venue known for pies and hot dogs.",
-        "image_url": "https://picsum.photos/seed/harrys-cafe-de-wheels/400/240",
+        "description": (
+            "Popular Sydney food venue known for pies and hot dogs."
+        ),
+        "image_url": (
+            "https://picsum.photos/seed/"
+            "harrys-cafe-de-wheels/400/240"
+        ),
     },
     {
         "external_place_id": None,
@@ -185,8 +224,13 @@ PLACES = [
         "rating": 4.0,
         "opening_hours": "10:00-22:00",
         "price_range": 30,
-        "description": "Thai restaurant offering a range of traditional dishes.",
-        "image_url": "https://picsum.photos/seed/chat-thai-haymarket/400/240",
+        "description": (
+            "Thai restaurant offering a range of traditional dishes."
+        ),
+        "image_url": (
+            "https://picsum.photos/seed/"
+            "chat-thai-haymarket/400/240"
+        ),
     },
     {
         "external_place_id": None,
@@ -198,8 +242,13 @@ PLACES = [
         "rating": 4.3,
         "opening_hours": "11:30-22:00",
         "price_range": 30,
-        "description": "Malaysian restaurant popular for roti and traditional dishes.",
-        "image_url": "https://picsum.photos/seed/mamak/400/240",
+        "description": (
+            "Malaysian restaurant popular for roti "
+            "and traditional dishes."
+        ),
+        "image_url": (
+            "https://picsum.photos/seed/mamak/400/240"
+        ),
     },
     {
         "external_place_id": None,
@@ -211,8 +260,13 @@ PLACES = [
         "rating": 4.0,
         "opening_hours": "07:30-21:00",
         "price_range": 30,
-        "description": "Large cafe and garden precinct known for brunch and coffee.",
-        "image_url": "https://picsum.photos/seed/the-grounds-of-alexandria/400/240",
+        "description": (
+            "Large cafe and garden precinct known for brunch and coffee."
+        ),
+        "image_url": (
+            "https://picsum.photos/seed/"
+            "the-grounds-of-alexandria/400/240"
+        ),
     },
     {
         "external_place_id": None,
@@ -225,7 +279,9 @@ PLACES = [
         "opening_hours": "12:00-24:00",
         "price_range": 70,
         "description": "Cantonese restaurant located in Sydney CBD.",
-        "image_url": "https://picsum.photos/seed/mr-wong/400/240",
+        "image_url": (
+            "https://picsum.photos/seed/mr-wong/400/240"
+        ),
     },
     {
         "external_place_id": None,
@@ -237,8 +293,13 @@ PLACES = [
         "rating": 4.5,
         "opening_hours": "07:00-18:00",
         "price_range": 10,
-        "description": "Popular bakery offering pastries, bread and cafe meals.",
-        "image_url": "https://picsum.photos/seed/bourke-street-bakery/400/240",
+        "description": (
+            "Popular bakery offering pastries, bread and cafe meals."
+        ),
+        "image_url": (
+            "https://picsum.photos/seed/"
+            "bourke-street-bakery/400/240"
+        ),
     },
     {
         "external_place_id": None,
@@ -250,12 +311,20 @@ PLACES = [
         "rating": 4.6,
         "opening_hours": "12:00-22:30",
         "price_range": 10,
-        "description": "Popular gelato shop offering a rotating range of flavours.",
-        "image_url": "https://picsum.photos/seed/gelato-messina-darlinghurst/400/240",
+        "description": (
+            "Popular gelato shop offering a rotating range of flavours."
+        ),
+        "image_url": (
+            "https://picsum.photos/seed/"
+            "gelato-messina-darlinghurst/400/240"
+        ),
     },
 ]
 
+
+# ------------------------------------------------------------------
 # Database connection
+# ------------------------------------------------------------------
 
 def get_connection() -> sqlite3.Connection:
     """Create and return a SQLite connection."""
@@ -263,15 +332,15 @@ def get_connection() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(DB_PATH)
-
-    # SQLite does not enforce FK constraints unless enabled.
     conn.execute("PRAGMA foreign_keys = ON")
-
     conn.row_factory = sqlite3.Row
 
     return conn
 
+
+# ------------------------------------------------------------------
 # Schema
+# ------------------------------------------------------------------
 
 def create_schema(conn: sqlite3.Connection) -> None:
     """Create Student 2 database tables."""
@@ -293,7 +362,6 @@ def create_schema(conn: sqlite3.Connection) -> None:
             image_url TEXT
         );
 
-
         CREATE TABLE IF NOT EXISTS favourites (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
@@ -306,7 +374,6 @@ def create_schema(conn: sqlite3.Connection) -> None:
                 ON DELETE CASCADE
         );
 
-
         CREATE TABLE IF NOT EXISTS recommendations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
@@ -315,12 +382,24 @@ def create_schema(conn: sqlite3.Connection) -> None:
             recommendation_result TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Temporary compatibility table for shared smoke_test.py.
+        CREATE TABLE IF NOT EXISTS records (
+            record_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            category TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            created_on TEXT NOT NULL
+        );
         """
     )
 
     conn.commit()
 
+
+# ------------------------------------------------------------------
 # Places seed
+# ------------------------------------------------------------------
 
 def seed_places(conn: sqlite3.Connection) -> None:
     """Insert initial place records when the places table is empty."""
@@ -371,7 +450,9 @@ def seed_places(conn: sqlite3.Connection) -> None:
     print(f"Seeded {len(PLACES)} places.")
 
 
+# ------------------------------------------------------------------
 # Favourites seed
+# ------------------------------------------------------------------
 
 def seed_favourites(conn: sqlite3.Connection) -> None:
     """Insert at least 10 favourite records."""
@@ -381,7 +462,9 @@ def seed_favourites(conn: sqlite3.Connection) -> None:
     ).fetchone()["count"]
 
     if count > 0:
-        print(f"favourites already contains {count} rows - skipping.")
+        print(
+            f"favourites already contains {count} rows - skipping."
+        )
         return
 
     place_ids = [
@@ -393,7 +476,8 @@ def seed_favourites(conn: sqlite3.Connection) -> None:
 
     if len(place_ids) < 10:
         raise RuntimeError(
-            "At least 10 places are required before seeding favourites."
+            "At least 10 places are required "
+            "before seeding favourites."
         )
 
     notes = [
@@ -431,7 +515,9 @@ def seed_favourites(conn: sqlite3.Connection) -> None:
     print("Seeded 10 favourites.")
 
 
-# Recommendation seed
+# ------------------------------------------------------------------
+# Recommendations seed
+# ------------------------------------------------------------------
 
 def seed_recommendations(conn: sqlite3.Connection) -> None:
     """Insert 10 mock AI recommendation records."""
@@ -442,13 +528,19 @@ def seed_recommendations(conn: sqlite3.Connection) -> None:
 
     if count > 0:
         print(
-            f"recommendations already contains {count} rows - skipping."
+            f"recommendations already contains "
+            f"{count} rows - skipping."
         )
         return
 
     candidate_places = conn.execute(
         """
-        SELECT id, name, category, rating, price_range
+        SELECT
+            id,
+            name,
+            category,
+            rating,
+            price_range
         FROM places
         ORDER BY rating DESC
         """
@@ -456,12 +548,11 @@ def seed_recommendations(conn: sqlite3.Connection) -> None:
 
     if len(candidate_places) < 10:
         raise RuntimeError(
-            "At least 10 places are required before "
-            "seeding recommendations."
+            "At least 10 places are required "
+            "before seeding recommendations."
         )
 
     for index in range(10):
-
         base_place = candidate_places[index]
 
         preferences = {
@@ -475,19 +566,29 @@ def seed_recommendations(conn: sqlite3.Connection) -> None:
         }
 
         recommended_places = [
-            candidate_places[index % len(candidate_places)],
-            candidate_places[(index + 1) % len(candidate_places)],
-            candidate_places[(index + 2) % len(candidate_places)],
+            candidate_places[
+                index % len(candidate_places)
+            ],
+            candidate_places[
+                (index + 1) % len(candidate_places)
+            ],
+            candidate_places[
+                (index + 2) % len(candidate_places)
+            ],
         ]
 
         recommendations = [
             {
-                "place_id": p["id"],
-                "place_name": p["name"],
-                "reason": "Recommended based on the supplied preferences."
+                "place_id": place["id"],
+                "place_name": place["name"],
+                "reason": (
+                    "Recommended based on "
+                    "the supplied preferences."
+                ),
             }
-            for p in recommended_places
+            for place in recommended_places
         ]
+
         recommendation_result = {
             "recommendations": recommendations
         }
@@ -514,23 +615,95 @@ def seed_recommendations(conn: sqlite3.Connection) -> None:
 
     print("Seeded 10 recommendations.")
 
+
+# ------------------------------------------------------------------
+# Temporary smoke-test compatibility seed
+# ------------------------------------------------------------------
+
+def seed_records(conn: sqlite3.Connection) -> None:
+    """Seed temporary generic records for shared CI smoke testing."""
+
+    count = conn.execute(
+        "SELECT COUNT(*) AS count FROM records"
+    ).fetchone()["count"]
+
+    if count > 0:
+        print(
+            f"records already contains {count} rows - skipping."
+        )
+        return
+
+    records = [
+        (
+            f"Attractions & Dining record {index}",
+            (
+                "attraction"
+                if index <= 6
+                else "restaurant"
+            ),
+            (
+                "Temporary smoke test compatibility "
+                f"record {index}"
+            ),
+            f"2026-08-{index:02d}",
+        )
+        for index in range(1, 13)
+    ]
+
+    conn.executemany(
+        """
+        INSERT INTO records (
+            title,
+            category,
+            detail,
+            created_on
+        )
+        VALUES (?, ?, ?, ?)
+        """,
+        records,
+    )
+
+    conn.commit()
+
+    print(
+        f"Seeded {len(records)} temporary records."
+    )
+
+
+# ------------------------------------------------------------------
 # Initialise database
+# ------------------------------------------------------------------
 
 def initialise_database() -> None:
-    print(f"Initialising Student 2 database: {DB_PATH}")
+    """Create schema and seed Student 2 data."""
+
+    print(
+        f"Initialising Student 2 database: {DB_PATH}"
+    )
+
     conn = get_connection()
+
     try:
         create_schema(conn)
+
         seed_places(conn)
         seed_favourites(conn)
         seed_recommendations(conn)
 
+        # Temporary compatibility data for shared smoke_test.py.
+        seed_records(conn)
+
     finally:
         conn.close()
-    print("Student 2 database initialisation complete.")
+
+    print(
+        "Student 2 database initialisation complete."
+    )
 
 
+# ------------------------------------------------------------------
 # Entry point
+# ------------------------------------------------------------------
 
 if __name__ == "__main__":
     initialise_database()
