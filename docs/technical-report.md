@@ -72,7 +72,7 @@ Functional:
 | F1.2 | Read trips, filtered by destination or status | Filtered table returns only matching trips |
 | F1.3 | Update any field of an existing trip | Changed values persist and redisplay |
 | F1.4 | Delete a trip and its itinerary days | Trip and its days are both removed |
-| F1.5 | Add, view and delete day-by-day itinerary entries for a trip | Days display in day-number order |
+| F1.5 | Add, view, update and delete day-by-day itinerary entries for a trip | Days display in day-number order; edits persist and redisplay |
 | F1.6 | Ask the AI chatbot a question grounded in real trip data | Answer references the traveller's actual trips |
 
 Non-functional:
