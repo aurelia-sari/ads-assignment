@@ -433,3 +433,244 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
   font-size: 12.5px;
   color: rgba(255,255,255,0.5);
 }
+
+/* ===========================================================================
+   APPLICATION COMPONENTS
+   ---------------------------------------------------------------------------
+   The landing styles above dress the front door. This layer dresses the five
+   feature pages, which are HTMX applications rather than marketing pages: they
+   need tabs, tables, forms, status pills and inline error notices.
+
+   Both layers live in one file because the project specification requires a
+   single shared CSS theme across the whole application. These rules reuse the
+   tokens declared in :root above, so a palette change flows through both.
+   =========================================================================== */
+
+.app-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 3rem;
+}
+
+.app-header {
+    margin-bottom: 1.25rem;
+}
+
+.app-header h1 {
+    font-family: var(--font-display);
+    font-size: 1.9rem;
+    color: var(--color-navy-900);
+    margin-bottom: 0.3rem;
+}
+
+.app-header p {
+    color: var(--color-slate-500);
+    font-size: 0.95rem;
+}
+
+.card {
+    background: var(--color-white);
+    border: 1px solid var(--color-slate-200);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* --- Tabs ---------------------------------------------------------------- */
+
+.tab-nav {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--color-slate-200);
+    margin-bottom: 1.25rem;
+}
+
+.tab-btn {
+    padding: 0.6rem 1.15rem;
+    border-radius: var(--radius-input) var(--radius-input) 0 0;
+    color: var(--color-slate-500);
+    font-size: 0.95rem;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: transparent;
+}
+
+.tab-btn:hover { color: var(--color-navy-800); }
+
+.tab-btn.is-active {
+    background: var(--color-white);
+    border-color: var(--color-slate-200);
+    color: var(--color-navy-900);
+    font-weight: 600;
+}
+
+/* Without this rule every panel renders stacked. */
+.tab-panel { display: none; }
+.tab-panel.is-active { display: block; }
+
+/* --- Forms --------------------------------------------------------------- */
+
+label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-slate-500);
+    margin-bottom: 0.3rem;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: var(--color-ink-900);
+    background: var(--color-white);
+    border: 1px solid var(--color-slate-200);
+    border-radius: var(--radius-input);
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 1px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* --- Buttons (app variants; landing .btn styles above are untouched) ------ */
+
+.app-shell button[type="submit"],
+.app-shell form button:not([class]),
+.app-shell > section button:not([class]) {
+    background: var(--color-navy-800);
+    color: var(--color-white);
+    border-radius: var(--radius-pill);
+    padding: 0.6rem 1.3rem;
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.btn-sm {
+    padding: 0.32rem 0.75rem;
+    font-size: 0.8rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-navy-800);
+    color: var(--color-white);
+    font-weight: 600;
+}
+
+.btn-secondary {
+    background: var(--color-white);
+    color: var(--color-slate-500);
+    border: 1px solid var(--color-slate-200);
+}
+
+.btn-danger { background: #b3261e; color: var(--color-white); }
+
+/* --- Tables -------------------------------------------------------------- */
+
+.table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--color-slate-200);
+    border-radius: var(--radius-input);
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+
+th, td {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--color-slate-200);
+    white-space: nowrap;
+}
+
+th {
+    background: var(--color-cream-50);
+    color: var(--color-slate-500);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--color-cream-50); }
+
+/* --- Status pills -------------------------------------------------------- */
+
+.pill {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pill-planned   { background: #e5eefa; color: #1c3f6e; }
+.pill-booked    { background: #dcf5ea; color: #0d6b48; }
+.pill-completed { background: #fdf0d5; color: #7a5a12; }
+.pill-cancelled { background: #fbe0de; color: #8f231c; }
+
+/* --- Notices, chat, misc ------------------------------------------------- */
+
+.notice {
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-input);
+    margin: 0.6rem 0;
+    font-size: 0.9rem;
+}
+
+.notice-ok    { background: #dcf5ea; color: #0d6b48; }
+.notice-error { background: #fbe0de; color: #8f231c; }
+
+.muted { color: var(--color-slate-500); }
+
+.chat-log {
+    min-height: 150px;
+    max-height: 380px;
+    overflow-y: auto;
+    background: var(--color-cream-50);
+    border: 1px solid var(--color-slate-200);
+    border-radius: var(--radius-input);
+    padding: 0.9rem;
+    margin-bottom: 0.9rem;
+}
+
+.chat-msg { margin-bottom: 0.8rem; }
+
+.chat-msg .who {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-slate-500);
+    margin-bottom: 0.15rem;
+}
+
+.chat-msg.user .bubble { border-left: 3px solid var(--color-blue-500); padding-left: 0.7rem; }
+.chat-msg.bot  .bubble { border-left: 3px solid var(--color-navy-800); padding-left: 0.7rem; }
+
+.owner {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-slate-500);
+}
+
+/* Shown only while an HTMX request is in flight. */
+.spinner { display: none; color: var(--color-slate-500); font-size: 0.85rem; }
+.htmx-request .spinner { display: inline; }
+
+pre {
+    background: var(--color-cream-50);
+    border: 1px solid var(--color-slate-200);
+    border-radius: var(--radius-input);
+    padding: 0.85rem;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+}

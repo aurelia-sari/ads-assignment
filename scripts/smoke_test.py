@@ -103,6 +103,31 @@ def check_resource(db_base, resource, create_payload, update_payload, id_field):
     expect(status == 404, f"GET /{resource}/{new_id} is 404 after delete")
 
 
+def check_frontend_wiring(n):
+    """The page must actually call its own API.
+
+    A design change once replaced a feature page with static markup. Every
+    API-level check still passed, CI went green, and the feature was
+    undemonstrable through the UI - which is what the marking criteria assess.
+    These assertions make that failure visible.
+    """
+    status, body = request("GET", f"http://localhost:{8080 + n}/")
+    expect(status == 200, "frontend serves its page")
+
+    hx_attributes = sum(
+        body.count(f"hx-{verb}") for verb in ("get", "post", "put", "delete")
+    )
+    expect(hx_attributes > 0, f"page has HTMX attributes ({hx_attributes} found)")
+    expect(
+        f"/api/student-{n}/" in body,
+        f"page calls its own API (/api/student-{n}/)",
+    )
+    expect(
+        "/shared/css/theme.css" in body,
+        "page uses the shared CSS theme",
+    )
+
+
 def check_cross_feature(trips_fragment):
     """student-1 stores traveller_id but does not own traveller records.
 
@@ -156,6 +181,8 @@ def main():
             "<table" in body or "muted" in body,
             "backend/API returns an HTML fragment, not JSON",
         )
+
+        check_frontend_wiring(n)
 
         if n == 1:
             check_cross_feature(body)

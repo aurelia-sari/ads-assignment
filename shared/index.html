@@ -1,62 +1,265 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>NextStop - Group 25 Travel Application</title>
-    <link rel="stylesheet" href="/shared/css/theme.css">
-    <script src="/shared/js/htmx.min.js" defer></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NextStop - Group 25 Travel Application</title>
+<!--
+  ASD 2026 · Group 25 · NextStop landing page
+  Structure mirrors: nav > navBox (photo + wordmark + search card) > features > footer
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared/css/theme.css">
+<script src="/shared/js/htmx.min.js" defer></script>
 </head>
 <body>
-<main class="app-shell">
-    <header class="app-header card">
-        <h1>NextStop</h1>
-        <p>Agentic AI travel planning - 41026 Advanced Software Development, Group 25, Release 0</p>
-    </header>
 
-    <section class="card">
-        <h2 style="margin-top:0">Features</h2>
-        <div class="feature-grid">
-            <a class="feature-card" href="/student-1/">
-                <h3>Trips &amp; Itinerary</h3>
-                <p>Plan trips and build a day-by-day itinerary, with an AI travel chatbot.</p>
-                <span class="owner">Student 1 &middot; Caroline Zhou</span>
-            </a>
-            <a class="feature-card" href="/student-2/">
-                <h3>Attractions &amp; Dining</h3>
-                <p>Sightseeing, attractions, restaurants and AI-assisted recommendations.</p>
-                <span class="owner">Student 2 &middot; Kevin Kim</span>
-            </a>
-            <a class="feature-card" href="/student-3/">
-                <h3>Travel Mate</h3>
-                <p>Find and match travel companions for a planned trip.</p>
-                <span class="owner">Student 3 &middot; Tanishpreet Kour</span>
-            </a>
-            <a class="feature-card" href="/student-4/">
-                <h3>Account &amp; Dashboard</h3>
-                <p>Authentication, traveller profile, onboarding, dashboard and travel guides.</p>
-                <span class="owner">Student 4 &middot; Aurelia Sari</span>
-            </a>
-            <a class="feature-card" href="/student-5/">
-                <h3>Bookings &amp; Budget</h3>
-                <p>Flights, hotels, car rentals and trip budget tracking.</p>
-                <span class="owner">Student 5 &middot; Aung Ko Khaing</span>
-            </a>
+<div class="navBox">
+
+  <!-- ============ NAV ============ -->
+  <nav class="nav">
+    <div class="nav__inner">
+      <a href="#" class="nav__logo">
+        <span class="nav__logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 16l20-8-8 20-3-9-9-3z"/></svg>
+        </span>
+        NextStop
+      </a>
+
+      <ul class="nav__links">
+        <li><a href="#home">Home</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#team">Team</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+
+      <div class="nav__actions">
+        <a href="#start" class="btn btn--pill-light">Get started</a>
+        <a href="#start" class="btn btn--icon" aria-label="Get started">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ HERO WORDMARK ============ -->
+  <div class="navBox__wordmark" aria-hidden="true">NEXTSTOP</div>
+
+  <!-- ============ HERO CONTENT ============ -->
+  <div class="navBox__content">
+    <h1 class="navBox__title">Plan Every Step<br>of the Journey.</h1>
+  </div>
+
+  <!-- ============ SEARCH / PLAN CARD ============ -->
+  <div class="navBox__panel">
+    <div class="navBox__panel-info">
+      <div class="navBox__stat">
+        <span class="navBox__stat-num">5</span>
+        <span class="navBox__stat-label">Core Features<br>Included</span>
+      </div>
+      <span class="navBox__icon-row" aria-hidden="true">
+        <span class="navBox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 16l20-8-8 20-3-9-9-3z"/></svg></span>
+        <span class="navBox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v18M4 8h5M4 13h5M15 3v6l3 3-3 3v6"/></svg></span>
+        <span class="navBox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0114 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+        <span class="navBox__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="9" r="3.4"/><circle cx="18" cy="16" r="3.4"/><path d="M12 11l3 3"/></svg></span>
+      </span>
+      <p class="navBox__desc">Search flights, hotels, build a day-by-day itinerary, and find a travel mate — one AI-assisted app, five features working together.</p>
+    </div>
+
+    <form class="search-card" aria-label="Plan a trip">
+      <div class="search-card__field">
+        <span class="search-card__label">Destination</span>
+        <div class="search-card__value">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0114 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+          <span>Tokyo, Japan</span>
         </div>
-    </section>
+      </div>
 
-    <section class="card">
-        <h2 style="margin-top:0">Integration status</h2>
-        <p class="muted">Live health of every microservice in the integrated application.</p>
-        <button hx-get="/api/shared/health/all"
-                hx-target="#health-panel"
-                hx-swap="innerHTML"
-                hx-trigger="click, load">
-            Refresh
-        </button>
-        <span class="spinner">checking...</span>
-        <div id="health-panel" style="margin-top:0.9rem"></div>
-    </section>
+      <div class="search-card__divider"></div>
+
+      <div class="search-card__field">
+        <span class="search-card__label">Dates</span>
+        <div class="search-card__value">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+          <span>15 – 21 Aug 2026</span>
+        </div>
+      </div>
+
+      <div class="search-card__divider"></div>
+
+      <div class="search-card__field">
+        <span class="search-card__label">Budget</span>
+        <div class="search-card__value">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 15.5c.6.7 1.5 1 2.5 1 1.7 0 3-.9 3-2s-1.3-1.7-3-2-3-.9-3-2 1.3-2 3-2c1 0 1.9.3 2.5 1"/><path d="M12 6v1M12 17v1"/></svg>
+          <span>$1,800 AUD</span>
+        </div>
+        <svg class="search-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+
+      <button type="submit" class="btn btn--pill-dark search-card__submit">Plan my trip</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ FEATURES ============ -->
+<main>
+  <section class="features" id="features">
+    <div class="features__head">
+      <div>
+        <span class="eyebrow">Our Features</span>
+        <h2 class="features__title">Your Trip's Every Step,<br>Handled by NextStop</h2>
+      </div>
+      <a href="#how-it-works" class="btn btn--outline-dark">
+        See how it works
+        <span class="btn__circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 17L17 7M9 7h8v8"/></svg></span>
+      </a>
+    </div>
+
+    <div class="feature-grid" id="feature-grid">
+
+      <a class="feature-card" href="/student-1/">
+        <div class="feature-card__media">
+          <img src="https://picsum.photos/id/1040/640/780" alt="Trips &amp; Itinerary">
+          <span class="feature-card__badge">01</span>
+        </div>
+        <div class="feature-card__body">
+          <h3>Trips &amp; Itinerary</h3>
+          <p><span class="feature-card__price">Day by day</span> plan trips and build an itinerary, with an AI chatbot</p>
+          <span class="owner">Caroline Zhou</span>
+        </div>
+      </a>
+      <a class="feature-card" href="/student-2/">
+        <div class="feature-card__media">
+          <img src="https://picsum.photos/id/1080/640/780" alt="Attractions &amp; Dining">
+          <span class="feature-card__badge">02</span>
+        </div>
+        <div class="feature-card__body">
+          <h3>Attractions &amp; Dining</h3>
+          <p><span class="feature-card__price">Personalised</span> sightseeing, restaurants and recommendations</p>
+          <span class="owner">Kevin Kim</span>
+        </div>
+      </a>
+      <a class="feature-card" href="/student-3/">
+        <div class="feature-card__media">
+          <img src="https://picsum.photos/id/1074/640/780" alt="Travel Mate">
+          <span class="feature-card__badge">03</span>
+        </div>
+        <div class="feature-card__body">
+          <h3>Travel Mate</h3>
+          <p><span class="feature-card__price">Matched</span> find companions heading to the same destination</p>
+          <span class="owner">Tanishpreet Kour</span>
+        </div>
+      </a>
+      <a class="feature-card" href="/student-4/">
+        <div class="feature-card__media">
+          <img src="https://picsum.photos/id/1036/640/780" alt="Account &amp; Dashboard">
+          <span class="feature-card__badge">04</span>
+        </div>
+        <div class="feature-card__body">
+          <h3>Account &amp; Dashboard</h3>
+          <p><span class="feature-card__price">Always on</span> profile, onboarding, dashboard and travel guides</p>
+          <span class="owner">Aurelia Sari</span>
+        </div>
+      </a>
+      <a class="feature-card" href="/student-5/">
+        <div class="feature-card__media">
+          <img src="https://picsum.photos/id/1015/640/780" alt="Bookings &amp; Budget">
+          <span class="feature-card__badge">05</span>
+        </div>
+        <div class="feature-card__body">
+          <h3>Bookings &amp; Budget</h3>
+          <p><span class="feature-card__price">Tracked</span> flights, hotels, car rentals and trip budget</p>
+          <span class="owner">Aung Ko Khaing</span>
+        </div>
+      </a>
+
+    </div>
+
+    <div class="features__nav">
+      <button class="carousel-btn" id="prevBtn" aria-label="Previous features">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button class="carousel-btn" id="nextBtn" aria-label="More features">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
 </main>
+
+<!-- ============ FOOTER ============ -->
+
+  <!-- ============ INTEGRATION STATUS ============ -->
+  <section class="features" id="integration">
+    <div class="features__head">
+      <div>
+        <span class="eyebrow">Release 0</span>
+        <h2 class="features__title">Integration status</h2>
+      </div>
+      <button class="btn btn--outline-dark"
+              hx-get="/api/shared/health/all"
+              hx-target="#health-panel"
+              hx-swap="innerHTML"
+              hx-trigger="click, load">
+        Refresh
+        <span class="spinner">checking...</span>
+      </button>
+    </div>
+    <div id="health-panel" class="card"></div>
+  </section>
+
+<footer class="footer-brand">
+  <div class="footer-brand__logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a13 13 0 010 18M12 3a13 13 0 000 18"/></svg>
+    <span>nextstop.app</span>
+  </div>
+  <p class="footer-brand__meta">ASD 2026 · Group 25 · Travel &amp; Tourism</p>
+</footer>
+
+<script>
+  // Each card routes to the student frontend that owns that feature. The
+  // unified index is required to be the single entry point to all five.
+  const FEATURE_SET = [
+    { href: "/student-1/", owner: "Caroline Zhou",    img: "https://picsum.photos/id/1040/640/780", badge: "01", title: "Trips &amp; Itinerary", tag: "Day by day", desc: "plan trips and build an itinerary, with an AI chatbot" },
+    { href: "/student-2/", owner: "Kevin Kim",        img: "https://picsum.photos/id/1080/640/780", badge: "02", title: "Attractions &amp; Dining", tag: "Personalised", desc: "sightseeing, restaurants and recommendations" },
+    { href: "/student-3/", owner: "Tanishpreet Kour", img: "https://picsum.photos/id/1074/640/780", badge: "03", title: "Travel Mate", tag: "Matched", desc: "find companions heading to the same destination" },
+    { href: "/student-4/", owner: "Aurelia Sari",     img: "https://picsum.photos/id/1036/640/780", badge: "04", title: "Account &amp; Dashboard", tag: "Always on", desc: "profile, onboarding, dashboard and travel guides" },
+    { href: "/student-5/", owner: "Aung Ko Khaing",   img: "https://picsum.photos/id/1015/640/780", badge: "05", title: "Bookings &amp; Budget", tag: "Tracked", desc: "flights, hotels, car rentals and trip budget" }
+  ];
+
+  let startIndex = 0;
+  const grid = document.getElementById("feature-grid");
+
+  function renderFeatures() {
+    const visible = [0, 1, 2].map(i => FEATURE_SET[(startIndex + i) % FEATURE_SET.length]);
+    grid.innerHTML = visible.map(f => `
+      <a class="feature-card" href="${f.href}">
+        <div class="feature-card__media">
+          <img src="${f.img}" alt="${f.title}">
+          <span class="feature-card__badge">${f.badge}</span>
+        </div>
+        <div class="feature-card__body">
+          <h3>${f.title}</h3>
+          <p><span class="feature-card__price">${f.tag}</span> ${f.desc}</p>
+          <span class="owner">${f.owner}</span>
+        </div>
+      </a>
+    `).join("");
+  }
+
+  renderFeatures();
+
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    startIndex = (startIndex - 1 + FEATURE_SET.length) % FEATURE_SET.length;
+    renderFeatures();
+  });
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    startIndex = (startIndex + 1) % FEATURE_SET.length;
+    renderFeatures();
+  });
+</script>
+
 </body>
 </html>
