@@ -292,10 +292,14 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
      two date pickers, so its min-content width is large and it took the space.
      Destination now gets the largest share and a floor, and every column may
      shrink below its content width so a long place name is not clipped. */
+  /* Floors are sized to real content, not guessed. A native date input needs
+     roughly 9rem to show dd/mm/yyyy plus its picker icon, so two of them and a
+     dash need about 19rem. The previous 13rem floor combined with min-width:0
+     made the dates column overflow into the budget field instead of growing. */
   grid-template-columns:
-    minmax(11rem, 1.7fr) auto
-    minmax(13rem, 1.3fr) auto
-    minmax(7rem, 0.9fr) auto;
+    minmax(10rem, 1.5fr) auto
+    minmax(19rem, 1.4fr) auto
+    minmax(7rem, 0.8fr) auto;
   align-items: center;
   gap: 18px;
 }
@@ -303,9 +307,10 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
 /* Grid and flex items default to min-width:auto, which refuses to shrink below
    their content. Without this the rules above have no effect. */
 .search-card__field { min-width: 0; }
-/* Raised from 700px: with real inputs the card needs roughly 900px before the
-   destination field starts being squeezed. One rule governs stacking. */
-@media (max-width: 900px) {
+/* Raised from 700px. With real inputs the columns have hard minimums - two
+   date pickers alone need about 19rem - so the card must stack before their
+   sum exceeds the available width, rather than overflowing. */
+@media (max-width: 1000px) {
   .search-card { grid-template-columns: 1fr; }
   .search-card__divider { display: none; }
   .search-card__submit { width: 100%; }
@@ -837,8 +842,8 @@ pre {
 }
 
 .search-card__value input[type="date"] {
-    width: auto;
-    min-width: 8.2rem;
+    flex: 1 1 0;
+    min-width: 8.6rem;
 }
 
 .search-card__value input[type="number"] {
