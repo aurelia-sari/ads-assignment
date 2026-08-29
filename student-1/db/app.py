@@ -50,6 +50,7 @@ def health():
 def list_trips():
     destination = request.args.get("destination", "").strip()
     status = request.args.get("status", "").strip().lower()
+    traveller_id = request.args.get("traveller_id", "").strip()
 
     query = "SELECT * FROM trips"
     clauses, params = [], []
@@ -60,6 +61,9 @@ def list_trips():
     if status:
         clauses.append("status = ?")
         params.append(status)
+    if traveller_id.isdigit():
+        clauses.append("traveller_id = ?")
+        params.append(int(traveller_id))
     if clauses:
         query += " WHERE " + " AND ".join(clauses)
     query += " ORDER BY start_date"

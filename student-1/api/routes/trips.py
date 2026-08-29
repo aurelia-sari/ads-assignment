@@ -4,7 +4,7 @@ import requests
 from flask import Blueprint, request
 
 from services import database_api, shared_api
-from views.formatters import error_fragment, trip_form, trips_table
+from views.formatters import error_fragment, search_form, trip_form, trips_table
 
 trips_bp = Blueprint("trips", __name__)
 
@@ -21,6 +21,7 @@ def list_trips():
     params = {
         "destination": request.args.get("destination", "").strip(),
         "status": request.args.get("status", "").strip(),
+        "traveller_id": request.args.get("traveller_id", "").strip(),
     }
     try:
         trips = database_api.list_trips(params)
@@ -29,6 +30,11 @@ def list_trips():
         return trips_table(trips, shared_api.get_travellers()), 200
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
+
+
+@trips_bp.get("/trips/search")
+def search_controls():
+    return search_form(shared_api.get_travellers()), 200
 
 
 @trips_bp.get("/trips/new")

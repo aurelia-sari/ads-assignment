@@ -77,6 +77,49 @@ def trips_table(trips, travellers=None):
     )
 
 
+def search_form(travellers=None):
+    """The trip search controls.
+
+    Rendered by the API rather than sitting static in the page, because the
+    traveller options come from the shared access service and this feature does
+    not own that list.
+    """
+    travellers = travellers or {}
+
+    if travellers:
+        options = "".join(
+            f"<option value='{tid}'>{escape(row['full_name'])}</option>"
+            for tid, row in sorted(travellers.items())
+        )
+        traveller_field = (
+            f"<select name='traveller_id'><option value=''>any traveller</option>"
+            f"{options}</select>"
+        )
+    else:
+        traveller_field = (
+            "<input type='number' name='traveller_id' min='1' placeholder='traveller ID'>"
+        )
+
+    status_options = "".join(
+        f"<option value='{key}'>{key}</option>" for key in STATUS_PILLS
+    )
+
+    return f"""
+<form hx-get='/api/student-1/trips' hx-target='#trips-panel' hx-swap='innerHTML'
+      hx-trigger='submit, change from:select'>
+  <div class='form-grid'>
+    <div><label>Destination</label><input name='destination' placeholder='e.g. Kyoto'></div>
+    <div><label>Traveller</label>{traveller_field}</div>
+    <div><label>Status</label>
+      <select name='status'><option value=''>any status</option>{status_options}</select>
+    </div>
+  </div>
+  <button type='submit'>Search</button>
+  <span class='spinner'>loading...</span>
+</form>
+"""
+
+
 def trip_form(trip=None, travellers=None):
     """Create form when trip is None, otherwise an update form."""
     is_edit = trip is not None
@@ -158,6 +201,8 @@ def days_table(days, trip=None):
             f"<td style='white-space:normal'>{escape(day['activity'])}</td>"
             f"<td class='muted' style='white-space:normal'>{escape(day.get('notes') or '')}</td>"
             "<td>"
+            f"<button class='btn-sm btn-secondary' hx-get='/api/student-1/days/{day_id}/edit' "
+            f"hx-target='#itinerary-panel' hx-swap='beforeend'>Edit</button> "
             f"<button class='btn-sm btn-danger' hx-delete='/api/student-1/days/{day_id}' "
             f"hx-target='#itinerary-panel' hx-swap='innerHTML'>Delete</button>"
             "</td>"
@@ -167,25 +212,49 @@ def days_table(days, trip=None):
     table = (
         "<div class='table-wrap'><table>"
         "<thead><tr><th>Day</th><th>Date</th><th>Location</th><th>Activity</th>"
-        "<th>Notes</th><th></th></tr></thead>"
+        "<th>Notes</th><th>Actions</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody></table></div>"
     )
     return heading + table + (day_form(trip["trip_id"]) if trip else "")
 
 
-def day_form(trip_id):
+def day_form(trip_id, day=None):
+    """Add form when day is None, otherwise an update form."""
+    is_edit = day is not None
+    day = day or {}
+    day_id = day.get("day_id")
+
+    attrs = (
+        f"hx-put='/api/student-1/days/{day_id}'"
+        if is_edit
+        else "hx-post='/api/student-1/days'"
+    )
+
+    def value(field, default=""):
+        return escape(str(day.get(field, default)))
+
+    cancel = (
+        f"<button type='button' class='btn-secondary' "
+        f"hx-get='/api/student-1/trips/{trip_id}/days' "
+        f"hx-target='#itinerary-panel' hx-swap='innerHTML'>Cancel</button>"
+        if is_edit
+        else ""
+    )
+
     return f"""
-<form hx-post='/api/student-1/days' hx-target='#itinerary-panel' hx-swap='innerHTML'
+<form {attrs} hx-target='#itinerary-panel' hx-swap='innerHTML'
       style='margin-top:1rem'>
+  <h4 style='margin:0 0 0.6rem'>{'Update day ' + str(day.get('day_number', '')) if is_edit else 'Add a day'}</h4>
   <input type='hidden' name='trip_id' value='{trip_id}'>
   <div class='form-grid'>
-    <div><label>Day number</label><input type='number' name='day_number' min='1' required></div>
-    <div><label>Date</label><input type='date' name='day_date' required></div>
-    <div><label>Location</label><input name='location' required></div>
-    <div><label>Activity</label><input name='activity' required></div>
-    <div><label>Notes</label><input name='notes'></div>
+    <div><label>Day number</label><input type='number' name='day_number' min='1' value='{value("day_number")}' required></div>
+    <div><label>Date</label><input type='date' name='day_date' value='{value("day_date")}' required></div>
+    <div><label>Location</label><input name='location' value='{value("location")}' required></div>
+    <div><label>Activity</label><input name='activity' value='{value("activity")}' required></div>
+    <div><label>Notes</label><input name='notes' value='{value("notes")}'></div>
   </div>
-  <button type='submit'>Add day</button>
+  <button type='submit'>{'Save changes' if is_edit else 'Add day'}</button>
+  {cancel}
   <span class='spinner'>saving...</span>
 </form>
 """
