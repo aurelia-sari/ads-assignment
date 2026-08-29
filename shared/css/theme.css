@@ -293,12 +293,13 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
      Destination now gets the largest share and a floor, and every column may
      shrink below its content width so a long place name is not clipped. */
   /* Floors are sized to real content, not guessed. A native date input needs
-     roughly 9rem to show dd/mm/yyyy plus its picker icon, so two of them and a
-     dash need about 19rem. The previous 13rem floor combined with min-width:0
-     made the dates column overflow into the budget field instead of growing. */
+     roughly 9.5rem to show dd/mm/yyyy plus its picker icon, so two of them, a
+     dash and the field's indent need about 20.5rem. An earlier 13rem floor
+     combined with min-width:0 made the column overflow into the budget field
+     instead of growing. */
   grid-template-columns:
     minmax(10rem, 1.5fr) auto
-    minmax(19rem, 1.4fr) auto
+    minmax(20.5rem, 1.4fr) auto
     minmax(7rem, 0.8fr) auto;
   align-items: center;
   gap: 18px;
@@ -842,8 +843,13 @@ pre {
 }
 
 .search-card__value input[type="date"] {
-    flex: 1 1 0;
-    min-width: 8.6rem;
+    /* Not flex: 1 1 0. Stretching the input pushes its native picker icon to
+       the far right of the field, leaving a gap after the date text and
+       crowding the next column. Let it size to its content and let the column
+       floor below hold the space instead. */
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
 }
 
 .search-card__value input[type="number"] {
