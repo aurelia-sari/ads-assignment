@@ -171,8 +171,129 @@ useful - so the tests need to assert on grounded output, not just on a 200.
 
 ### 2.7 Data design
 
-Conceptual, ERD, logical and physical models. *Each student covers their own
-tables.* student-1's physical model:
+The specification requires conceptual, ERD, logical and physical models. They
+are given below as four distinct levels rather than four drawings of the same
+thing: each adds a decision the previous level deliberately left open.
+
+*Each student covers their own tables. student-1's models follow.*
+
+#### 2.7.1 Conceptual model
+
+Entities and relationships only - no attributes, no keys, no types.
+
+Source: `docs/diagrams/student-1-conceptual.mmd`
+
+```mermaid
+graph LR
+    T["TRAVELLER<br/><i>who is going</i>"]
+    P["TRIP<br/><i>where and when</i>"]
+    D["ITINERARY DAY<br/><i>what happens each day</i>"]
+
+    T -->|"plans<br/>1 : many"| P
+    P -->|"is scheduled as<br/>1 : many"| D
+```
+
+Three entities. A traveller plans many trips; a trip is scheduled as many
+itinerary days. **Only TRIP and ITINERARY_DAY are owned by student-1.**
+TRAVELLER belongs to the shared access service, and that boundary is the single
+most consequential fact in this model - it is why the traveller relationship
+cannot be a foreign key.
+
+#### 2.7.2 Entity-relationship diagram
+
+Attributes, keys and cardinality.
+
+Source: `docs/diagrams/student-1-erd.mmd`
+
+```mermaid
+erDiagram
+    TRAVELLER ||..o{ TRIP : "plans (cross-service)"
+    TRIP      ||--o{ ITINERARY_DAY : "is scheduled as"
+
+    TRAVELLER {
+        INTEGER traveller_id PK "owned by shared-db"
+        TEXT    full_name
+        TEXT    email        UK
+        TEXT    home_city
+        TEXT    member_since
+    }
+
+    TRIP {
+        INTEGER trip_id      PK
+        TEXT    trip_name        "NOT NULL"
+        TEXT    destination      "NOT NULL"
+        TEXT    start_date       "NOT NULL, ISO 8601"
+        TEXT    end_date         "NOT NULL, ISO 8601, >= start_date"
+        INTEGER traveller_id FK  "cross-service, not enforced"
+        REAL    budget_aud       "NOT NULL, default 0"
+        TEXT    status           "planned|booked|completed|cancelled"
+    }
+
+    ITINERARY_DAY {
+        INTEGER day_id      PK
+        INTEGER trip_id     FK "NOT NULL, ON DELETE CASCADE"
+        INTEGER day_number     "NOT NULL, ordinal within the trip"
+        TEXT    day_date       "NOT NULL, ISO 8601"
+        TEXT    location       "NOT NULL"
+        TEXT    activity       "NOT NULL"
+        TEXT    notes          "optional"
+    }
+```
+
+The two relationship notations differ deliberately:
+
+| Notation | Relationship | Meaning |
+|----------|--------------|---------|
+| `\|\|--o{` (solid) | TRIP to ITINERARY_DAY | Identifying, enforced in SQLite by a foreign key with `ON DELETE CASCADE` |
+| `\|\|..o{` (dashed) | TRAVELLER to TRIP | Non-identifying and **not enforceable** - the entities live in different services and different SQLite files |
+
+#### 2.7.3 Logical model
+
+Relations, keys, domains and constraints, independent of any particular DBMS.
+
+**TRIP**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| trip_id | integer | PK | surrogate, auto-assigned |
+| trip_name | string(120) | | NOT NULL |
+| destination | string(120) | | NOT NULL |
+| start_date | date | | NOT NULL |
+| end_date | date | | NOT NULL, `end_date >= start_date` |
+| traveller_id | integer | FK → TRAVELLER | NOT NULL, **cross-service** |
+| budget_aud | decimal(10,2) | | NOT NULL, default 0 |
+| status | enum | | one of planned, booked, completed, cancelled |
+
+**ITINERARY_DAY**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| day_id | integer | PK | surrogate, auto-assigned |
+| trip_id | integer | FK → TRIP | NOT NULL, cascade on delete |
+| day_number | integer | | NOT NULL, >= 1 |
+| day_date | date | | NOT NULL |
+| location | string(120) | | NOT NULL |
+| activity | string(255) | | NOT NULL |
+| notes | string(255) | | optional |
+
+**Normalisation.** Both relations are in third normal form.
+
+- *1NF* - every attribute is atomic. Itinerary days are rows, not a repeating
+  group or a delimited list inside TRIP.
+- *2NF* - both relations use a single-attribute surrogate primary key, so no
+  partial dependency on part of a composite key is possible.
+- *3NF* - no non-key attribute determines another. `destination` does not
+  derive `budget_aud`; `day_number` does not derive `location`.
+
+`traveller_id` is deliberately the *only* traveller attribute stored here.
+Copying `full_name` into TRIP would denormalise across a service boundary and
+create a second source of truth that could silently diverge from the shared
+access database. The name is resolved at render time instead - see ADR-001.
+
+#### 2.7.4 Physical model
+
+The logical model realised in SQLite, which is what the specification mandates
+for Release 0.
 
 ```sql
 CREATE TABLE trips (
@@ -198,29 +319,40 @@ CREATE TABLE itinerary_days (
 );
 ```
 
-Seeded with 12 trips and 15 itinerary days, above the ten-record minimum.
+Seeded with **12 trips and 15 itinerary days**, above the ten-record minimum
+required by specification section 2.4.
 
-`traveller_id` is a **cross-feature reference, not a foreign key**. Traveller
-records live in the shared access database, which is a different service, so
-SQLite cannot enforce the relationship. student-1 resolves it over HTTP through
-`services/shared_api.py` and renders the traveller's name in the trip table.
+**Where the physical model departs from the logical model, and why**
 
-This is the application's data-ownership model in miniature, and ADR-001
-records why it was chosen over one shared database: SQLite takes a
-database-level write lock, so a single file behind fifteen writer containers
-would serialise every write and risk corruption. The accepted cost is that
-referential integrity across features is advisory - a trip can reference a
-traveller that no longer exists, and the table falls back to `#<id>`.
+| Logical | Physical | Reason |
+|---------|----------|--------|
+| `date` | `TEXT` | SQLite has no date type. ISO 8601 strings sort and compare correctly as text. |
+| `enum` for status | `TEXT` + application check | SQLite has no enum. Validated in `db/app.py` against `VALID_STATUSES`. |
+| `end_date >= start_date` | application check | Enforced in `validate_trip()` rather than as a table constraint. |
+| `decimal(10,2)` | `REAL` | See the limitation below. |
+| FK to TRAVELLER | none | The referenced table is in another service's database file. |
 
-| Owner | Holds | Examples |
-|-------|-------|----------|
-| `shared-db.travellers` | Identity - what every feature needs to answer "who" | traveller_id, name, email, home city |
-| `student-4` database | Profile - what only the account feature needs | preferences, onboarding state, dashboard layout |
+`PRAGMA foreign_keys = ON` is set on every connection, because SQLite does not
+enforce foreign keys by default - without it the cascade would silently not
+happen.
 
-`traveller_id` is the join key across all five features and is the only
-traveller field another feature may store.
+**Known limitations of the physical model**
 
----
+1. **`budget_aud` is `REAL`.** Binary floating point is the wrong
+   representation for money and can accumulate rounding error. Integer cents
+   would be correct. Not changed for Release 0 because the field is only
+   displayed and summed for presentation, never used in a financial
+   calculation, but it should be fixed before any budgeting arithmetic is
+   added in Release 1.
+2. **No unique constraint on `(trip_id, day_number)`.** Confirmed by
+   experiment: posting a second day numbered 1 to trip 1 returns `201`, leaving
+   day numbers `[1, 1, 2, 3, 4]`. The UI sorts by `day_number`, so duplicates
+   display in arbitrary order rather than failing loudly. A
+   `UNIQUE (trip_id, day_number)` constraint is the fix, deferred to Release 1
+   because it needs a migration of seeded data.
+3. **No indexes beyond the primary keys.** At 12 and 15 rows this is
+   irrelevant; `itinerary_days(trip_id)` would be the first index to add, since
+   every itinerary view filters on it.
 
 ## 3. Repository structure
 

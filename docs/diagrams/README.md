@@ -11,6 +11,8 @@ export PNGs into `docs/evidence/` for the report.
 | `docker-compose-architecture.mmd` | Docker Compose architecture diagram |
 | `devops-pipeline.mmd` | DevOps pipeline architecture |
 | `agentic-loop.mmd` | Plan -> Act -> Observe -> Adapt workflow diagram |
+| `student-1-conceptual.mmd` | Data design - conceptual model (student-1) |
+| `student-1-erd.mmd` | Data design - entity-relationship diagram (student-1) |
 
 Students 2-5: copy `student-1-architecture.mmd` and change the service names,
 ports, and tables to your own feature.

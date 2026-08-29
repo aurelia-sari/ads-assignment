@@ -1,0 +1,40 @@
+%% student-1 (Caroline Zhou) - Trips & Itinerary
+%% Entity-relationship diagram.
+%%
+%% TRAVELLER is owned by the shared access database, not by this service.
+%% It is drawn because trips reference it, but the dashed relationship is a
+%% reminder that SQLite cannot enforce it: the reference crosses a service
+%% boundary and is resolved over HTTP at render time. See ADR-001.
+
+erDiagram
+    TRAVELLER ||..o{ TRIP : "plans (cross-service)"
+    TRIP      ||--o{ ITINERARY_DAY : "is scheduled as"
+
+    TRAVELLER {
+        INTEGER traveller_id PK "owned by shared-db"
+        TEXT    full_name
+        TEXT    email        UK
+        TEXT    home_city
+        TEXT    member_since
+    }
+
+    TRIP {
+        INTEGER trip_id      PK
+        TEXT    trip_name        "NOT NULL"
+        TEXT    destination      "NOT NULL"
+        TEXT    start_date       "NOT NULL, ISO 8601"
+        TEXT    end_date         "NOT NULL, ISO 8601, >= start_date"
+        INTEGER traveller_id FK  "cross-service, not enforced"
+        REAL    budget_aud       "NOT NULL, default 0"
+        TEXT    status           "planned|booked|completed|cancelled"
+    }
+
+    ITINERARY_DAY {
+        INTEGER day_id      PK
+        INTEGER trip_id     FK "NOT NULL, ON DELETE CASCADE"
+        INTEGER day_number     "NOT NULL, ordinal within the trip"
+        TEXT    day_date       "NOT NULL, ISO 8601"
+        TEXT    location       "NOT NULL"
+        TEXT    activity       "NOT NULL"
+        TEXT    notes          "optional"
+    }

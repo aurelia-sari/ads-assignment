@@ -1,0 +1,16 @@
+%% student-1 - Conceptual data model.
+%% Entities and relationships only. No attributes, no keys, no types - those
+%% belong to the logical and physical models.
+
+graph LR
+    T["TRAVELLER<br/><i>who is going</i>"]
+    P["TRIP<br/><i>where and when</i>"]
+    D["ITINERARY DAY<br/><i>what happens each day</i>"]
+
+    T -->|"plans<br/>1 : many"| P
+    P -->|"is scheduled as<br/>1 : many"| D
+
+    subgraph Boundary["owned by student-1"]
+        P
+        D
+    end
