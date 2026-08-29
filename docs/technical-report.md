@@ -5,9 +5,9 @@
 
 > Working draft. Export to PDF for submission - Canvas accepts one group PDF.
 >
-> **Deadline conflict to resolve with the tutor:** the project specification and
-> the assignment page both say 30 August 2026, 11:59 PM AEST. The Canvas due
-> date field says 6 September 2026, 11:59 PM. Assume 30 August until confirmed.
+> **Due: 6 September 2026, 11:59 PM.** The specification PDF and the assignment
+> description both say 30 August; the Canvas due-date field says 6 September,
+> and that is the date that applies.
 >
 > Every section below is required by section 10.3 of the project
 > specification. Sections marked **(Individual)** need one subsection per
@@ -279,6 +279,23 @@ iteration.
 
 ### 5.3 Prompt engineering and context management
 
+> **Marking criterion 5.** This criterion covers prompt engineering and context
+> management *used during software development*, which is a different thing from
+> the prompts the running application uses. Both are documented:
+>
+> | | Where |
+> |---|-------|
+> | AI **in** the product - AI-Mode, chatbot, agentic loop | this section and appendix A |
+> | AI **for** development - Claude, used to build the microservices | **`docs/evidence/ai-assisted-development.md`** |
+>
+> The development-time document records the context sources used, how AI
+> assistance mapped to each activity in specification section 4.4, the eight
+> defects in AI-generated work that validation caught, and the prompting
+> patterns that worked. Specification section 4.6 requires AI-generated work to
+> be validated before submission; that document is the evidence it was.
+
+#### 5.3.1 Prompts the running application uses
+
 Prompt artefacts live in `ai-services/prompts/`, split into `implementation/`
 (prompts the running application uses) and `review/` (prompts the agentic loop
 uses).
@@ -470,6 +487,10 @@ non-attendance scores 0.
 ---
 
 ## Appendix A: prompt engineering iterations
+
+These are iterations on the prompts the *product* uses. For prompt engineering
+and context management during *development*, see
+`docs/evidence/ai-assisted-development.md`.
 
 Evidence for marking criterion 5 (prompt engineering and context management).
 
