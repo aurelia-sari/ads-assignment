@@ -88,19 +88,86 @@ Non-functional:
 
 ### 2.5 Feature plan **(Individual)**
 
-*One per student: scope, tasks, order of work, and what is deferred to Release 1.*
+#### student-1 - Caroline Zhou - Trips & Itinerary
+
+**Scope.** A traveller creates a trip, builds a day-by-day itinerary against it,
+and asks an AI chatbot questions grounded in that data. Two tables, both with
+full CRUD, plus one AI surface.
+
+**Why this order.** The work was sequenced bottom-up, so that every layer was
+verifiable before anything depended on it. A frontend built against an unproven
+API produces two suspects when something breaks.
+
+| # | Task | Deliverable | Done |
+|---|------|-------------|------|
+| 1 | Database schema and seed | `trips` (12 rows), `itinerary_days` (15 rows) | 24 Aug |
+| 2 | Database API | CRUD over HTTP on both tables, port 5201 | 24 Aug |
+| 3 | Backend/API | HTMX fragments, `routes/` `services/` `views/` split | 24 Aug |
+| 4 | Frontend | Three tabs, shared CSS theme | 24 Aug |
+| 5 | AI-Mode integration | Chatbot grounded in live trip data | 24 Aug |
+| 6 | CI workflow | `student-1.yml`, build + health + CRUD validation | 24 Aug |
+| 7 | Cross-feature read | Resolve `traveller_id` via the shared access API | 24 Aug |
+| 8 | Complete itinerary CRUD | Update on days, closing a gap found in review | 28 Aug |
+
+**Design decisions worth defending.**
+
+1. *One module owns database access.* Every call to `student-1-db` goes through
+   `services/database_api.py`. The data-ownership rule is then checkable by
+   reading one file rather than auditing every route.
+2. *The backend returns HTML, not JSON.* HTMX swaps fragments directly, so
+   there is no client-side rendering layer to keep in sync with the API.
+3. *Cross-feature data is fetched, never copied.* A trip stores `traveller_id`
+   and nothing else about the traveller. The name is resolved at render time
+   from the shared access API, so there is one source of truth.
+4. *Every external call degrades.* If the shared API is down the table shows
+   `#7` instead of a name; if AI-Mode is down the chatbot returns a notice, not
+   a stack trace. One service failing must not take the feature down.
+
+**Deferred to Release 1.**
+
+- Ground the chatbot in retrieved context via the RAG server, rather than the
+  hand-built summary in `routes/ai_chat.py`
+- Expose trips through the MCP server so other features can query them
+- Reconcile itinerary days against Kevin's attractions, so a day can reference a
+  real place rather than free text
+- Server-side pagination once the trip count outgrows a single table
 
 ### 2.6 Risk management plan **(Individual)**
 
-*One per student. Group-level risks that are already known:*
+#### student-1 - Caroline Zhou
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| A team machine cannot serve a large LLM (8 GB RAM measured at 0.05 tok/s on `llama3.1:8b`) | High | Medium | Default to `qwen2.5:0.5b`; `OLLAMA_MODEL` is per-machine |
-| Ollama not running before the demo, so every AI feature fails live | Medium | High | `scripts/dev.sh up` warns; deployment steps in the video start Ollama first |
-| Integration slips to the last week and features do not connect | Medium | High | The scaffold integrates all five slots from day one; CI runs on every PR |
-| Merge conflicts in `docker-compose.yml` | Medium | Low | Each student edits only their own block |
-| A student's feature works standalone but is not integrated (scores 0) | Low | High | Smoke test runs against the shared compose file, not a local copy |
+Risks are rated for their effect on **my** deliverable. Several already
+occurred during Release 0, so this register records what actually happened and
+what was put in place afterwards, rather than only what might.
+
+**Risks that materialised**
+
+| # | Risk | Impact | What happened | Response |
+|---|------|--------|---------------|----------|
+| R1 | A teammate's change breaks my feature | **High** | A design commit replaced my page with static markup. Every `hx-*` attribute and API call was removed. The feature looked fine and did nothing. | `smoke_test.py` now asserts each page carries HTMX attributes and calls its own API. Team convention agreed: a design change must preserve `hx-*` wiring. |
+| R2 | Green CI while the feature is broken | **High** | The tests validated the API and database, never that the page called them. R1 passed CI. | Frontend wiring assertions added. Verified against the broken revision - it now fails. |
+| R3 | A race-dependent bug survives testing | **High** | nginx resolved upstreams at startup, so the hub required all five frontends to exist. It passed repeatedly, then deadlocked when start order shifted. | All `proxy_pass` targets are variables, resolved per request. A missing service now 502s on its own route only. |
+| R4 | Shared files edited in parallel | Medium | `theme.css` was replaced rather than extended, dropping 24 classes four other pages relied on. | Component layer restored on top of the new design. Convention agreed: extend the theme, never replace it. |
+| R5 | Dependency version drift | Medium | `openai==1.51` passed `proxies=` to `httpx`, which 0.28 removed. AI-Mode crash-looped. | `httpx` pinned to 0.27.2. |
+| R6 | Work built on a wrong assumption | Medium | The student-to-slot mapping was assumed rather than confirmed, and was wrong for four of five. | Corrected before anyone built on it. Ownership is now in the README, in file headers, and on each page. |
+
+**Open risks**
+
+| # | Risk | Likelihood | Impact | Mitigation | Owner |
+|---|------|-----------|--------|------------|-------|
+| R7 | Ollama not running at showcase, so every AI feature fails live | Medium | **High** | `dev.sh up` warns when port 11434 is unreachable. Starting Ollama is an explicit step in the demo script and is shown in the video. | Me |
+| R8 | The demo machine cannot serve the model | Medium | **High** | Default is `qwen2.5:0.5b`, which runs on the 8 GB machine. `OLLAMA_MODEL` is per-machine, so no one is forced onto a model their laptop cannot run. | Me |
+| R9 | The home page loads 8 images from `picsum.photos`; venue wifi fails | Medium | Medium | Copy the images into `shared/assets/` and serve them locally before the showcase. **Not yet done.** | Team |
+| R10 | Cross-feature reference integrity | Low | Low | SQLite cannot enforce a reference across a service boundary, so a trip can point at a deleted traveller. Display degrades to `#<id>`. Accepted for Release 0; see ADR-001. | Me |
+| R11 | Report evidence cannot be reconstructed after the fact | Medium | **High** | Screenshots, CI logs and loop run records are collected into `docs/evidence/` as work happens, not at the end. | Team |
+| R12 | Integration slips because features are built in isolation | Low | **High** | The scaffold integrated all five slots from day one, and CI runs against the shared compose file rather than a local copy. | Team |
+
+**What I would carry into Release 1.** R1, R2 and R3 share a shape: something
+passed every check and was still broken, because the check tested a layer below
+the one that mattered. The response in each case was to move the assertion up to
+the layer a marker or user actually touches. Release 1 adds MCP and RAG, where
+the same trap exists - a retrieval call can succeed and still return nothing
+useful - so the tests need to assert on grounded output, not just on a 200.
 
 ### 2.7 Data design
 
@@ -354,7 +421,28 @@ git log --pretty=format:'%h %an %ad %s' --date=short
 
 | Student | Contribution | Commits | Evidence |
 |---------|--------------|---------|----------|
-| | | | |
+| Caroline Zhou | Repository scaffold and shared architecture; Trips & Itinerary feature (2 tables, full CRUD, AI chatbot); shared AI-Mode service; agentic loop; all five CI workflows; cross-feature read; ADR-001 | 8 | `git log --author=caramelchew` |
+| Kevin Kim | Attractions & Dining feature: 3 tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration | 6 | PR #6 |
+| Aung Ko Khaing | Landing page design and shared CSS theme (navy/cream palette, Poppins + Inter) | 1 | commit `b2678a0` |
+| Tanishpreet Kour | *(to complete)* | | |
+| Aurelia Sari | *(to complete)* | | |
+
+Per-student commit counts:
+
+```bash
+git shortlog -sn --all
+```
+
+#### Caroline Zhou - detail
+
+| Date | Contribution |
+|------|--------------|
+| 24 Aug | Repository scaffold: 18-container Compose stack, shared frontend/API/DB, AI-Mode service, agentic loop, 5 CI workflows, docs |
+| 24 Aug | Trips & Itinerary: schema + seed, database API, backend/API, HTMX frontend, AI chatbot |
+| 24 Aug | Cross-feature traveller resolution with caching and graceful degradation; corrected the student slot mapping |
+| 24 Aug | Fixed an nginx startup deadlock and a CI readiness race |
+| 28 Aug | Restored feature-page function after a design regression; added frontend wiring assertions to CI |
+| 28 Aug | Completed CRUD on itinerary days |
 
 ### 10.3 Attendance checkpoints
 
