@@ -1,5 +1,8 @@
-Task: answer the traveller's question about their trip planning.
+Task: answer the traveller's question using only the trip data supplied below.
 
-Prefer concrete, actionable advice over general travel writing. If the question
-is about timing or sequencing, take the itinerary's existing days into account
-so your suggestion fits what is already planned.
+Read the data first. Identify which trip or which itinerary day the question is
+about, then answer from those exact fields.
+
+If the question asks you to compare trips, compare only on values that appear in
+the data, such as budget, dates or status. Do not introduce a criterion the data
+does not contain.

@@ -550,7 +550,7 @@ student's feature, and the AI chatbot answering.*
 |---|-------|--------|------|
 | 1 | Students 2-5 still hold the generated `records` scaffold rather than real feature schemas | Those features are not yet real | Each owner replaces their schema, routes and page |
 | 2 | Ollama runs on the host, not in a container | Deployment has a manual prerequisite | Document in the video; containerise if RAM allows |
-| 3 | `qwen2.5:0.5b` is small and its answers are shallow | Demo quality | Raise `OLLAMA_MODEL` on a larger machine |
+| 3 | Local models answer direct lookups correctly but fail aggregation across the full context - asked which of 12 trips has the smallest budget, `llama3.2` named a trip costing AUD 3,300 when the smallest is AUD 2,900 | An aggregate question gives a confidently wrong answer | Demonstrate direct lookups, which are reliable. A real fix computes aggregates in the backend and passes the answer as context, rather than asking the model to scan and compare. Release 1. |
 | 4 | AI-Mode adds one hop over the specification's direct Backend -> Ollama flow | Deviation from the spec diagram | Justified in ADR-001 |
 | 5 | Cross-feature referential integrity is advisory - SQLite cannot enforce a reference across service boundaries | A trip can point at a deleted traveller | Display degrades to `#<id>`; a reconciliation check is a Release 1 candidate |
 | 6 | No automated tests beyond the smoke test | Limited regression cover | pytest is a Release 2 requirement |
@@ -663,7 +663,54 @@ A sample run is committed at `docs/evidence/agentic-loop-sample-run.md`.
 
 *To do: attach the before/after ADAPT output side by side for the report.*
 
-### A.2 Grounding the traveller chatbot
+### A.2 Stopping the chatbot inventing figures
+
+**Problem observed.** With the first system prompt, the chatbot answered
+questions about data it had not been given. Asked *"which of my trips has the
+tightest budget for its length?"*, `qwen2.5:0.5b` replied that a trip "covers a
+distance of 2026 kilometres and costs AUD 1,795 per day" - both invented, with
+2026 taken from the year in a date. Asked what was planned on day 2, it returned
+day 1's activity.
+
+**Change 1 - the prompt.** The system prompt now leads with grounding rules that
+override everything else: answer only from the supplied data, never state a
+number that is not written verbatim in it, and say the information is not
+recorded when it is absent. The task prompt tells the model to identify which
+trip or day the question is about *before* answering.
+
+*Result:* the day-2 question became correct on both models.
+
+**Change 2 - the context had a hole.** Asked about budgets, the model had
+nothing to work from: `build_context` listed every trip's name, destination,
+dates and status but omitted `budget_aud`. The model filled the gap by
+inventing. Prompt rules cannot fix missing data, only make the model admit it.
+Budget is now included.
+
+**Change 3 - the model.** Even with the tightened prompt, `qwen2.5:0.5b` still
+invented kilometre figures for a question the data could not answer. `llama3.2`
+answered *"This information is not recorded."* to the identical question, and
+still responds in 2-8 seconds on the 8 GB machine, so it became the serving
+model.
+
+| Question | qwen2.5:0.5b | llama3.2 |
+|----------|--------------|----------|
+| What is planned on day 2? | correct after prompt fix | correct |
+| How many kilometres will I travel? | invented per-day distances | **"This information is not recorded."** |
+| Which trip has the smallest budget? | wrong | wrong |
+
+**What is still not solved.** Both models fail the aggregation question. The
+smallest budget is AUD 2,900; `llama3.2` names a trip at AUD 3,300. Scanning
+twelve rows and comparing is not something a 3B model does reliably, and no
+prompt fixed it. Recorded as known issue 3. The right fix is to compute the
+aggregate in the backend and pass the answer as context, rather than asking the
+model to do arithmetic - deferred to Release 1.
+
+**The generalisable lesson.** Three different causes produced the same symptom:
+a confident wrong number. One was a prompt that permitted invention, one was
+missing context, one was model capability. Diagnosing which of the three you
+have is the actual skill; changing the prompt only helps for the first.
+
+### A.3 Grounding the traveller chatbot
 
 `routes/ai_chat.py` builds a plain-text summary of the traveller's real trips
 and itinerary days and passes it as context, so answers reference trips that
@@ -673,11 +720,12 @@ never claim to have made or changed a booking.
 
 *To do: record an example answer with and without the grounding context.*
 
-### A.3 Model selection
+### A.4 Model selection
 
-`qwen2.5:0.5b` serves the application because it responds fast enough to
-demonstrate live. `llama3.2:latest` runs the review loop, where a slower and
-more capable model is worth the wait. Both are configurable per machine through
-`.env`, because team hardware differs - see ADR-001, decision 3.
+`llama3.2:latest` serves the application and also runs the review loop. It was
+chosen over `qwen2.5:0.5b` for accuracy, not speed - see A.2. `llama3.1:8b`
+remains unusable on the 8 GB machine, needing a 6.2 GB working set. The model is
+configurable per machine through `.env`, because team hardware differs - see
+ADR-001, decision 3.
 
 *To do: note any further model changes and the reason for each.*

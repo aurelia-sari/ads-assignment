@@ -31,7 +31,7 @@ Shared services: `shared-frontend` (8080), `shared-api` (5000), `shared-db`
 ## Prerequisites
 
 - Docker Desktop (running)
-- Ollama, with an approved model pulled: `ollama pull qwen2.5:0.5b`
+- Ollama, with an approved model pulled: `ollama pull llama3.2`
 - Python 3.11+ (only for the helper scripts; the services run in containers)
 
 ## Quick start
@@ -127,12 +127,14 @@ makes a cross-origin request and the group does not need CORS workarounds.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434/v1` | Ollama endpoint |
-| `OLLAMA_MODEL` | `qwen2.5:0.5b` | model the application serves |
+| `OLLAMA_MODEL` | `llama3.2:latest` | model the application serves |
 | `OLLAMA_REVIEW_MODEL` | `llama3.2:latest` | larger model for the agentic loop |
 
 Ollama runs on the **host** by default, not in a container. On an 8 GB machine
-`llama3.1:8b` needs a 6.2 GB working set and thrashes swap, so the default
-serving model is the small `qwen2.5:0.5b`. Raise it on a machine with more RAM:
+`llama3.1:8b` needs a 6.2 GB working set and thrashes swap, so the serving model
+is `llama3.2` (3B, 2.0 GB). `qwen2.5:0.5b` was tried first and is faster, but it
+invents figures the data does not contain. Raise the model on a machine with
+more RAM:
 
 ```bash
 ollama pull llama3.1:8b

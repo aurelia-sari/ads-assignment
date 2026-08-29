@@ -77,25 +77,27 @@
         </p>
 
         <div class="chat-log" id="chat-log">
-            <p class="muted">Ask something like "which of my trips has the tightest budget?"</p>
+            <div class="chat-log__empty" id="chat-empty">
+                No messages yet. Try <strong>"which of my trips has the tightest budget?"</strong>
+            </div>
         </div>
 
         <form hx-post="/api/student-1/ai/chat"
               hx-target="#chat-log"
               hx-swap="beforeend"
               hx-on::after-request="this.reset(); document.getElementById('chat-log').scrollTop = 99999">
-            <div class="form-grid">
-                <div style="grid-column:1/-1">
-                    <label>Question</label>
-                    <input name="question" placeholder="Ask about your trips or itinerary" required>
-                </div>
-                <div>
-                    <label>Ground in one trip (optional trip ID)</label>
-                    <input name="trip_id" type="number" min="1" placeholder="e.g. 1">
-                </div>
+            <label for="ai-question" class="sr-only-label">Ask NextStop AI</label>
+            <div class="chat-input-row">
+                <input id="ai-question" type="text" name="question"
+                       placeholder="Ask about your trips or itinerary..."
+                       autocomplete="off" required>
+                <button type="submit">Ask</button>
             </div>
-            <button type="submit">Ask</button>
-            <span class="spinner">thinking, this can take a moment on a local model...</span>
+            <div class="chat-options">
+                <label for="ai-trip-id" style="margin:0">Ground in one trip (optional)</label>
+                <input id="ai-trip-id" type="number" name="trip_id" min="1" placeholder="trip ID">
+                <span class="spinner">thinking, this can take a moment on a local model...</span>
+            </div>
         </form>
     </section>
 </main>
@@ -114,9 +116,27 @@ function activate(name) {
         panel.classList.toggle("is-active", key === name)
     );
     window.location.hash = name;
+
+    if (name === "ai") {
+        const input = document.getElementById("ai-question");
+        if (input) input.focus();
+    }
 }
 
 buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
+
+// The transcript is not typeable, so send anyone who clicks it to the input.
+const chatLog = document.getElementById("chat-log");
+const questionInput = document.getElementById("ai-question");
+chatLog.addEventListener("click", () => questionInput.focus());
+
+// Drop the empty-state line as soon as there is a real message.
+document.body.addEventListener("htmx:afterSwap", (event) => {
+    if (event.target.id === "chat-log") {
+        const empty = document.getElementById("chat-empty");
+        if (empty) empty.remove();
+    }
+});
 
 const initial = window.location.hash.replace("#", "");
 activate(panels[initial] ? initial : "trips");

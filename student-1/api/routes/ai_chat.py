@@ -41,9 +41,12 @@ def build_context(trip_id=None):
 
         trips = database_api.list_trips()
         lines = [f"The traveller has {len(trips)} trips:"]
+        # Budget was missing here, so any question about cost had nothing to
+        # answer from and the model filled the gap by inventing figures.
         lines += [
             f"  #{trip['trip_id']} {trip['trip_name']} to {trip['destination']}, "
-            f"{trip['start_date']} to {trip['end_date']}, {trip['status']}"
+            f"{trip['start_date']} to {trip['end_date']}, "
+            f"budget AUD {trip['budget_aud']:.0f}, {trip['status']}"
             for trip in trips
         ]
         return "\n".join(lines)
