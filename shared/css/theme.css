@@ -27,6 +27,15 @@
 
   /* Radii — reused across buttons, cards, inputs.
      Prefix: --radius-*   */
+  /* Compatibility alias. The four pages scaffolded before the theme was
+     redesigned reference --accent inline, and an inline style wins over a
+     stylesheet rule. When the variable does not exist the declaration is
+     invalid and the colour falls back to inherit, so their "back to all
+     features" links rendered as plain grey text. Defining the alias fixes all
+     four without editing files their owners are responsible for. Remove it once
+     they have moved to .back-link. */
+  --accent: #4a83c4;
+
   --radius-pill:  999px;
   --radius-card:  22px;
   --radius-input: 14px;
@@ -466,6 +475,46 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
 .app-header p {
     color: var(--color-slate-500);
     font-size: 0.95rem;
+}
+
+/* The landing layer sets `a { color: inherit; text-decoration: none }`, which
+   makes a link inside a feature header indistinguishable from the text beside
+   it. Any link in a page header is navigation and must look like it. */
+.app-header a {
+    color: var(--color-blue-500);
+    font-weight: 600;
+}
+
+.app-header a:hover {
+    color: var(--color-navy-800);
+    text-decoration: underline;
+}
+
+/* Back to the unified home page. Placed above the title, because a way out
+   belongs at the top of the page, not buried in a byline. */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+    padding: 0.4rem 0.9rem 0.4rem 0.7rem;
+    border: 1px solid var(--color-slate-200);
+    border-radius: var(--radius-pill);
+    background: var(--color-white);
+    color: var(--color-slate-500);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.back-link:hover {
+    border-color: var(--color-blue-500);
+    color: var(--color-navy-800);
+    text-decoration: none;
+}
+
+.back-link span[aria-hidden] {
+    font-size: 1rem;
+    line-height: 1;
 }
 
 .card {

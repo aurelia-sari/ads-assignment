@@ -434,9 +434,11 @@ FRONTEND_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <main class="app-shell">
+    <a class="back-link" href="/"><span aria-hidden="true">&larr;</span> All features</a>
+
     <header class="app-header card">
         <h1>{feature}</h1>
-        <p>Student {n} &middot; {owner} &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
+        <p>Student {n} &middot; {owner} &middot; part of the NextStop integrated application</p>
     </header>
 
     <div class="notice notice-error">
