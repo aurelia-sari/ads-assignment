@@ -653,6 +653,20 @@ tbody tr:hover { background: var(--color-cream-50); }
     font-weight: 600;
 }
 
+/* Visible to screen readers, not on screen. The panel heading already names
+   the control, so a second visible label is noise. */
+.sr-only-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* The input row: one obvious place to type, with the button beside it. */
 .chat-input-row {
     display: flex;

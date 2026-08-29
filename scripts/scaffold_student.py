@@ -393,6 +393,7 @@ server {{
 
     location / {{
         root /usr/share/nginx/html;
+        add_header Cache-Control "no-cache";
         try_files $uri /index.html;
     }}
 
