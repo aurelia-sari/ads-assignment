@@ -478,8 +478,17 @@ FRONTEND_HTML = """<!DOCTYPE html>
         <h3 style="margin-top:0">NextStop AI</h3>
         <p class="muted">Runs locally through AI-Mode and Ollama.</p>
 
+        <div class="chat-head">
+            <p class="muted" style="margin:0">Runs locally through AI-Mode and Ollama.</p>
+            <button type="button" id="chat-clear" class="btn-sm btn-secondary" hidden>
+                Clear chat
+            </button>
+        </div>
+
         <div class="chat-log" id="chat-log">
-            <p class="muted">Ask a question about this feature's data.</p>
+            <div class="chat-log__empty" id="chat-empty">
+                No messages yet. Ask a question about this feature's data.
+            </div>
         </div>
 
         <form hx-post="/api/student-{n}/ai/chat"
@@ -513,6 +522,25 @@ function activate(name) {{
 }}
 
 buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
+
+// The conversation is not stored anywhere - no table, no session. It exists
+// only in this element, so clearing it is all there is to delete.
+const chatLog = document.getElementById("chat-log");
+const clearButton = document.getElementById("chat-clear");
+
+document.body.addEventListener("htmx:afterSwap", (event) => {{
+    if (event.target.id === "chat-log") {{
+        const empty = document.getElementById("chat-empty");
+        if (empty) empty.remove();
+        clearButton.hidden = chatLog.querySelectorAll(".chat-msg").length === 0;
+    }}
+}});
+
+clearButton.addEventListener("click", () => {{
+    chatLog.innerHTML =
+        '<div class="chat-log__empty" id="chat-empty">No messages yet.</div>';
+    clearButton.hidden = true;
+}});
 </script>
 </body>
 </html>

@@ -72,13 +72,18 @@
     <!-- AI chatbot -------------------------------------------------------- -->
     <section class="tab-panel card" id="panel-ai">
         <h3 style="margin-top:0">NextStop AI</h3>
-        <p class="muted">
-            Grounded in your real trip data. Runs locally through AI-Mode and Ollama.
-        </p>
+        <div class="chat-head">
+            <p class="muted" style="margin:0">
+                Grounded in your real trip data. Runs locally through AI-Mode and Ollama.
+            </p>
+            <button type="button" id="chat-clear" class="btn-sm btn-secondary" hidden>
+                Clear chat
+            </button>
+        </div>
 
         <div class="chat-log" id="chat-log">
             <div class="chat-log__empty" id="chat-empty">
-                No messages yet. Try <strong>"which of my trips has the tightest budget?"</strong>
+                No messages yet. Try <strong>"what is planned on day 2?"</strong>
             </div>
         </div>
 
@@ -130,12 +135,32 @@ const chatLog = document.getElementById("chat-log");
 const questionInput = document.getElementById("ai-question");
 chatLog.addEventListener("click", () => questionInput.focus());
 
+// The conversation is not stored anywhere - no table, no session. It exists
+// only in this element, so clearing it is genuinely all there is to delete.
+const clearButton = document.getElementById("chat-clear");
+
+const EMPTY_STATE =
+    '<div class="chat-log__empty" id="chat-empty">' +
+    'No messages yet. Try <strong>"what is planned on day 2?"</strong>' +
+    "</div>";
+
+function refreshClearButton() {
+    clearButton.hidden = chatLog.querySelectorAll(".chat-msg").length === 0;
+}
+
 // Drop the empty-state line as soon as there is a real message.
 document.body.addEventListener("htmx:afterSwap", (event) => {
     if (event.target.id === "chat-log") {
         const empty = document.getElementById("chat-empty");
         if (empty) empty.remove();
+        refreshClearButton();
     }
+});
+
+clearButton.addEventListener("click", () => {
+    chatLog.innerHTML = EMPTY_STATE;
+    refreshClearButton();
+    questionInput.focus();
 });
 
 const initial = window.location.hash.replace("#", "");

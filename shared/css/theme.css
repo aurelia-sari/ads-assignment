@@ -653,6 +653,14 @@ tbody tr:hover { background: var(--color-cream-50); }
     font-weight: 600;
 }
 
+.chat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
 /* Visible to screen readers, not on screen. The panel heading already names
    the control, so a second visible label is noise. */
 .sr-only-label {
