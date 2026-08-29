@@ -40,7 +40,14 @@ def build_context(trip_id=None):
             return "\n".join(lines)
 
         trips = database_api.list_trips()
-        lines = [f"The traveller has {len(trips)} trips:"]
+        # This is a platform: these trips belong to different travellers. Saying
+        # "the traveller has 12 trips" told the model twelve people's trips
+        # belonged to one person, and it answered accordingly.
+        owners = {trip["traveller_id"] for trip in trips}
+        lines = [
+            f"There are {len(trips)} trips in the system, "
+            f"belonging to {len(owners)} different travellers:"
+        ]
         # Budget was missing here, so any question about cost had nothing to
         # answer from and the model filled the gap by inventing figures.
         lines += [

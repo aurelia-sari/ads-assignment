@@ -1,4 +1,6 @@
-Context: this application stores trips (name, destination, dates, traveller,
-budget in AUD, status) and itinerary days (day number, date, location,
-activity, notes). Budgets are in Australian dollars. Dates are ISO format
-(YYYY-MM-DD).
+Context: this application stores trips (name, destination, dates, the
+traveller who planned it, budget in Australian dollars, status) and itinerary
+days (day number, date, location, activity, notes).
+
+Trips belong to different travellers. Budgets are in Australian dollars. Dates
+are ISO format (YYYY-MM-DD).

@@ -17,36 +17,23 @@
     </header>
 
     <nav class="tab-nav">
-        <button class="tab-btn is-active" data-tab="trips" type="button">Trips</button>
+        <button class="tab-btn is-active" data-tab="trips" type="button">All trips</button>
         <button class="tab-btn" data-tab="itinerary" type="button">Day-by-day</button>
         <button class="tab-btn" data-tab="ai" type="button">AI assistant</button>
     </nav>
 
     <!-- Trips: full CRUD ------------------------------------------------ -->
     <section class="tab-panel is-active card" id="panel-trips">
-        <form hx-get="/api/student-1/trips"
-              hx-target="#trips-panel"
-              hx-swap="innerHTML"
-              hx-trigger="submit, change from:select">
-            <div class="form-grid">
-                <div>
-                    <label>Search destination</label>
-                    <input name="destination" placeholder="e.g. Kyoto">
-                </div>
-                <div>
-                    <label>Status</label>
-                    <select name="status">
-                        <option value="">any</option>
-                        <option value="planned">planned</option>
-                        <option value="booked">booked</option>
-                        <option value="completed">completed</option>
-                        <option value="cancelled">cancelled</option>
-                    </select>
-                </div>
-            </div>
-            <button type="submit">Search</button>
-            <span class="spinner">loading...</span>
-        </form>
+        <p class="muted" style="margin-top:0">
+            All trips on the platform. NextStop hosts many travellers, so a trip
+            belongs to the traveller who planned it — filter below to see one
+            person's trips.
+        </p>
+
+        <div id="search-panel"
+             hx-get="/api/student-1/trips/search"
+             hx-trigger="load"
+             hx-swap="innerHTML"></div>
 
         <div id="trips-panel"
              hx-get="/api/student-1/trips"

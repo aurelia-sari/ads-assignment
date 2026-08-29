@@ -69,7 +69,7 @@ Functional:
 | ID | Requirement | Acceptance criteria |
 |----|-------------|---------------------|
 | F1.1 | Create a trip with name, destination, dates, traveller, budget and status | Trip appears in the trip table with a generated ID |
-| F1.2 | Read trips, filtered by destination or status | Filtered table returns only matching trips |
+| F1.2 | Read trips, filtered by destination, traveller or status | Filtered table returns only matching trips |
 | F1.3 | Update any field of an existing trip | Changed values persist and redisplay |
 | F1.4 | Delete a trip and its itinerary days | Trip and its days are both removed |
 | F1.5 | Add, view, update and delete day-by-day itinerary entries for a trip | Days display in day-number order; edits persist and redisplay |
@@ -193,8 +193,9 @@ graph LR
     P -->|"is scheduled as<br/>1 : many"| D
 ```
 
-Three entities. A traveller plans many trips; a trip is scheduled as many
-itinerary days. **Only TRIP and ITINERARY_DAY are owned by student-1.**
+Three entities. NextStop is a **multi-traveller platform**: a traveller plans
+many trips, and each trip belongs to exactly one traveller, who is its planner.
+A trip is scheduled as many itinerary days. **Only TRIP and ITINERARY_DAY are owned by student-1.**
 TRAVELLER belongs to the shared access service, and that boundary is the single
 most consequential fact in this model - it is why the traveller relationship
 cannot be a foreign key.

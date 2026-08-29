@@ -77,6 +77,49 @@ def trips_table(trips, travellers=None):
     )
 
 
+def search_form(travellers=None):
+    """The trip search controls.
+
+    Rendered by the API rather than sitting static in the page, because the
+    traveller options come from the shared access service and this feature does
+    not own that list.
+    """
+    travellers = travellers or {}
+
+    if travellers:
+        options = "".join(
+            f"<option value='{tid}'>{escape(row['full_name'])}</option>"
+            for tid, row in sorted(travellers.items())
+        )
+        traveller_field = (
+            f"<select name='traveller_id'><option value=''>any traveller</option>"
+            f"{options}</select>"
+        )
+    else:
+        traveller_field = (
+            "<input type='number' name='traveller_id' min='1' placeholder='traveller ID'>"
+        )
+
+    status_options = "".join(
+        f"<option value='{key}'>{key}</option>" for key in STATUS_PILLS
+    )
+
+    return f"""
+<form hx-get='/api/student-1/trips' hx-target='#trips-panel' hx-swap='innerHTML'
+      hx-trigger='submit, change from:select'>
+  <div class='form-grid'>
+    <div><label>Destination</label><input name='destination' placeholder='e.g. Kyoto'></div>
+    <div><label>Traveller</label>{traveller_field}</div>
+    <div><label>Status</label>
+      <select name='status'><option value=''>any status</option>{status_options}</select>
+    </div>
+  </div>
+  <button type='submit'>Search</button>
+  <span class='spinner'>loading...</span>
+</form>
+"""
+
+
 def trip_form(trip=None, travellers=None):
     """Create form when trip is None, otherwise an update form."""
     is_edit = trip is not None
