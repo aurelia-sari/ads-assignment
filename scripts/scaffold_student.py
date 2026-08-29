@@ -434,7 +434,7 @@ FRONTEND_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <main class="app-shell">
-    <a class="back-link" href="/"><span aria-hidden="true">&larr;</span> All features</a>
+    <a class="back-link" href="/"><span aria-hidden="true">&larr;</span> Home page</a>
 
     <header class="app-header card">
         <h1>{feature}</h1>
