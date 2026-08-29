@@ -850,6 +850,13 @@ pre {
     width: 6.5rem;
 }
 
+/* Fields with a leading icon indent their value by the icon plus its gap.
+   The dates field has no icon, so it needs the same indent to stay aligned
+   with destination and budget. */
+.search-card__value--no-icon {
+    padding-left: 24px;
+}
+
 .search-card__dash {
     color: var(--color-slate-500);
     padding: 0 0.15rem;
