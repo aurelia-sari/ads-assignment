@@ -154,6 +154,45 @@ clearButton.addEventListener("click", () => {
 
 const initial = window.location.hash.replace("#", "");
 activate(panels[initial] ? initial : "trips");
+
+// The home page hero submits here with the trip it was describing. Carry those
+// values into the create form so "Plan my trip" actually starts planning one,
+// rather than dropping the user on a blank page.
+const heroParams = new URLSearchParams(window.location.search);
+
+if (heroParams.has("destination") || heroParams.has("budget_aud")) {
+    document.body.addEventListener("htmx:afterSwap", function prefill(event) {
+        if (event.target.id !== "trip-form-panel") return;
+
+        const form = event.target.querySelector("form");
+        if (!form) return;
+
+        const map = {
+            destination: "destination",
+            start_date: "start_date",
+            end_date: "end_date",
+            budget_aud: "budget_aud",
+        };
+
+        for (const [param, field] of Object.entries(map)) {
+            const value = heroParams.get(param);
+            const input = form.querySelector(`[name="${field}"]`);
+            if (value && input) input.value = value;
+        }
+
+        const name = form.querySelector('[name="trip_name"]');
+        const destination = heroParams.get("destination");
+        if (name && !name.value && destination) {
+            name.value = `Trip to ${destination}`;
+        }
+
+        form.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (name) name.focus();
+
+        // Only prefill the first time the form renders.
+        document.body.removeEventListener("htmx:afterSwap", prefill);
+    });
+}
 </script>
 </body>
 </html>

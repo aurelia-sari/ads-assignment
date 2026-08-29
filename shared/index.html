@@ -69,34 +69,49 @@
       <p class="navBox__desc">Search flights, hotels, build a day-by-day itinerary, and find a travel mate — one AI-assisted app, five features working together.</p>
     </div>
 
-    <form class="search-card" aria-label="Plan a trip">
+    <!-- Feeds the trip planner. Submitting carries the values to student-1's
+         create-trip form as query parameters, so the hero is a real entry point
+         into the application rather than a picture of one. -->
+    <form class="search-card" aria-label="Plan a trip" method="get" action="/student-1/">
       <div class="search-card__field">
-        <span class="search-card__label">Destination</span>
+        <label class="search-card__label" for="hero-destination">Destination</label>
         <div class="search-card__value">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0114 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
-          <span>Tokyo, Japan</span>
+          <input id="hero-destination" name="destination" type="text"
+                 value="Tokyo, Japan" placeholder="Where to?" autocomplete="off">
         </div>
       </div>
 
       <div class="search-card__divider"></div>
 
       <div class="search-card__field">
-        <span class="search-card__label">Dates</span>
+        <label class="search-card__label" for="hero-start">Dates</label>
         <div class="search-card__value">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
-          <span>15 – 21 Aug 2026</span>
+          <input id="hero-start" name="start_date" type="date" value="2026-08-15">
+          <span class="search-card__dash">&ndash;</span>
+          <input id="hero-end" name="end_date" type="date" value="2026-08-21">
         </div>
       </div>
 
       <div class="search-card__divider"></div>
 
       <div class="search-card__field">
-        <span class="search-card__label">Budget</span>
+        <label class="search-card__label" for="hero-budget">Budget (AUD)</label>
         <div class="search-card__value">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 15.5c.6.7 1.5 1 2.5 1 1.7 0 3-.9 3-2s-1.3-1.7-3-2-3-.9-3-2 1.3-2 3-2c1 0 1.9.3 2.5 1"/><path d="M12 6v1M12 17v1"/></svg>
-          <span>$1,800 AUD</span>
+          <!-- A list lets the chevron offer presets while the field stays
+               typeable, which a select would not. -->
+          <input id="hero-budget" name="budget_aud" type="number" min="0" step="50"
+                 value="1800" list="budget-presets" placeholder="Amount">
+          <datalist id="budget-presets">
+            <option value="1000"></option>
+            <option value="1800"></option>
+            <option value="3000"></option>
+            <option value="5000"></option>
+            <option value="8000"></option>
+          </datalist>
         </div>
-        <svg class="search-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
       </div>
 
       <button type="submit" class="btn btn--pill-dark search-card__submit">Plan my trip</button>
