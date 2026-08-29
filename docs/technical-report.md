@@ -18,12 +18,37 @@
 
 ## 1. Project overview
 
-NextStop is an Agentic AI travel planning application. A traveller plans trips,
-builds a day-by-day itinerary, discovers attractions and dining, tracks
-bookings and budget, and finds a travel companion. Local LLM support runs
-through a shared AI-Mode service.
+**The problem.** Planning a multi-day trip means holding several disconnected
+things in your head at once: where you are going and when, what you will do each
+day, what it costs, and who is coming. Most people do this across a spreadsheet,
+a notes app and a dozen browser tabs, and nothing reconciles. The failure is not
+a missing tool - it is that the tools do not share data, so changing the dates
+does not reach the itinerary or the budget.
 
-*To write: the real-world problem, target user, and scope of Release 0.*
+**The application.** NextStop is a travel planning platform where those concerns
+are separate services that do share data. A traveller plans a trip, builds a
+day-by-day itinerary against it, discovers attractions and dining, tracks
+bookings and budget, and finds a travel companion. An AI assistant runs locally
+and answers questions grounded in the traveller's actual data rather than
+offering general travel advice.
+
+**Target user.** An independent traveller planning a trip of several days or
+more, who wants the parts of the plan to stay consistent with each other.
+
+**Scope of Release 0.** The foundation, not the finished product:
+
+| In scope | Out of scope, and where it lands |
+|----------|----------------------------------|
+| Five features, each with frontend, backend/API and database microservices | Multi-Agent System - Release 2 |
+| One integrated application from a single Docker Compose configuration | Cloud deployment - Release 2 |
+| AI-Mode: a local LLM through Ollama, callable from the frontend | MCP and RAG servers - Release 1 |
+| The shared Plan - Act - Observe - Adapt agentic workflow | Automated unit testing - Release 2 |
+| Per-student CI that builds and validates each set of microservices | Real authentication - the account feature is scaffolded, not secured |
+
+NextStop is a **multi-traveller platform**: a trip belongs to the traveller who
+planned it. Release 0 has no authentication, so all trips are visible and
+filterable by traveller. Once the account feature is complete, "my trips" becomes
+a filter over the same data rather than a change to the model.
 
 ### 1.1 Team members and individual feature allocation
 
@@ -45,17 +70,134 @@ microservices. *Each student writes their own row's detail.*
 
 ### 2.1 Agile team project plan (Group)
 
-*To write: sprint length, ceremonies, how work was allocated and tracked.*
+**Team.** Five students, Canvas Group 25, working in one shared GitHub
+repository.
+
+**Allocation.** One feature per student, each owning three microservices, agreed
+in the Project Group Registration Form. Ownership is recorded in `README.md`, in
+a header comment in every generated source file, and on each feature page, so no
+one has to remember it.
+
+| Slot | Owner | Feature |
+|------|-------|---------|
+| student-1 | Caroline Zhou | Trips & Itinerary + AI assistant |
+| student-2 | Kevin Kim | Attractions & Dining |
+| student-3 | Tanishpreet Kour | Travel Mate |
+| student-4 | Aurelia Sari | Account & Dashboard |
+| student-5 | Aung Ko Khaing | Bookings & Budget |
+
+**How work flows.** Trunk-based development against `main`, with every change
+arriving through a pull request:
+
+1. Branch from `main` as `student-N/<feature>`
+2. Push and open a pull request
+3. That student's GitHub Actions workflow builds their three microservices,
+   starts them with the **shared** compose file, waits for health, and runs a
+   full CRUD smoke test
+4. Merge when green
+
+Because CI runs against the shared compose file rather than a local copy, `main`
+is always a working integrated application. That is what the specification means
+by integrating incrementally, and it is what makes the rule that non-integrated
+features score zero a non-issue rather than a risk.
+
+**Boundaries that let five people work in parallel.** Each student edits only
+their own `student-N/` directory and their own workflow file. `docker-compose.yml`,
+`shared/` and `ai-services/` are shared, and changes there are announced first.
+This is not theoretical: a change to the shared theme and to another student's
+feature page broke four pages and one feature while CI stayed green. That
+incident is recorded in 2.6 and is why the convention is now written down in
+`docs/CONTRIBUTING.md`.
+
+**Iterations.** Work is organised around the three release deadlines rather than
+fixed-length sprints. The Release 0 iteration ran from Week 4 group registration
+to the 6 September submission.
+
+> **Team to confirm before submitting:** meeting cadence and days, where
+> stand-ups happen (lab session or group chat), and how the backlog is tracked
+> (GitHub Issues, a board, or the table in 2.2). Describe what actually
+> happened - do not list ceremonies the team did not hold.
 
 ### 2.2 Sprint backlog (Group)
 
-| ID | Item | Owner | Type | Sprint | Status |
-|----|------|-------|------|--------|--------|
-| | | | | | |
+Release 0 backlog. Status reflects the repository as at 29 August 2026 and is
+verifiable from the commit history and CI runs.
+
+| ID | Item | Owner | Type | Status |
+|----|------|-------|------|--------|
+| G-01 | Shared repository with the structure required by specification 7.1 | Caroline | Group | Done |
+| G-02 | One shared `docker-compose.yml` running the integrated application | Caroline | Group | Done |
+| G-03 | Unified `index.html` routing to all five frontends | Caroline / Aung | Group | Done |
+| G-04 | Shared CSS theme across all five features | Aung / Caroline | Group | Done |
+| G-05 | Shared AI-Mode service using Ollama and an approved LLM | Caroline | Group | Done |
+| G-06 | Plan - Act - Observe - Adapt agentic workflow | Caroline | Group | Done |
+| G-07 | `student-1.yml` to `student-5.yml` CI workflows | Caroline | Group | Done |
+| G-08 | Shared access API and database for traveller identity | Caroline | Group | Done |
+| G-09 | Technical report | All | Group | In progress |
+| G-10 | Showcase video, 10 minutes, all five students | All | Group | **Not started** |
+| S1-1 | Trips CRUD: frontend, API, database | Caroline | Individual | Done |
+| S1-2 | Itinerary days CRUD | Caroline | Individual | Done |
+| S1-3 | AI assistant grounded in live trip data | Caroline | Individual | Done |
+| S1-4 | Cross-feature traveller resolution via the shared API | Caroline | Individual | Done |
+| S2-1 | Places, favourites and recommendations CRUD | Kevin | Individual | Done |
+| S2-2 | AI integration for recommendations | Kevin | Individual | Done |
+| S3-1 | Travel Mate schema and CRUD | TJ | Individual | **Scaffold only** |
+| S4-1 | Account, profile and dashboard schema and CRUD | Aurelia | Individual | **Scaffold only** |
+| S5-1 | Bookings and budget schema and CRUD | Aung | Individual | **Scaffold only** |
+| S5-2 | Landing page design and shared theme | Aung | Individual | Done |
+
+**Seeded record counts**, against the ten-per-table minimum in specification 2.4:
+
+| Service | Tables | Rows |
+|---------|--------|------|
+| student-1 | `trips`, `itinerary_days` | 12, 15 |
+| student-2 | `places`, `favourites`, `recommendations` | 15, 10, 10 |
+| student-3 | `records` (placeholder) | 12 |
+| student-4 | `records` (placeholder) | 12 |
+| student-5 | `records` (placeholder) | 12 |
+| shared | `travellers` | 12 |
+
+Students 3, 4 and 5 currently hold the generated scaffold rather than their real
+schema. The record counts satisfy the minimum, but the tables are placeholders,
+which is recorded as known issue 1.
 
 ### 2.3 Overall project plan (Group)
 
-*To write: Release 0, 1 and 2 milestones against the semester schedule.*
+| Release | Focus | Weight | Due | Showcase |
+|---------|-------|--------|-----|----------|
+| Release 0 | Microservices, AI-Mode, agentic loop, DevOps | 20% | 6 September 2026 | Week 6 |
+| Release 1 | MCP, RAG, grounded AI responses | 30% | 27 September 2026 | Week 9 |
+| Release 2 | Multi-Agent System, testing, cloud deployment | 30% | 18 October 2026 | Week 12 |
+
+Each release extends the previous one; nothing is rebuilt.
+
+**Release 1 - what Release 0 leaves for it**
+
+| Item | Why it lands here |
+|------|-------------------|
+| MCP server | Required by specification 4.2 |
+| RAG server and grounded responses | Required by specification 4.2 |
+| Real schemas for students 3, 4 and 5 | Placeholders in Release 0 - known issue 1 |
+| `trip_travellers` join table | Travel Mate matches companions to a trip, which a 1:many model cannot express - see 2.7 |
+| Aggregates computed in the backend | Local models answer direct lookups correctly but miscompare across rows - known issue 3 |
+| `budget_aud` as integer cents | Floating point is wrong for money before any arithmetic is added - see 2.7 |
+| Authentication, so "my trips" is a real filter | Account feature is scaffolded, not secured |
+
+**Release 2 - what it adds**
+
+Multi-Agent System with Planner, Worker and Reviewer agents; pre-commit `pytest`
+and post-commit AI-assisted unit testing in every workflow; `cloud-deployment.yml`;
+and deployment to Azure or AWS with AI-Mode enabled and MCP, RAG and Multi-Agent
+disabled.
+
+**Critical path.** The team's own dependency, not the specification's: Release 1
+cannot start cleanly until students 3, 4 and 5 replace their scaffolds, because
+MCP and RAG have to expose real schemas. That work is the first thing on the
+Release 1 board.
+
+> **Team to confirm:** who owns MCP, who owns RAG, and the cloud platform choice
+> for Release 2. Deciding the platform early matters - accounts and credentials
+> take time to arrange.
 
 ### 2.4 Functional and non-functional requirements **(Individual)**
 
@@ -357,8 +499,57 @@ happen.
 
 ## 3. Repository structure
 
-*Paste the tree from README.md and explain the separation between shared
-components and individual student components.*
+The repository follows the structure required by specification 7.1.
+
+```
+.
+├── .github/workflows/       student-1.yml .. student-5.yml
+├── ai-services/
+│   ├── ai-mode/             shared AI-Mode service (Flask, :5300)
+│   ├── agentic-loop/        Plan -> Act -> Observe -> Adapt loop
+│   └── prompts/             prompt engineering artefacts
+│       ├── implementation/  prompts the running application uses
+│       └── review/          prompts the agentic loop uses
+├── docs/
+│   ├── diagrams/            architecture and data diagrams (Mermaid)
+│   ├── evidence/            CI logs, agentic loop runs, screenshots
+│   ├── ADR-001-service-boundaries.md
+│   ├── CONTRIBUTING.md
+│   └── technical-report.md
+├── scripts/                 dev.sh, smoke_test.py, wait_for_health.py, scaffold_student.py
+├── shared/                  unified index.html, CSS theme, access API, access DB
+├── student-1/ .. student-5/ frontend/, api/, db/, tests/ per student
+├── docker-compose.yml       one configuration for the whole application
+├── .env.example
+└── README.md
+```
+
+Each `student-N/` directory holds that student's three microservices:
+
+```
+student-N/
+├── frontend/   nginx + HTMX page, links the shared CSS theme
+├── api/        Flask backend/API returning HTMX fragments
+├── db/         Flask + SQLite database API that owns its schema
+└── tests/
+```
+
+**Separation of shared and individual components.** The specification requires a
+clear boundary, and it is drawn so that it can be checked rather than trusted:
+
+| Scope | Directories | Who edits |
+|-------|-------------|-----------|
+| Individual | `student-N/`, `.github/workflows/student-N.yml` | That student only |
+| Shared | `shared/`, `ai-services/`, `scripts/`, `docker-compose.yml` | Anyone, announced first |
+
+Two properties make the boundary hold. Each database service opens only its own
+SQLite file, so cross-feature data must travel over HTTP. And in
+`docker-compose.yml` each student's three services form one contiguous block, so
+two people editing different features do not touch the same lines.
+
+Directory names are fixed at `student-N/`. They were briefly renamed to include
+owner names, which broke every build context and workflow path filter at once;
+ownership is recorded in the README and in file headers instead.
 
 ---
 
@@ -449,8 +640,18 @@ traveller's live trips and itinerary days and passes it as context, so the model
 answers about trips that exist. When the database is unreachable the chatbot
 answers without grounding rather than failing outright.
 
-*To write: prompt iterations - what was tried, what failed, what changed.
-This criterion is worth 2 marks and is documentation only.*
+Three prompt iterations are documented in full in **appendix A**, each with the
+observed failure, the change made and the measured result:
+
+| | What went wrong | Fix |
+|---|-----------------|-----|
+| A.1 | The agentic loop's reviewer invented `schemaRepository.js`, `config.json` and Java files that do not exist | Grounding rules restricting it to files named verbatim in the evidence |
+| A.2 | The assistant invented distances and per-day costs, and returned the wrong day | Grounding rules, a missing field added to the context, and a model change |
+| A.4 | Model selection | `llama3.2` over `qwen2.5:0.5b` for accuracy, not speed |
+
+A.2 is the useful one to read: three different causes produced the same symptom -
+a confident wrong number - and only one of them was fixable by changing the
+prompt.
 
 ### 5.4 Agentic loop workflow record
 
@@ -512,7 +713,37 @@ containers up, into `docs/evidence/`.*
 
 ## 7. Implementation summary
 
-*What was built in Release 0, per student.*
+**Group foundation.** One shared repository with the structure in section 3. An
+integrated application of 18 containers from a single `docker-compose.yml`: five
+sets of frontend, backend/API and database microservices, plus a shared frontend,
+access API and access database, plus the AI-Mode service. A unified home page
+routes to all five features on one origin. A shared CSS theme covers the landing
+page and the feature pages. Five GitHub Actions workflows build and validate each
+student's services against the shared compose file.
+
+**AI.** `ai-services/ai-mode` is the only service that talks to Ollama; backends
+call it over HTTP, giving one place for model selection, prompt loading and
+failure handling. `ai-services/agentic-loop` implements Plan - Act - Observe -
+Adapt over four review targets, collecting real evidence in the ACT step - live
+HTTP calls and reads of the compose and workflow files - and writing a markdown
+record per run.
+
+**Per student**
+
+| Student | Feature | Built |
+|---------|---------|-------|
+| student-1 Caroline | Trips & Itinerary | Two tables (12 trips, 15 itinerary days), full CRUD on both through frontend, API and database. AI assistant grounded in live trip data. Cross-feature traveller resolution from the shared access API, with a 30s cache and graceful degradation. |
+| student-2 Kevin | Attractions & Dining | Three tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration through AI-Mode. |
+| student-3 TJ | Travel Mate | Generated scaffold: working `records` CRUD trio, real schema outstanding. |
+| student-4 Aurelia | Account & Dashboard | Generated scaffold: working `records` CRUD trio, real schema outstanding. |
+| student-5 Aung | Bookings & Budget | Generated scaffold. Also designed the landing page and the shared CSS theme used across the application. |
+
+**Integration properties worth stating.** Each database container owns its schema
+and is the only process that opens its SQLite file; cross-feature data moves over
+HTTP only. No service calls Ollama directly. A service that is down degrades its
+own route rather than the application: the hub returns 502 for a missing feature
+and stays up, and student-1's trip table renders with `#7` in place of a
+traveller name when the shared access API is unreachable.
 
 ---
 
@@ -540,8 +771,23 @@ student-1 passed all checks.
 
 ### 8.2 Screenshots of the integrated application
 
-*Into `docs/evidence/`: the unified home page with the health panel, each
-student's feature, and the AI chatbot answering.*
+*To capture into `docs/evidence/` before submission:*
+
+| # | Screenshot | Shows |
+|---|------------|-------|
+| 1 | Home page, full | Unified index routing to all five features |
+| 2 | Home page integration status panel | 18 of 18 services up |
+| 3 | student-1 trips table | CRUD, and traveller names resolved cross-service |
+| 4 | student-1 itinerary for a trip | Second table, day-by-day |
+| 5 | student-1 AI assistant answering | AI-Mode through Ollama, grounded |
+| 6-9 | Each remaining student's feature | Every feature works in the integrated app |
+| 10 | `docker compose ps` | All containers up |
+| 11 | Agentic loop running in the terminal | Plan - Act - Observe - Adapt |
+| 12 | GitHub Actions, five green workflows | CI evidence, alongside the logs already in `docs/evidence/` |
+
+Take these from the integrated application at `http://localhost:8080`, not from
+a feature's own port - the specification assesses features as part of the
+integrated application.
 
 ---
 
@@ -565,7 +811,55 @@ student's feature, and the AI chatbot answering.*
 
 ```bash
 git log --pretty=format:'%h %an %ad %s' --date=short
+git shortlog -sn --all          # commits per author
 ```
+
+Commits per author as at 29 August 2026:
+
+| Author | Commits |
+|--------|---------|
+| caramelchew (Caroline Zhou) | 22 |
+| Kevin-111-kim (Kevin Kim) | 7 |
+| caro (Caroline Zhou, web edits) | 5 |
+| AlvinKhaing (Aung Ko Khaing) | 1 |
+| Aurelia Sari | 1 |
+
+*Caroline appears under two identities because commits made through the GitHub
+web editor use a different author name. Both are the same person.*
+
+Full history, most recent first:
+
+```
+b099e38 caro 2026-08-29 Restore feature-page function, keep the new design, complete itinerary CRUD (#7)
+b2678a0 AlvinKhaing 2026-08-28 Page Design and layout
+33df5fb Kevin-111-kim 2026-08-25 Merge pull request #6 from aurelia-sari/student-2/attractions-dining-v1
+db20b89 Kevin-111-kim 2026-08-25 Resolve main merge conflicts for student-2
+a24a4dd Kevin-111-kim 2026-08-25 Fix student-2 feature and pass CI tests
+546ebdd Kevin-111-kim 2026-08-25 Revert "Student 2 v0"
+3d43d8c Kevin-111-kim 2026-08-25 Add Student 2 prompt directories
+ab2d229 Kevin-111-kim 2026-08-25 Student 2 v0
+f987f62 caro 2026-08-24 Merge pull request #3 from aurelia-sari/rename/nextstop
+2ce6349 caramelchew 2026-08-24 Give the frontends a readiness probe, fixing a CI race
+ed85ae4 caramelchew 2026-08-24 Rename the app to NextStop, and fix an nginx startup deadlock
+f055a0f caro 2026-08-24 Update README.md
+e64ef28 caro 2026-08-24 Merge pull request #2 from aurelia-sari/evidence/release-0-ci
+3d0e451 caramelchew 2026-08-24 Add GitHub Actions execution evidence for Release 0
+1860745 caro 2026-08-24 Merge pull request #1 from aurelia-sari/scaffold/release-0
+0429a6c caramelchew 2026-08-24 Add cross-feature reads, and correct the student slot mapping
+ce5cb28 caramelchew 2026-08-24 Ground the review prompts, fix false-negative health probes
+863b714 caramelchew 2026-08-24 Scaffold Release 0: integrated microservices, AI-Mode, agentic loop, CI
+2a8bae5 Aurelia Sari 2026-08-21 Initial commit
+```
+
+**Pull requests**
+
+| # | Title | Author | Merged |
+|---|-------|--------|--------|
+| 7 | Restore feature-page function, keep the new design, complete itinerary CRUD | Caroline | 29 Aug |
+| 6 | Student 2: attractions and dining | Kevin | 25 Aug |
+| 3 | Rename to NextStop, fix an nginx startup deadlock | Caroline | 24 Aug |
+| 2 | GitHub Actions execution evidence | Caroline | 24 Aug |
+| 1 | Release 0 scaffold | Caroline | 24 Aug |
 
 ### 10.2 Contribution logs **(Individual)**
 
@@ -596,9 +890,19 @@ git shortlog -sn --all
 
 ### 10.3 Attendance checkpoints
 
-| Week | Date | Attended | Notes |
-|------|------|----------|-------|
-| | | | |
+> **Each student completes their own row set. This cannot be reconstructed from
+> the repository - fill it in from what actually happened.** Week 6 showcase
+> attendance is mandatory; the specification is explicit that non-attendance
+> scores 0 for that student.
+
+| Week | Date | Session | Caroline | Kevin | TJ | Aurelia | Aung |
+|------|------|---------|----------|-------|----|---------|------|
+| 1 | | Lab | | | | | |
+| 2 | | Lab | | | | | |
+| 3 | | Lab | | | | | |
+| 4 | | Lab - group registration | | | | | |
+| 5 | | Lab | | | | | |
+| 6 | | **Showcase (mandatory)** | | | | | |
 
 ---
 
