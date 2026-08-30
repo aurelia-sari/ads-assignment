@@ -1,0 +1,3 @@
+Recommend the most suitable places for the traveller's request.
+
+Select only from the supplied place data.

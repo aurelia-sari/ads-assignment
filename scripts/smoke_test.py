@@ -13,6 +13,8 @@ import json
 import sys
 import urllib.error
 import urllib.request
+import subprocess
+from pathlib import Path
 
 RESOURCES = {
     1: [
@@ -151,6 +153,23 @@ def check_cross_feature(trips_fragment):
         "no trip fell back to a raw traveller id",
     )
 
+"""Run the feature-specific smoke test for student-2"""
+def check_student_2():
+    test_file = (
+        Path(__file__).resolve().parent.parent
+        / "student-2"
+        / "tests"
+        / "smoke_test.py"
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(test_file)]
+    )
+
+    if result.returncode != 0:
+        raise SmokeFailure("student-2 feature smoke test failed")
+
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -170,6 +189,11 @@ def main():
 
         status, body = request("GET", f"{api_base}/health")
         expect(status == 200, "backend/API service is healthy")
+
+        if n == 2:
+            check_student_2()
+            print(f"\nstudent-{n} passed all checks.")
+            return 0
 
         for resource in RESOURCES.get(n, [DEFAULT_RESOURCE]):
             check_resource(db_base, *resource)

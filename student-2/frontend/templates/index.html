@@ -1,156 +1,664 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Attractions & Dining - NextStop</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>NextStop - Attractions & Dining</title>
+
+    <!-- Same fonts as the shared NextStop landing page -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Shared theme -->
     <link rel="stylesheet" href="/shared/css/theme.css">
-    <script src="/shared/js/htmx.min.js"></script>
+
+    <!-- HTMX -->
+    <script src="/shared/js/htmx.min.js" defer></script>
+
+    <style>
+
+        /* =========================================================
+           STUDENT 2 TYPOGRAPHY
+           ========================================================= */
+
+        .app-shell {
+            font-family: var(--font-body);
+        }
+
+        .app-shell h1,
+        .app-shell h2,
+        .app-shell h3 {
+            font-family: var(--font-display);
+            color: var(--color-ink-900);
+        }
+
+        .app-shell h1 {
+            font-weight: 700;
+        }
+
+        .app-shell h2,
+        .app-shell h3 {
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+
+        /* =========================================================
+           INTRODUCTION
+           ========================================================= */
+
+        .feature-intro {
+            margin-bottom: 1.6rem;
+            font-size: 0.98rem;
+            line-height: 1.65;
+        }
+
+
+        /* =========================================================
+           PLACE + FAVOURITE CARDS
+           ========================================================= */
+
+        #places-list .card,
+        #favourites-list .card {
+            line-height: 1.6;
+        }
+
+        /* Card title */
+        #places-list .card h2,
+        #favourites-list .card h2 {
+            font-family: var(--font-display);
+            font-size: 1.45rem;
+            font-weight: 700;
+            line-height: 1.3;
+
+            margin: 0 0 1rem 0;
+        }
+
+        /* Each information row */
+        #places-list .card p,
+        #favourites-list .card p {
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin: 0 0 0.55rem 0;
+        }
+
+        #places-list .card p:last-child,
+        #favourites-list .card p:last-child {
+            margin-bottom: 0;
+        }
+
+        #places-list .card strong,
+        #favourites-list .card strong {
+            font-weight: 600;
+        }
+
+
+        /* =========================================================
+           BUTTONS INSIDE PLACE / FAVOURITE CARDS
+           ========================================================= */
+
+        .place-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.55rem;
+
+            border-radius: var(--radius-pill);
+            padding: 0.65rem 1.25rem;
+
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 600;
+
+            cursor: pointer;
+        }
+
+        .place-action-btn svg {
+            width: 17px;
+            height: 17px;
+            flex-shrink: 0;
+        }
+
+        .place-action-btn--favourite {
+            background: var(--color-navy-800);
+            color: var(--color-white);
+        }
+
+        .place-action-btn--delete {
+            background: #c6281d;
+            color: var(--color-white);
+        }
+
+        .place-action-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+
+        /* =========================================================
+           AI PANEL
+           ========================================================= */
+
+        #panel-ai > h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.4rem;
+        }
+
+        #panel-ai > .muted {
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+
+        /* =========================================================
+           AI RESULT
+           ========================================================= */
+
+        #recommendation-result {
+            font-family: var(--font-body);
+        }
+
+        #recommendation-result h2 {
+            font-family: var(--font-display);
+            font-size: 1.55rem;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 1.15rem;
+        }
+
+        #recommendation-result h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 1.25rem;
+        }
+
+        #recommendation-result p {
+            font-size: 0.96rem;
+            line-height: 1.65;
+            margin-bottom: 0.5rem;
+        }
+
+        #recommendation-result strong {
+            font-weight: 600;
+        }
+
+
+        /* Question / Answer spacing */
+        #recommendation-result > div:first-child > div {
+            margin-bottom: 1.8rem;
+        }
+
+        #recommendation-result > div:first-child > div:last-child {
+            margin-bottom: 0;
+        }
+
+        #recommendation-result > div:first-child strong {
+            display: block;
+            font-family: var(--font-display);
+            margin-bottom: 0.7rem;
+        }
+
+
+        /* =========================================================
+           AI FORM
+           ========================================================= */
+
+        .ai-question-form {
+            margin-top: 2rem;
+        }
+
+        .ai-question-form label {
+            margin-bottom: 0.55rem;
+        }
+
+        .ai-question-form input {
+            min-height: 48px;
+            padding: 0.75rem 1rem;
+        }
+
+        .ai-submit-row {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+
+        /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
+        @media (max-width: 760px) {
+
+            #recommendation-result .card {
+                grid-template-columns: 1fr !important;
+            }
+
+            #recommendation-result .card img {
+                height: 220px !important;
+            }
+        }
+
+    </style>
+
 </head>
+
+
 <body>
+
 <main class="app-shell">
+
+
+    <!-- =========================================================
+         HEADER
+         ========================================================= -->
+
     <header class="app-header card">
-        <h1>Attractions & Dining</h1>
-        <p>Student 2 &middot; Kevin Kim &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
+
+        <h1>Attractions &amp; Dining</h1>
+
+        <p>
+            Student 2 · Kevin Kim ·
+            <a href="/">back to all features</a>
+        </p>
+
     </header>
 
-    <div class="notice notice-error">
-        Release 0 scaffold. Kevin Kim: replace the generic records below with the
-        real Attractions & Dining feature. The wiring (frontend to API to database to
-        AI-Mode) already works, so start by changing the schema in
-        <code>student-2/db/init_db.py</code>.
-    </div>
+    <!-- =========================================================
+         DESCRIPTION
+         ========================================================= -->
 
-    <div class="notice">
-    Browse Sydney attractions and restaurants, save favourites, and receive AI-powered recommendations.
-    </div>
+    <p class="feature-intro">
+        Browse Sydney attractions and restaurants,
+        save favourites, and receive AI-powered recommendations.
+    </p>
+
+    <!-- =========================================================
+         TAB NAVIGATION
+         ========================================================= -->
 
     <nav class="tab-nav">
-        <button class="tab-btn is-active" data-tab="places" type="button">Places</button>
-        <button class="tab-btn" data-tab="favourites" type="button">Favourites</button>
-        <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
+
+        <button
+            type="button"
+            class="tab-btn is-active"
+            data-tab="places">
+            Places
+        </button>
+
+        <button
+            type="button"
+            class="tab-btn"
+            data-tab="favourites">
+            Favourites
+        </button>
+
+        <button
+            type="button"
+            class="tab-btn"
+            data-tab="ai">
+            AI mode
+        </button>
+
     </nav>
 
-    <section class="tab-panel is-active card" id="panel-places">
-        <div id="places-panel"
-             hx-get="/api/student-2/places"
-             hx-trigger="load"
-             hx-swap="innerHTML"></div>
 
-        <form hx-post="/api/student-2/places"
-              hx-target="#places-panel"
-              hx-swap="innerHTML"
-              hx-on::after-request="this.reset()"
-              style="margin-top:1.5rem">
-            <h3 style="margin-top:0">Add places</h3>
-                <div class="form-grid">
-                    <div>
-                        <label>Name</label>
-                        <input name="name" required>
-                    </div>
+<!-- =========================================================
+     PLACES
+     ========================================================= -->
 
-                    <div>
-                        <label>Category</label>
-                        <select name="category">
-                            <option value="attraction">
-                                Attraction
-                            </option>
-                            <option value="restaurant">
-                                Restaurant
-                            </option>
-                            <option value="activities">
-                                Activities
-                            </option>
-                        </select>
-                    </div>
+    <section
+        id="panel-places"
+        class="tab-panel is-active">
 
-                    <div>
-                        <label>Address</label>
-                        <input name="address">
-                    </div>
+    <!-- =====================================================
+         PLACE LIST
+         ===================================================== -->
+    <section class="card">
 
-                    <div>
-                        <label>Rating</label>
-                        <input type="number"
-                            min="0.0"
-                            max="5.0"
-                            step="0.1"
-                            name="rating">
-                    </div>
-
-                    <div>
-                        <label>Price Range</label>
-                        <select name="price_range">
-                            <option>0</option>
-                            <option>10</option>
-                            <option>30</option>
-                            <option>50</option>
-                            <option>70</option>                            
-                            <option>100</option>
-                            <option>200</option>
-                        </select>
-                    </div>
-                    <div style="grid-column:1/-1">
-                        <label>Description</label>
-                        <textarea
-                            name="description">
-                        </textarea>
-                    </div>
-                </div>
-            <button type="submit">Create</button>
-            <span class="spinner">saving...</span>
-        </form>
-    </section>
-
-    <section class="tab-panel card" id="panel-favourites">
-        <h3>Saved Favourites</h3>
-        <div id="favourites-panel"
-            hx-get="/api/student-2/favourites"
+        <div
+            id="places-list"
+            hx-get="/api/student-2/places"
             hx-trigger="load"
             hx-swap="innerHTML">
+
+            <p class="muted">
+                Loading places...
+            </p>
+
         </div>
+
     </section>
 
-    <section class="tab-panel card" id="panel-ai">
-        <h3 style="margin-top:0">NextStop AI</h3>
-        <p class="muted">Runs locally through AI-Mode and Ollama.</p>
+    <!-- =====================================================
+         ADD NEW PLACE
+         ===================================================== -->
+    <section class="card" style="margin-bottom:1.5rem;">
 
-        <div class="chat-log" id="chat-log">
-            <p class="muted">Ask a question about this feature's data.</p>
-        </div>
+        <h3 style="margin-bottom:1.5rem;">
+            Add New Place
+        </h3>
 
-        <form hx-post="/api/student-2/ai/chat"
-              hx-target="#chat-log"
-              hx-swap="beforeend"
-              hx-on::after-request="this.reset()">
+        <form
+            hx-post="/api/student-2/places"
+            hx-target="#places-list"
+            hx-swap="innerHTML"
+            hx-on::after-request="
+                if(event.detail.successful){
+                    alert('Place added successfully.');
+                    this.reset();
+                }
+            ">
+
             <div class="form-grid">
-                <div style="grid-column:1/-1">
-                    <label>Question</label>
-                    <input name="question" required>
+
+                <div>
+                    <label>Name</label>
+                    <input
+                        name="name"
+                        required
+                        placeholder="Place name">
                 </div>
+
+                <div>
+                    <label>Category</label>
+                    <select name="category" required>
+                        <option value="attraction">Attraction</option>
+                        <option value="restaurant">Restaurant</option>
+                        <option value="activities">Activities</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Address</label>
+                    <input
+                        name="address"
+                        required
+                        placeholder="Address">
+                </div>
+
+                <div>
+                    <label>Rating</label>
+                    <input
+                        type="number"
+                        name="rating"
+                        min="0"
+                        max="5"
+                        step="0.1"
+                        placeholder="4.5">
+                </div>
+
+                <div>
+                    <label>Price Range</label>
+                    <select name="price_range">
+                        <option value="0">Free</option>
+                        <option value="10">A$10</option>
+                        <option value="30">A$30</option>
+                        <option value="50">A$50</option>
+                        <option value="70">A$70</option>
+                        <option value="100">A$100</option>
+                        <option value="200">A$200</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Opening Hours</label>
+                    <input
+                        name="opening_hours"
+                        placeholder="09:00-17:00">
+                </div>
+
+                <div style="grid-column:1/-1;">
+                    <label>Image URL</label>
+                    <input
+                        type="url"
+                        name="image_url"
+                        placeholder="https://example.com/photo.jpg">
+                </div>
+
+                <div style="grid-column:1/-1;">
+                    <label>Description</label>
+                    <textarea
+                        name="description"
+                        rows="3"
+                        placeholder="Short description"></textarea>
+                </div>
+
             </div>
-            <button type="submit">Ask</button>
-            <span class="spinner">thinking...</span>
+
+            <button type="submit">
+                Add Place
+            </button>
+
+            <span class="spinner">
+                adding...
+            </span>
+
         </form>
+
     </section>
+
+
+    <!-- =====================================================
+         UPDATE PLACE
+         ===================================================== -->
+    <section class="card" style="margin-bottom:1.5rem;">
+
+        <h3 style="margin-bottom:1.5rem;">
+            Update Place
+        </h3>
+
+        <form
+            hx-get="/api/student-2/places/edit"
+            hx-target="#place-edit-form"
+            hx-swap="innerHTML">
+
+            <div class="form-grid">
+
+                <div>
+                    <label>Place ID</label>
+                    <input
+                        type="number"
+                        name="id"
+                        min="1"
+                        required
+                        placeholder="Enter Place ID">
+                </div>
+
+            </div>
+
+            <button type="submit">
+                Find Place
+            </button>
+
+            <span class="spinner">
+                loading...
+            </span>
+
+        </form>
+
+        <div
+            id="place-edit-form"
+            style="margin-top:2rem;">
+        </div>
+
+    </section>
+
+
+
+</section>
+
+    <!-- =========================================================
+         FAVOURITES
+         ========================================================= -->
+
+    <section
+        id="panel-favourites"
+        class="tab-panel">
+
+        <section class="card">
+
+            <h3 style="margin-bottom:1.5rem;">
+                Favourite Places
+            </h3>
+
+            <div
+                id="favourites-list"
+                hx-get="/api/student-2/favourites"
+                hx-trigger="load, favouritesChanged from:body"
+                hx-swap="innerHTML">
+
+                <p class="muted">
+                    Loading favourites...
+                </p>
+
+            </div>
+
+        </section>
+
+    </section>
+
+
+    <!-- =========================================================
+         AI MODE
+         ========================================================= -->
+        <section
+            id="panel-ai"
+            class="tab-panel card">
+
+            <h3>
+                NextStop AI Recommendation
+            </h3>
+
+            <p class="muted">
+                Get AI-powered attraction and dining recommendations
+                based on available places.
+            </p>
+
+
+            <!-- =====================================================
+                AI QUESTION FORM
+                ===================================================== -->
+
+            <form
+                class="ai-question-form"
+                hx-post="/api/student-2/ai/recommend"
+                hx-target="#recommendation-result"
+                hx-swap="innerHTML"
+                hx-on::after-request="
+                    if(event.detail.successful){
+                        this.reset()
+                    }
+                ">
+
+                <div class="form-grid">
+
+                    <div style="grid-column:1/-1">
+
+                        <label for="ai-question">
+                            Question
+                        </label>
+
+                        <input
+                            id="ai-question"
+                            name="question"
+                            type="text"
+                            required
+                            autocomplete="off"
+                            placeholder="e.g. Recommend one cheap restaurant.">
+
+                    </div>
+
+                </div>
+
+
+                <div class="ai-submit-row">
+
+                    <button type="submit">
+                        Get Recommendation
+                    </button>
+
+                    <span class="spinner">
+                        thinking...
+                    </span>
+
+                </div>
+
+            </form>
+
+
+            <!-- =====================================================
+                AI RESULT
+                ===================================================== -->
+
+            <div
+                id="recommendation-result"
+                aria-live="polite"
+                style="margin-top:2.5rem;">
+            </div>
+
+        </section>
 </main>
 
+
+<!-- =============================================================
+     TAB SCRIPT
+     ============================================================= -->
+
 <script>
-const buttons = Array.from(document.querySelectorAll(".tab-btn"));
-const panels = {
-    places: document.getElementById("panel-places"),
-    favourites: document.getElementById("panel-favourites"),
-    ai: document.getElementById("panel-ai"),
-};
 
-function activate(name) {
-    buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
-    Object.entries(panels).forEach(([key, panel]) =>
-        panel.classList.toggle("is-active", key === name)
-    );
-}
+    const tabButtons =
+        document.querySelectorAll(".tab-btn");
 
-buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
+    const tabPanels =
+        document.querySelectorAll(".tab-panel");
+
+
+    tabButtons.forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            const selectedTab =
+                button.dataset.tab;
+
+
+            tabButtons.forEach(tabButton => {
+                tabButton.classList.remove("is-active");
+            });
+
+
+            tabPanels.forEach(panel => {
+                panel.classList.remove("is-active");
+            });
+
+
+            button.classList.add("is-active");
+
+
+            const selectedPanel =
+                document.getElementById(
+                    `panel-${selectedTab}`
+                );
+
+
+            if (selectedPanel) {
+                selectedPanel.classList.add("is-active");
+            }
+
+        });
+
+    });
+
 </script>
+
 </body>
 </html>

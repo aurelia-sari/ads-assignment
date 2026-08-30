@@ -1,10 +1,3 @@
-"""Create and seed the Attractions & Dining database (student-2, Kevin Kim).
-
-TODO (Kevin Kim): replace `records` with the real schema for Attractions & Dining.
-The project specification requires at least ten records per table, so keep the
-seed at ten or more when you change it.
-"""
-
 """
 Initialise and seed the Student 2 SQLite database. (student-2, Kevin Kim)
 
@@ -373,24 +366,17 @@ def create_schema(conn: sqlite3.Connection) -> None:
                 REFERENCES places(id)
                 ON DELETE CASCADE
         );
-
+        
         CREATE TABLE IF NOT EXISTS recommendations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
+            question TEXT NOT NULL,
             preferences TEXT,
             location TEXT,
-            recommendation_result TEXT,
+            recommendation_result TEXT NOT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
-        -- Temporary compatibility table for shared smoke_test.py.
-        CREATE TABLE IF NOT EXISTS records (
-            record_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            category TEXT NOT NULL,
-            detail TEXT NOT NULL DEFAULT '',
-            created_on TEXT NOT NULL
-        );
         """
     )
 
@@ -552,6 +538,19 @@ def seed_recommendations(conn: sqlite3.Connection) -> None:
             "before seeding recommendations."
         )
 
+    questions = [
+        "Recommend popular attractions in Sydney.",
+        "Recommend some cheap restaurants.",
+        "Recommend highly rated attractions.",
+        "Recommend restaurants in Sydney.",
+        "Recommend affordable places to visit.",
+        "Recommend highly rated restaurants.",
+        "Recommend popular Sydney attractions.",
+        "Recommend dining options in Sydney.",
+        "Recommend budget-friendly places.",
+        "Recommend good places to visit in Sydney.",
+    ]
+
     for index in range(10):
         base_place = candidate_places[index]
 
@@ -576,35 +575,29 @@ def seed_recommendations(conn: sqlite3.Connection) -> None:
                 (index + 2) % len(candidate_places)
             ],
         ]
-
-        recommendations = [
-            {
-                "place_id": place["id"],
-                "place_name": place["name"],
-                "reason": (
-                    "Recommended based on "
-                    "the supplied preferences."
-                ),
-            }
-            for place in recommended_places
-        ]
-
+        
         recommendation_result = {
-            "recommendations": recommendations
+            "answer": "Recommended places based on the supplied preferences.",
+            "place_ids": [
+                place["id"]
+                for place in recommended_places
+            ],
         }
 
         conn.execute(
             """
             INSERT INTO recommendations (
                 user_id,
+                question,
                 preferences,
                 location,
                 recommendation_result
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
             """,
             (
                 f"user-{(index % 3) + 1}",
+                questions[index],
                 json.dumps(preferences),
                 "Sydney",
                 json.dumps(recommendation_result),
@@ -615,59 +608,6 @@ def seed_recommendations(conn: sqlite3.Connection) -> None:
 
     print("Seeded 10 recommendations.")
 
-
-# ------------------------------------------------------------------
-# Temporary smoke-test compatibility seed
-# ------------------------------------------------------------------
-
-def seed_records(conn: sqlite3.Connection) -> None:
-    """Seed temporary generic records for shared CI smoke testing."""
-
-    count = conn.execute(
-        "SELECT COUNT(*) AS count FROM records"
-    ).fetchone()["count"]
-
-    if count > 0:
-        print(
-            f"records already contains {count} rows - skipping."
-        )
-        return
-
-    records = [
-        (
-            f"Attractions & Dining record {index}",
-            (
-                "attraction"
-                if index <= 6
-                else "restaurant"
-            ),
-            (
-                "Temporary smoke test compatibility "
-                f"record {index}"
-            ),
-            f"2026-08-{index:02d}",
-        )
-        for index in range(1, 13)
-    ]
-
-    conn.executemany(
-        """
-        INSERT INTO records (
-            title,
-            category,
-            detail,
-            created_on
-        )
-        VALUES (?, ?, ?, ?)
-        """,
-        records,
-    )
-
-    conn.commit()
-
-    print(
-        f"Seeded {len(records)} temporary records."
-    )
 
 
 # ------------------------------------------------------------------
@@ -689,9 +629,6 @@ def initialise_database() -> None:
         seed_places(conn)
         seed_favourites(conn)
         seed_recommendations(conn)
-
-        # Temporary compatibility data for shared smoke_test.py.
-        seed_records(conn)
 
     finally:
         conn.close()
