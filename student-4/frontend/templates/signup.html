@@ -51,7 +51,15 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn--pill-dark signup-submit">Get Started</button>
+            <div class="field-group">
+                <label class="checkbox-label" for="signup-terms">
+                    <input type="checkbox" id="signup-terms" name="terms" required>
+                    <span>I agree to the Terms and Conditions</span>
+                </label>
+                <p class="field-error" id="terms-error">You must agree to the Terms and Conditions to continue.</p>
+            </div>
+
+            <button type="submit" class="btn btn--pill-dark signup-submit" id="submit-btn" disabled>Get Started</button>
         </form>
 
         <p class="signup-login-hint">Already have an account? Log in</p>
@@ -67,11 +75,14 @@
     const passwordToggle = document.getElementById("password-toggle");
     const passwordRules = document.getElementById("password-rules");
 
+    const termsInput = document.getElementById("signup-terms");
+
     const nameError = document.getElementById("name-error");
     const emailError = document.getElementById("email-error");
     const passwordError = document.getElementById("password-error");
+    const termsError = document.getElementById("terms-error");
     const formStatus = document.getElementById("form-status");
-    const submitButton = form.querySelector("button[type='submit']");
+    const submitButton = document.getElementById("submit-btn");
 
     function showFormStatus(kind, message) {
         formStatus.className = `notice notice-${kind}`;
@@ -122,23 +133,42 @@
         errorEl.classList.toggle("is-visible", !isValid);
     }
 
+    function isFormComplete() {
+        const nameValid = nameInput.value.trim().length > 0;
+        const emailValid = validateEmail(emailInput.value.trim());
+        const passwordValid = Object.values(passwordChecks(passwordInput.value)).every(Boolean);
+        return nameValid && emailValid && passwordValid && termsInput.checked;
+    }
+
+    function updateSubmitState() {
+        submitButton.disabled = !isFormComplete();
+    }
+
     passwordInput.addEventListener("input", () => {
         const isValid = updatePasswordRules();
         setFieldValidity(passwordInput, passwordError, isValid, true);
+        updateSubmitState();
     });
 
     emailInput.addEventListener("input", () => {
         setFieldValidity(emailInput, emailError, validateEmail(emailInput.value.trim()), true);
+        updateSubmitState();
     });
 
     nameInput.addEventListener("input", () => {
         setFieldValidity(nameInput, nameError, nameInput.value.trim().length > 0, true);
+        updateSubmitState();
     });
 
     passwordToggle.addEventListener("click", () => {
         const showing = passwordInput.type === "text";
         passwordInput.type = showing ? "password" : "text";
         passwordToggle.textContent = showing ? "Show" : "Hide";
+    });
+
+    termsInput.addEventListener("change", () => {
+        termsError.classList.toggle("is-visible", !termsInput.checked);
+        updateSubmitState();
     });
 
     form.addEventListener("submit", async (event) => {
@@ -151,12 +181,14 @@
         const nameValid = name.length > 0;
         const emailValid = validateEmail(email);
         const passwordValid = updatePasswordRules();
+        const termsValid = termsInput.checked;
 
         setFieldValidity(nameInput, nameError, nameValid, true);
         setFieldValidity(emailInput, emailError, emailValid, true);
         setFieldValidity(passwordInput, passwordError, passwordValid, true);
+        termsError.classList.toggle("is-visible", !termsValid);
 
-        if (!nameValid || !emailValid || !passwordValid) {
+        if (!nameValid || !emailValid || !passwordValid || !termsValid) {
             return;
         }
 
@@ -167,7 +199,7 @@
             const response = await fetch("/api/student-4/auth/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, email, password }),
+                body: JSON.stringify({ name, email, password, terms_accepted: termsValid }),
             });
             const data = await response.json().catch(() => ({}));
 
@@ -181,7 +213,7 @@
         } catch (err) {
             showFormStatus("error", "Could not reach the server. Please try again.");
         } finally {
-            submitButton.disabled = false;
+            updateSubmitState();
         }
     });
 })();

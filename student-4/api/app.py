@@ -171,6 +171,7 @@ def register():
     name = (payload.get("name") or "").strip()
     email = (payload.get("email") or "").strip()
     password = payload.get("password") or ""
+    terms_accepted = payload.get("terms_accepted")
 
     if not name:
         return jsonify({"error": "Name is required."}), 400
@@ -180,6 +181,8 @@ def register():
         return jsonify({"error": "Password must be 8-64 characters and include an "
                                   "uppercase letter, a lowercase letter, a number "
                                   "and a special character."}), 400
+    if not terms_accepted:
+        return jsonify({"error": "You must agree to the Terms and Conditions."}), 400
 
     verification_token, verification_expires_at = new_verification_token()
     shared_payload = {
