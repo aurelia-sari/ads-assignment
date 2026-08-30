@@ -17,7 +17,7 @@ microservice; one shared Docker Compose configuration runs the whole thing.
 | student-5 | Aung Ko Khaing | Flights, hotels, car rentals, budget | 8085 | 5105 | 5205 |
 
 Shared services: `shared-frontend` (8080), `shared-api` (5000), `shared-db`
-(5200), `ai-mode` (5300).
+(5200), `ai-mode` (5300), `mailpit` (8025 web UI / 1025 SMTP).
 
 > **Directory naming is fixed.** The project specification (section 7.1)
 > requires each student's artefacts to live in their designated `student-x/`
@@ -153,6 +153,27 @@ If the group would rather containerise the runtime, add a service to
 `docker-compose.yml` using the `ollama/ollama` image with a volume for
 `/root/.ollama`, set `OLLAMA_BASE_URL=http://ollama:11434/v1`, and pull the
 model into the volume once. Expect a multi-gigabyte image pull.
+
+## Mailpit (local email testing)
+
+`student-4-api` sends sign-up verification emails through
+[Mailpit](https://mailpit.axllent.org/), a fake local SMTP server with a web
+UI - nothing is sent to a real inbox in local dev. To check an email a feature
+sent:
+
+```bash
+open http://localhost:8025
+```
+
+Every message `student-4-api` sends (account verification, and any resends)
+shows up there instantly, including the verification link. No configuration
+is needed, `mailpit` starts with the rest of the stack via `docker compose
+up`, and `student-4-api` is already pointed at it (`MAILPIT_HOST=mailpit`,
+`MAILPIT_PORT=1025` in `docker-compose.yml`).
+
+This is a Release 0 stand-in. `send_verification_email()` in
+`student-4/api/app.py` is the only place a swap to a real provider (e.g.
+Resend) needs to happen for a later release.
 
 ## The agentic loop
 

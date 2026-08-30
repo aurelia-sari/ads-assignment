@@ -13,6 +13,9 @@ export PNGs into `docs/evidence/` for the report.
 | `agentic-loop.mmd` | Plan -> Act -> Observe -> Adapt workflow diagram |
 | `student-1-conceptual.mmd` | Data design - conceptual model (student-1) |
 | `student-1-erd.mmd` | Data design - entity-relationship diagram (student-1) |
+| `student-4-architecture.mmd` | Individual software architecture (student-4) |
+| `student-4-conceptual.mmd` | Data design - conceptual model (student-4) |
+| `student-4-erd.mmd` | Data design - entity-relationship diagram (student-4) |
 
-Students 2-5: copy `student-1-architecture.mmd` and change the service names,
-ports, and tables to your own feature.
+Students 2, 3, 5: copy `student-1-architecture.mmd` and change the service
+names, ports, and tables to your own feature.
