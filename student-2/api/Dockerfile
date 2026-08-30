@@ -10,6 +10,7 @@ COPY routes ./routes
 COPY services ./services
 COPY views ./views
 COPY prompts ./prompts
+COPY agentic_loop ./agentic_loop
 
 EXPOSE 5102
 

@@ -103,6 +103,50 @@ def chat():
             503,
         )
 
+@app.post("/recommend")
+def recommend():
+    payload = request.get_json(silent=True) or {}
+
+    question = (payload.get("question") or "").strip()
+    system = (payload.get("system") or "").strip()
+    context = (payload.get("context") or "").strip()
+    max_tokens = int(payload.get("max_tokens", 300))
+
+    if not question:
+        return jsonify({"error": "question is required"}), 400
+
+    if not system:
+        return jsonify({"error": "system is required"}), 400
+
+    user_content = ""
+
+    if context:
+        user_content += f"Live application data:\n{context}\n\n"
+
+    user_content += f"Traveller question:\n{question}"
+
+    try:
+        answer = create_chat_completion(
+            [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_content},
+            ],
+            max_tokens=max_tokens,
+        )
+
+        return jsonify({
+            "answer": answer,
+            "model": OLLAMA_MODEL
+        })
+
+    except Exception as exc:
+        return (
+            jsonify({
+                "error": "AI recommendation request failed",
+                "detail": str(exc),
+            }),
+            503,
+        )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5300)

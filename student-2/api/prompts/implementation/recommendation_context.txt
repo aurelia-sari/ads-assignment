@@ -1,0 +1,5 @@
+Traveller request:
+{question}
+
+Available places:
+{places}
