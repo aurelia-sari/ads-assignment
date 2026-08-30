@@ -36,6 +36,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install student-4 test dependencies
+        run: python -m pip install -r student-4/tests/requirements.txt
+
       - name: Byte-compile the student-4 source
         run: python -m compileall -q student-4
 
@@ -57,12 +60,15 @@ jobs:
           docker compose up -d \
             shared-frontend \
             ai-mode \
+            shared-api \
+            shared-db \
+            mailpit \
             student-4-db \
             student-4-api \
             student-4-frontend
 
       - name: Wait for the services to report healthy
-        run: python3 scripts/wait_for_health.py 5204 5104 5300 8084 8080
+        run: python3 scripts/wait_for_health.py 5204 5104 5300 5000 5200 8084 8080
 
       - name: Validate CRUD through the database and backend APIs
         run: python3 scripts/smoke_test.py 4

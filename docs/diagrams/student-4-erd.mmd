@@ -1,0 +1,32 @@
+%% student-4 (Aurelia Sari) - Account & Dashboard
+%% Entity-relationship diagram.
+%%
+%% USER and ACCESS_LOG are owned by shared-db, not student-4-db: a user's id
+%% and sign-in state may be needed in every feature. The
+%% relationship is enforced in SQLite, both tables live together in
+%% shared.db, not split across service boundaries.
+
+erDiagram
+    USER ||--o{ ACCESS_LOG : "signs in as"
+
+    USER {
+        INTEGER id                          PK "owned by shared-db"
+        TEXT    name                            "NOT NULL"
+        TEXT    email                       UK  "NOT NULL"
+        TEXT    password_hash                   "NOT NULL, werkzeug pbkdf2"
+        INTEGER is_validated                    "NOT NULL, default 0"
+        TEXT    verification_token              "single-use, cleared once spent"
+        TEXT    verification_expires_at         "5 minute TTL"
+        TEXT    last_verification_sent_at       "resend 60s gate"
+        INTEGER verification_resend_count       "NOT NULL, default 0, max 5"
+        TEXT    verification_blocked_until      "10 minute cooldown, then resets"
+        TEXT    created_at                      "NOT NULL, ISO 8601"
+    }
+
+    ACCESS_LOG {
+        INTEGER id          PK
+        INTEGER user_id     FK "NOT NULL, references USER"
+        TEXT    sign_in_at      "NOT NULL, ISO 8601"
+        TEXT    sign_out_at     "nullable - still signed in if NULL"
+        INTEGER in_session      "NOT NULL, default 0"
+    }

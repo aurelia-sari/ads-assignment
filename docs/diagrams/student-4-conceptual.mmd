@@ -1,0 +1,14 @@
+%% student-4 - Conceptual data model.
+%% Entities and relationships only. No attributes, no keys, no types - those
+%% belong to the logical and physical models.
+
+graph LR
+    U["USER<br/><i>who holds an account</i>"]
+    L["ACCESS LOG<br/><i>when they signed in and out</i>"]
+
+    U -->|"generates<br/>1 : many"| L
+
+    subgraph Boundary["owned by shared-db, not student-4-db"]
+        U
+        L
+    end

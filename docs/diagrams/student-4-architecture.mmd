@@ -1,0 +1,44 @@
+graph LR
+    subgraph FE["student-4-frontend (nginx :8084)"]
+        SIGNUP["signup.html<br/>name / email / password / T&amp;C"]
+        VERIFY["verify-pending.html<br/>resend countdown"]
+        IDX["index.html<br/>Accounts tab"]
+    end
+
+    subgraph API["student-4-api (Flask :5104)"]
+        REG["POST /auth/register"]
+        RESEND["POST /auth/resend"]
+        VER["GET /auth/verify/&lt;token&gt;<br/>renders confirm/expired/invalid page"]
+        USERS["GET /users<br/>accounts fragment"]
+        MAIL["send_verification_email()<br/>smtplib"]
+    end
+
+    subgraph DB4["student-4-db (Flask + SQLite :5204)"]
+        NONE[("no domain tables yet<br/>reserved for profile/dashboard data")]
+    end
+
+    subgraph SHARED["shared-api :5000 -> shared-db :5200<br/>owns users, access_logs, travellers"]
+        USR[("users<br/>10 seed rows")]
+        LOG[("access_logs<br/>10 seed rows")]
+        TRV[("travellers<br/>12 rows")]
+    end
+
+    MP["mailpit<br/>:1025 SMTP / :8025 web UI"]
+
+    SIGNUP -->|"fetch POST, JSON"| REG
+    VERIFY -->|"fetch POST, JSON"| RESEND
+    IDX -->|"hx-get"| USERS
+
+    REG -->|"HTTP JSON: create user,<br/>token + 5 min expiry"| SHARED
+    RESEND -->|"HTTP JSON: rate-limit check<br/>(60s / 5 attempts / 10 min block)"| SHARED
+    VER -->|"HTTP JSON: verify token"| SHARED
+    USERS -->|"HTTP JSON: list"| SHARED
+
+    REG --> MAIL
+    RESEND --> MAIL
+    MAIL -->|"SMTP"| MP
+
+    SHARED --- USR
+    SHARED --- LOG
+    SHARED --- TRV
+    DB4 --- NONE
