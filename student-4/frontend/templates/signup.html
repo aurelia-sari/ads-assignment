@@ -144,19 +144,38 @@
         submitButton.disabled = !isFormComplete();
     }
 
+    let nameTouched = false;
+    let emailTouched = false;
+    let passwordTouched = false;
+
+    nameInput.addEventListener("blur", () => {
+        nameTouched = true;
+        setFieldValidity(nameInput, nameError, nameInput.value.trim().length > 0, true);
+    });
+
+    emailInput.addEventListener("blur", () => {
+        emailTouched = true;
+        setFieldValidity(emailInput, emailError, validateEmail(emailInput.value.trim()), true);
+    });
+
+    passwordInput.addEventListener("blur", () => {
+        passwordTouched = true;
+        setFieldValidity(passwordInput, passwordError, updatePasswordRules(), true);
+    });
+
     passwordInput.addEventListener("input", () => {
         const isValid = updatePasswordRules();
-        setFieldValidity(passwordInput, passwordError, isValid, true);
+        setFieldValidity(passwordInput, passwordError, isValid, passwordTouched);
         updateSubmitState();
     });
 
     emailInput.addEventListener("input", () => {
-        setFieldValidity(emailInput, emailError, validateEmail(emailInput.value.trim()), true);
+        setFieldValidity(emailInput, emailError, validateEmail(emailInput.value.trim()), emailTouched);
         updateSubmitState();
     });
 
     nameInput.addEventListener("input", () => {
-        setFieldValidity(nameInput, nameError, nameInput.value.trim().length > 0, true);
+        setFieldValidity(nameInput, nameError, nameInput.value.trim().length > 0, nameTouched);
         updateSubmitState();
     });
 
