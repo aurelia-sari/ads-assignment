@@ -1,8 +1,8 @@
 """Shared access API.
 
 Centralises the functionality every feature needs so it is not duplicated five
-times: traveller lookup (via shared-db) and a health view over the whole
-integrated application.
+times: traveller lookup, user/session lookup (both via shared-db), and a
+health view over the whole integrated application.
 
 Feature-specific data is NOT served here. Each student's database microservice
 owns its own schema and exposes it through its own API.
@@ -12,7 +12,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -110,6 +110,45 @@ def traveller(traveller_id):
         response = requests.get(
             f"{SHARED_DB_URL}/travellers/{traveller_id}", timeout=5
         )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
+
+# Users & access logs
+@app.get("/users")
+def users():
+    try:
+        response = requests.get(f"{SHARED_DB_URL}/users", timeout=5)
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
+
+@app.get("/users/by-email/<path:email>")
+def user_by_email(email):
+    try:
+        response = requests.get(f"{SHARED_DB_URL}/users/by-email/{email}", timeout=5)
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
+
+@app.post("/users")
+def create_user():
+    try:
+        response = requests.post(
+            f"{SHARED_DB_URL}/users", json=request.get_json(silent=True) or {}, timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
+
+@app.post("/users/verify/<token>")
+def verify_user(token):
+    try:
+        response = requests.post(f"{SHARED_DB_URL}/users/verify/{token}", timeout=5)
         return jsonify(response.json()), response.status_code
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503

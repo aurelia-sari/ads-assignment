@@ -19,6 +19,8 @@
         <h1 class="signup-title">Create an account</h1>
         <p class="signup-subtitle">Your next adventure starts here. Get started to create, organise, and save all your travel plans in one place.</p>
 
+        <p class="notice" id="form-status" style="display:none"></p>
+
         <form id="signup-form" novalidate>
             <div class="field-group">
                 <label for="signup-name">Name</label>
@@ -68,6 +70,14 @@
     const nameError = document.getElementById("name-error");
     const emailError = document.getElementById("email-error");
     const passwordError = document.getElementById("password-error");
+    const formStatus = document.getElementById("form-status");
+    const submitButton = form.querySelector("button[type='submit']");
+
+    function showFormStatus(kind, message) {
+        formStatus.className = `notice notice-${kind}`;
+        formStatus.textContent = message;
+        formStatus.style.display = "block";
+    }
 
     const LOCAL_PART_RE = /^(?!\.)(?!.*\.\.)[A-Za-z0-9._+-]+(?<!\.)$/;
     const DOMAIN_RE = /^(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}$/;
@@ -131,11 +141,15 @@
         passwordToggle.textContent = showing ? "Show" : "Hide";
     });
 
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
         event.preventDefault();
 
-        const nameValid = nameInput.value.trim().length > 0;
-        const emailValid = validateEmail(emailInput.value.trim());
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        const nameValid = name.length > 0;
+        const emailValid = validateEmail(email);
         const passwordValid = updatePasswordRules();
 
         setFieldValidity(nameInput, nameError, nameValid, true);
@@ -146,8 +160,37 @@
             return;
         }
 
-        // Frontend-only for now: no backend endpoint wired up yet.
-        alert("Looks good! Account creation isn't wired up to the backend yet.");
+        formStatus.style.display = "none";
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch("/api/student-4/auth/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, email, password }),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                showFormStatus("error", data.error || "Something went wrong. Please try again.");
+                return;
+            }
+
+            form.reset();
+            [nameInput, emailInput, passwordInput].forEach((input) => {
+                input.classList.remove("is-valid", "is-invalid");
+            });
+            [nameError, emailError, passwordError].forEach((el) => el.classList.remove("is-visible"));
+            updatePasswordRules();
+            showFormStatus(
+                "ok",
+                "Account created! Check your email to verify your account before logging in."
+            );
+        } catch (err) {
+            showFormStatus("error", "Could not reach the server. Please try again.");
+        } finally {
+            submitButton.disabled = false;
+        }
     });
 })();
 </script>

@@ -1,12 +1,18 @@
 """Create and seed the shared access database.
 
 The shared database owns only cross-cutting access data: the traveller
-accounts every feature needs to resolve a traveller_id. Feature data lives in
-each student's own database microservice.
+accounts every feature needs to resolve a traveller_id, plus (added for the
+Account & Dashboard sign-up feature) `users` and `access_logs` - the same
+kind of cross-cutting data, since a user's id and sign-in state are things
+every feature may need, not just Account & Dashboard. Feature-specific data
+still lives in each student's own database microservice.
 """
 
 import os
 import sqlite3
+from datetime import datetime, timedelta, timezone
+
+from werkzeug.security import generate_password_hash
 
 DATA_DIR = "/app/data"
 DATABASE_NAME = os.path.join(DATA_DIR, "shared.db")
@@ -51,7 +57,78 @@ cursor.executemany(
     travellers,
 )
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                TEXT NOT NULL,
+    email               TEXT NOT NULL UNIQUE,
+    password_hash       TEXT NOT NULL,
+    is_validated        INTEGER NOT NULL DEFAULT 0,
+    verification_token  TEXT,
+    created_at          TEXT NOT NULL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS access_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    sign_in_at  TEXT NOT NULL,
+    sign_out_at TEXT,
+    in_session  INTEGER NOT NULL DEFAULT 0
+)
+""")
+
+cursor.execute("DELETE FROM access_logs")
+cursor.execute("DELETE FROM users")
+
+now = datetime.now(timezone.utc)
+seed_password_hash = generate_password_hash("Placeholder1!")
+
+users = [
+    (
+        i,
+        f"Traveller {i}",
+        f"traveller{i}@example.com",
+        seed_password_hash,
+        1 if i % 2 == 0 else 0,
+        None,
+        (now - timedelta(days=30 - i)).isoformat(timespec="seconds"),
+    )
+    for i in range(1, 11)
+]
+
+cursor.executemany(
+    """
+    INSERT INTO users (id, name, email, password_hash, is_validated, verification_token, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """,
+    users,
+)
+
+access_logs = []
+for i in range(1, 11):
+    signed_out = i % 3 != 0
+    sign_in_at = (now - timedelta(days=30 - i, hours=1)).isoformat(timespec="seconds")
+    sign_out_at = (
+        (now - timedelta(days=30 - i, minutes=30)).isoformat(timespec="seconds")
+        if signed_out
+        else None
+    )
+    access_logs.append((i, i, sign_in_at, sign_out_at, 0 if signed_out else 1))
+
+cursor.executemany(
+    """
+    INSERT INTO access_logs (id, user_id, sign_in_at, sign_out_at, in_session)
+    VALUES (?, ?, ?, ?, ?)
+    """,
+    access_logs,
+)
+
 conn.commit()
 conn.close()
 
-print(f"shared-db initialised with {len(travellers)} travellers.")
+print(
+    f"shared-db initialised with {len(travellers)} travellers, "
+    f"{len(users)} users and {len(access_logs)} access log entries."
+)
