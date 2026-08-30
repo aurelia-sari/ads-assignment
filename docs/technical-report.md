@@ -326,6 +326,7 @@ integration time.
 | 5 | Verification delivery | Real SMTP send to Mailpit (`ai-services`-style local dev dependency, new `mailpit` container); "check your email" pending page with a live 60s resend countdown | 31 Aug |
 | 6 | Resend rate limiting | 60s between sends, 5 sends per window, then a 10 minute block before the window resets - enforced atomically in shared-db, not in the stateless API layer | 31 Aug |
 | 7 | Accounts view | index.html's placeholder "Records" tab replaced with a live accounts list (`GET /users`), completing the scaffold's own TODO | 30 Aug |
+| 8 | Feature-specific smoke test | `student-4/tests/smoke_test.py`, dispatched from `check_student_4()` (same pattern as student-2's `check_student_2()`), replacing the generic `records`-shaped check this feature no longer matches | 31 Aug |
 
 **Design decisions worth defending.**
 
@@ -360,10 +361,6 @@ integration time.
   table and columns exist and are seeded, but no route writes to them yet)
 - Swap Mailpit for Resend, isolated to `send_verification_email()` in
   `student-4-api`, by design
-- A dedicated `student-4` entry in `scripts/smoke_test.py`'s `RESOURCES` dict;
-  the generic `records`-shaped smoke test no longer matches this feature's
-  schema, so `python3 scripts/smoke_test.py 4` needs a custom check like
-  student-1's `RESOURCES[1]` before CI can validate it end-to-end again
 
 ### 2.6 Risk management plan **(Individual)**
 
@@ -411,6 +408,7 @@ useful - so the tests need to assert on grounded output, not just on a 200.
 | R4-1 | An absolute link 404s once the page is only reachable through the hub proxy | Medium | `signup.html`'s post-registration redirect and `index.html`'s sign-up link both used `/verify-pending.html`-style absolute paths. Those resolve fine when the frontend is hit directly on :8084, but the hub only proxies paths under `/student-4/`, so the same link 404'd through `localhost:8080`. | Both changed to relative paths (`verify-pending.html`), which resolve correctly whichever origin serves the page. |
 | R4-2 | A stale service is tested instead of the current code | Medium | Rebuilding `student-4-api` after a schema change repeatedly hit a container still running the old image (or a Docker volume seeded under the old schema), producing confusing errors that looked like application bugs. | Verified every change against the actual running containers (`docker compose up -d --build <service>`), not just `py_compile`; reset the affected named volume when a schema change needed a clean reseed. |
 | R4-3 | A change to a shared file breaks other students' pages | **High** | This feature's CSS lives in `shared/css/theme.css` and its identity schema in `shared-db`. Both are exactly the kind of shared surface flagged in R4/R6 of student-1's register. | New rules were additive only (new classes, new tables alongside the untouched `travellers` table); verified `shared-db`'s existing `/travellers` endpoint and seed count were unaffected after every change. |
+| R4-6 | `scripts/smoke_test.py 4` assumed the generic `records` shape this feature no longer has, so `python3 scripts/smoke_test.py 4` failed CI with `FAIL: GET /records returns 200` | High | CI could not validate registration or verification automatically, the same shape of gap R1/R2 describe for student-1: a check testing a layer the feature no longer has. | Added `student-4/tests/smoke_test.py`, dispatched via `check_student_4()` (same pattern as student-2's `check_student_2()`), exercising registration validation, duplicate-email rejection, and real email verification by polling Mailpit for the actual link. Verified passing both directly and through `scripts/smoke_test.py 4`. |
 
 **Open risks**
 
@@ -418,7 +416,6 @@ useful - so the tests need to assert on grounded output, not just on a 200.
 |---|------|-----------|--------|------------|-------|
 | R4-4 | Mailpit is a dev-only SMTP catcher; nothing sends real email yet | Certain, by design | Medium | Scoped deliberately for Release 0 - `send_verification_email()` is isolated so swapping in Resend is a one-function change | Me, Release 1 |
 | R4-5 | No route writes to `access_logs` yet | High (nothing calls it) | Low | Table and columns exist and are seeded, ready for the sign-in feature that will populate `in_session` | Me, Release 1 |
-| R4-6 | `scripts/smoke_test.py 4` still assumes the generic `records` shape this feature no longer has | High | Medium | Registration/verification is instead verified manually (8.1) until a `RESOURCES[4]` entry matching student-1's pattern is added | Me, Release 1 |
 
 ### 2.7 Data design
 
@@ -1025,44 +1022,57 @@ student-1 passed all checks.
 
 *Add the runs for students 2, 3 and 5.*
 
-**student-4.** `scripts/smoke_test.py` does not yet have a `RESOURCES[4]`
-entry for this schema (known issue 1b), so the flow was validated manually
-against the live containers instead - register, duplicate-email rejection,
-weak-password rejection, single-use expiring verification, and the resend
-rate limit end to end through Mailpit:
+**student-4.** `scripts/smoke_test.py 4` initially failed with
+`FAIL: GET /records returns 200`, because the generic smoke test's fallback
+assumes the old `records` scaffold, this feature no longer has that resource
+(recorded as R4-6 in 2.6, now resolved). Fixed by adding
+`student-4/tests/smoke_test.py`, dispatched from `check_student_4()`:
 
 ```
-$ curl -s -X POST http://localhost:5104/auth/register -H "Content-Type: application/json" \
-    -d '{"name":"Style Check","email":"style.check@example.com","password":"Str0ng!Pass","terms_accepted":true}'
-{"created_at":"...","email":"style.check@example.com","id":18,"is_validated":0,
- "verification_expires_at":"2026-08-30T16:06:58+00:00", ...}
+$ python3 scripts/smoke_test.py 4
+Smoke test: student-4 sign-up & email verification
+  ok  GET /health returns 200
+  ok  POST /auth/register without terms_accepted returns 400
+  ok  error message names the T&C requirement
+  ok  POST /auth/register with a weak password returns 400
+  ok  POST /auth/register with an invalid email returns 400
+  ok  POST /auth/register with valid data returns 201
+  ok  created account has the requested email
+  ok  created account starts unverified
+  ok  the response never leaks the token or the password hash
+  ok  registering the same email again returns 409
+  ok  GET /users returns 200
+  ok  the new account appears in the accounts fragment
+  ok  verification email arrives in Mailpit with a link
+  ok  visiting the verification link returns 200
+  ok  the link confirms verification
+  ok  reusing the same (now-spent) link returns 404
+  ok  resending for an already-verified account returns 400
+  ok  second account for resend testing registers successfully
+  ok  resending within 60s of registering returns 429
+  ok  429 response names how long to wait
 
-$ curl -s -X POST http://localhost:5104/auth/register ... (same email again)
-{"error":"This email is already associated with an account."}
+student-4 sign-up & email verification passed all checks.
+Smoke test: student-4
+  ok  database service is healthy
+  ok  backend/API service is healthy
 
-$ curl -s -X POST http://localhost:5104/auth/register ... -d '"password":"weak"'
-{"error":"Password must be 8-64 characters and include an uppercase letter, a lowercase letter, a number and a special character."}
-
-# link extracted from the Mailpit API (http://localhost:8025/api/v1/messages)
-$ curl -s http://localhost:8080/api/student-4/auth/verify/<token>
-  -> "Email verified" / "You can now log in to your account."
-
-$ curl -s http://localhost:8080/api/student-4/auth/verify/<same token again>
-  -> 404 "Link invalid"
-
-$ curl -s -X POST http://localhost:5104/auth/resend -d '{"email":"..."}'   # < 60s after registering
-{"error":"Please wait before requesting another email.","retry_after_seconds":60}
-
-# after the 5th resend in a window:
-$ curl -s -X POST http://localhost:5104/auth/resend -d '{"email":"..."}'
-{"error":"Too many attempts. Please wait before trying again.","retry_after_seconds":600}
+student-4 passed all checks.
 ```
 
-All of the above, plus the sign-up form's client-side behaviour (submit
-disabled until every field is valid, T&C checkbox required, errors on blur
-rather than on keystroke), was additionally verified against the actual
-rendered pages in a browser through the nginx hub at `localhost:8080`, not
-just against the API directly.
+The verification check is real, not stubbed: it polls Mailpit's API
+(`http://localhost:8025/api/v1/messages`) for the actual email
+`student-4-api` sent, extracts the real link from its body, and visits it -
+the same thing a person would do by hand. Each run registers
+freshly-randomised emails, so it is safe to re-run without leaving stray
+state or hitting the duplicate-email check by accident; confirmed by running
+it twice in a row.
+
+The sign-up form's client-side behaviour (submit disabled until every field
+is valid, T&C checkbox required, errors on blur rather than on keystroke)
+was additionally verified against the actual rendered pages in a browser
+through the nginx hub at `localhost:8080`, not just against the API
+directly.
 
 ### 8.2 Screenshots of the integrated application
 
@@ -1091,8 +1101,7 @@ integrated application.
 | # | Issue | Impact | Plan |
 |---|-------|--------|------|
 | 1 | Students 3 and 5 still hold the generated `records` scaffold rather than real feature schemas | Those features are not yet real | Each owner replaces their schema, routes and page |
-| 1b | student-4's `scripts/smoke_test.py 4` still assumes the old `records` shape | CI cannot validate the sign-up/verification flow automatically yet | Add a `RESOURCES[4]` entry matching student-1's pattern, or a feature-specific check like `check_student_2()` |
-| 1c | No route writes to `access_logs` yet, though the table and columns are seeded | Sign-in state cannot be queried yet | Land the sign-in feature in Release 1, populating `in_session` |
+| 1b | No route writes to `access_logs` yet, though the table and columns are seeded | Sign-in state cannot be queried yet | Land the sign-in feature in Release 1, populating `in_session` |
 | 2 | Ollama runs on the host, not in a container | Deployment has a manual prerequisite | Document in the video; containerise if RAM allows |
 | 3 | Local models answer direct lookups correctly but fail aggregation across the full context - asked which of 12 trips has the smallest budget, `llama3.2` named a trip costing AUD 3,300 when the smallest is AUD 2,900 | An aggregate question gives a confidently wrong answer | Demonstrate direct lookups, which are reliable. A real fix computes aggregates in the backend and passes the answer as context, rather than asking the model to scan and compare. Release 1. |
 | 4 | AI-Mode adds one hop over the specification's direct Backend -> Ollama flow | Deviation from the spec diagram | Justified in ADR-001 |
@@ -1196,6 +1205,7 @@ git shortlog -sn --all
 | 31 Aug | Real email delivery through Mailpit (new `mailpit` service in `docker-compose.yml`); resend rate limiting (60s / 5 attempts / 10 min block) enforced atomically in shared-db |
 | 31 Aug | Required Terms & Conditions checkbox, submit-disabled-until-valid, and blur-based (not per-keystroke) field validation on the sign-up form |
 | 31 Aug | This section, plus `docs/diagrams/student-4-architecture.mmd`, `student-4-conceptual.mmd` and `student-4-erd.mmd` |
+| 31 Aug | `student-4/tests/smoke_test.py`, a real end-to-end CI check replacing the generic `records`-shaped one this feature no longer matched (fixed R4-6 / `scripts/smoke_test.py 4` failing with `FAIL: GET /records returns 200`) |
 
 ### 10.3 Attendance checkpoints
 

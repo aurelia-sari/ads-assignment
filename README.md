@@ -214,7 +214,7 @@ student's directory, the shared directories, or the compose file.
 
 ## Working on your feature
 
-Students 2-5 currently have a generated scaffold: a working `records` CRUD
+Students 3 and 5 currently have a generated scaffold: a working `records` CRUD
 microservice trio, marked with `TODO` comments. The wiring already works, so
 replace it from the bottom up:
 
@@ -225,6 +225,16 @@ replace it from the bottom up:
 
 `student-1/` shows the fuller layout (`routes/`, `services/`, `views/`) to move
 to once a feature outgrows a single module.
+
+`scripts/smoke_test.py N` falls back to a generic create/read/update/delete
+check against a `records`-shaped resource once you replace your schema, that
+check will start failing (`FAIL: GET /records returns 200`) unless your
+feature's flow fits the same shape. Either add a `RESOURCES[N]` entry (see
+student-1's `trips` entry) if it does, or write a dedicated
+`student-N/tests/smoke_test.py` and a `check_student_N()` dispatcher in
+`scripts/smoke_test.py` if it doesn't - student-2 and student-4 both do this,
+for a places/favourites/recommendations flow and a sign-up/verification flow
+respectively, neither of which is a single CRUD resource.
 
 Branch, then open a pull request into `main`:
 
