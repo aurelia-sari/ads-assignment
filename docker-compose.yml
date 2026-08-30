@@ -57,6 +57,20 @@ services:
       - travel-network
     restart: unless-stopped
 
+  # Local dev-only fake SMTP server + web UI, used by student-4-api to send
+  # sign-up verification emails without a real mail provider. Its web UI is
+  # at http://localhost:8025. TODO (Aurelia Sari): swap for Resend in a
+  # later release.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - travel-network
+    restart: unless-stopped
+
   # --- Shared AI services -------------------------------------------------
 
   ai-mode:
@@ -239,11 +253,16 @@ services:
     environment:
       <<: *api-env
       DB_SERVICE_URL: http://student-4-db:5204
+      MAILPIT_HOST: mailpit
+      MAILPIT_PORT: 1025
+      MAIL_FROM: no-reply@nextstop.local
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
     depends_on:
       - student-4-db
       - ai-mode
       # Cross-feature reads: user accounts and access logs come from the shared access API
       - shared-api
+      - mailpit
     networks:
       - travel-network
     restart: unless-stopped

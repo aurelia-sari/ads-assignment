@@ -42,22 +42,18 @@ SERVICES = [
     ("student-5-frontend", "http://student-5-frontend:80/health", "Bookings & Budget page"),
 ]
 
-
 @app.get("/health")
 def health():
     return jsonify({"service": "shared-api", "status": "running"})
-
 
 @app.get("/services")
 def services():
     return jsonify([{"name": name, "description": desc} for name, _, desc in SERVICES])
 
-
 # Probes run concurrently with a tolerant timeout. A short sequential probe
 # reported healthy services as down whenever the host was busy serving the LLM,
 # which is exactly when someone is demonstrating the application.
 PROBE_TIMEOUT_SECONDS = 6
-
 
 def probe(url):
     try:
@@ -65,7 +61,6 @@ def probe(url):
         return response.status_code == 200
     except requests.RequestException:
         return False
-
 
 @app.get("/health/all")
 def health_all():
@@ -93,7 +88,6 @@ def health_all():
     )
     return summary + table
 
-
 @app.get("/travellers")
 def travellers():
     try:
@@ -102,7 +96,6 @@ def travellers():
         return jsonify(response.json())
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
-
 
 @app.get("/travellers/<int:traveller_id>")
 def traveller(traveller_id):
@@ -114,7 +107,6 @@ def traveller(traveller_id):
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
-
 # Users & access logs
 @app.get("/users")
 def users():
@@ -124,7 +116,6 @@ def users():
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
-
 @app.get("/users/by-email/<path:email>")
 def user_by_email(email):
     try:
@@ -132,7 +123,6 @@ def user_by_email(email):
         return jsonify(response.json()), response.status_code
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
-
 
 @app.post("/users")
 def create_user():
@@ -144,7 +134,6 @@ def create_user():
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
-
 @app.post("/users/verify/<token>")
 def verify_user(token):
     try:
@@ -153,6 +142,17 @@ def verify_user(token):
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
+@app.post("/users/verification/resend")
+def resend_verification():
+    try:
+        response = requests.post(
+            f"{SHARED_DB_URL}/users/verification/resend",
+            json=request.get_json(silent=True) or {},
+            timeout=5,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

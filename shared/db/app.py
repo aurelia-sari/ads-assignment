@@ -1,10 +1,11 @@
 """Shared access database API.
 
 This service exclusively owns the shared access schema. No other service may
-open shared.db directly; every read or write goes through this HTTP API.
+open shared.db directly, every read or write goes through this HTTP API.
 """
 
 import sqlite3
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, request
 
@@ -13,19 +14,38 @@ app = Flask(__name__)
 DATABASE_NAME = "/app/data/shared.db"
 
 TRAVELLER_FIELDS = ("full_name", "email", "home_city", "member_since")
-USER_FIELDS = ("name", "email", "password_hash", "verification_token", "created_at")
+USER_FIELDS = (
+    "name",
+    "email",
+    "password_hash",
+    "verification_token",
+    "verification_expires_at",
+    "created_at",
+)
 
+# Resend rate limit: at most 5 resends per window, at least 60s apart, then a
+# 10 minute cooldown before the window resets and the same pattern repeats.
+RESEND_MIN_INTERVAL_SECONDS = 60
+RESEND_MAX_ATTEMPTS = 5
+RESEND_BLOCK_SECONDS = 600
+
+def now_utc():
+    return datetime.now(timezone.utc)
+
+def parse_ts(value):
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 @app.get("/health")
 def health():
     return jsonify({"service": "shared-db", "status": "running"})
-
 
 @app.get("/travellers")
 def list_travellers():
@@ -35,7 +55,6 @@ def list_travellers():
     ).fetchall()
     conn.close()
     return jsonify([dict(row) for row in rows])
-
 
 @app.get("/travellers/<int:traveller_id>")
 def get_traveller(traveller_id):
@@ -49,7 +68,6 @@ def get_traveller(traveller_id):
         return jsonify({"error": "Traveller not found"}), 404
 
     return jsonify(dict(row))
-
 
 @app.post("/travellers")
 def create_traveller():
@@ -77,7 +95,6 @@ def create_traveller():
 
     return jsonify({"traveller_id": traveller_id}), 201
 
-
 @app.delete("/travellers/<int:traveller_id>")
 def delete_traveller(traveller_id):
     conn = get_db_connection()
@@ -93,7 +110,6 @@ def delete_traveller(traveller_id):
 
     return jsonify({"deleted": traveller_id})
 
-
 # Users & access logs
 def user_public(row):
     """Drop the password hash and verification token before handing a user
@@ -103,14 +119,12 @@ def user_public(row):
     data.pop("verification_token", None)
     return data
 
-
 @app.get("/users")
 def list_users():
     conn = get_db_connection()
     rows = conn.execute("SELECT * FROM users ORDER BY id DESC").fetchall()
     conn.close()
     return jsonify([user_public(row) for row in rows])
-
 
 @app.get("/users/by-email/<path:email>")
 def get_user_by_email(email):
@@ -123,12 +137,13 @@ def get_user_by_email(email):
 
     return jsonify(user_public(row))
 
+OPTIONAL_USER_FIELDS = {"verification_token", "verification_expires_at"}
 
 @app.post("/users")
 def create_user():
     payload = request.get_json(silent=True) or {}
     missing = [
-        f for f in USER_FIELDS if f != "verification_token" and payload.get(f) in (None, "")
+        f for f in USER_FIELDS if f not in OPTIONAL_USER_FIELDS and payload.get(f) in (None, "")
     ]
 
     if missing:
@@ -137,8 +152,13 @@ def create_user():
     conn = get_db_connection()
     try:
         cursor = conn.execute(
-            f"INSERT INTO users ({', '.join(USER_FIELDS)}) VALUES (?, ?, ?, ?, ?)",
+            f"INSERT INTO users ({', '.join(USER_FIELDS)}) "
+            f"VALUES ({', '.join('?' for _ in USER_FIELDS)})",
             tuple(payload.get(f) for f in USER_FIELDS),
+        )
+        conn.execute(
+            "UPDATE users SET last_verification_sent_at = ? WHERE id = ?",
+            (now_utc().isoformat(timespec="seconds"), cursor.lastrowid),
         )
         conn.commit()
     except sqlite3.IntegrityError:
@@ -151,7 +171,6 @@ def create_user():
 
     return jsonify(user_public(row)), 201
 
-
 @app.post("/users/verify/<token>")
 def verify_user(token):
     conn = get_db_connection()
@@ -163,6 +182,15 @@ def verify_user(token):
         conn.close()
         return jsonify({"error": "Invalid or already-used verification link"}), 404
 
+    expires_at = parse_ts(row["verification_expires_at"])
+    if expires_at and now_utc() > expires_at:
+        conn.execute(
+            "UPDATE users SET verification_token = NULL WHERE id = ?", (row["id"],)
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"error": "This verification link has expired"}), 410
+
     conn.execute(
         "UPDATE users SET is_validated = 1, verification_token = NULL WHERE id = ?",
         (row["id"],),
@@ -173,6 +201,92 @@ def verify_user(token):
 
     return jsonify(user_public(updated))
 
+@app.post("/users/verification/resend")
+def resend_verification():
+    """Issue a fresh verification token for an unverified user, enforcing:
+    - at least 60s between sends
+    - at most 5 sends per window
+    - a 10 minute cooldown once the window is exhausted, after which the
+      window resets and the same 5-then-cooldown pattern repeats
+
+    The caller (student-4-api) generates the token itself and only sends the
+    email once this endpoint reports success.
+    """
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+    token = payload.get("verification_token")
+    expires_at = payload.get("verification_expires_at")
+
+    if not email or not token or not expires_at:
+        return jsonify({"error": "Missing fields"}), 400
+
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+    if row is None:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    if row["is_validated"]:
+        conn.close()
+        return jsonify({"error": "This account is already verified."}), 400
+
+    now = now_utc()
+    blocked_until = parse_ts(row["verification_blocked_until"])
+
+    if blocked_until and now < blocked_until:
+        conn.close()
+        remaining = int((blocked_until - now).total_seconds())
+        return jsonify({
+            "error": "Too many attempts. Please wait before trying again.",
+            "retry_after_seconds": remaining,
+        }), 429
+
+    resend_count = row["verification_resend_count"] or 0
+    if blocked_until and now >= blocked_until:
+        resend_count = 0
+
+    last_sent = parse_ts(row["last_verification_sent_at"])
+    if last_sent:
+        elapsed = (now - last_sent).total_seconds()
+        if elapsed < RESEND_MIN_INTERVAL_SECONDS:
+            conn.close()
+            remaining = int(RESEND_MIN_INTERVAL_SECONDS - elapsed) + 1
+            return jsonify({
+                "error": "Please wait before requesting another email.",
+                "retry_after_seconds": remaining,
+            }), 429
+
+    if resend_count >= RESEND_MAX_ATTEMPTS:
+        new_blocked_until = now + timedelta(seconds=RESEND_BLOCK_SECONDS)
+        conn.execute(
+            "UPDATE users SET verification_resend_count = 0, verification_blocked_until = ? "
+            "WHERE id = ?",
+            (new_blocked_until.isoformat(timespec="seconds"), row["id"]),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({
+            "error": "Too many attempts. Please wait before trying again.",
+            "retry_after_seconds": RESEND_BLOCK_SECONDS,
+        }), 429
+
+    conn.execute(
+        """
+        UPDATE users
+        SET verification_token = ?,
+            verification_expires_at = ?,
+            last_verification_sent_at = ?,
+            verification_resend_count = ?,
+            verification_blocked_until = NULL
+        WHERE id = ?
+        """,
+        (token, expires_at, now.isoformat(timespec="seconds"), resend_count + 1, row["id"]),
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({"resent": True, "resend_count": resend_count + 1})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5200)

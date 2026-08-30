@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Check your email - NextStop</title>
+    <link rel="stylesheet" href="/shared/css/theme.css">
+</head>
+<body class="verify-body">
+
+<main class="verify-card">
+    <div class="verify-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>
+        </svg>
+    </div>
+
+    <h1 class="verify-title">Check your email</h1>
+    <p class="verify-subtitle" id="verify-subtitle">
+        We've sent a verification link to <strong id="verify-email"></strong>.<br>
+        Click the link to verify your account.
+    </p>
+
+    <p class="notice" id="verify-status" style="display:none"></p>
+
+    <button type="button" class="btn btn--pill-dark verify-resend" id="resend-btn" disabled>Resend in 60s</button>
+
+    <p class="verify-hint">Didn't get it? Check your spam folder.</p>
+</main>
+
+<script>
+(function () {
+    const email = sessionStorage.getItem("pendingVerificationEmail");
+    const emailEl = document.getElementById("verify-email");
+    const subtitleEl = document.getElementById("verify-subtitle");
+    const resendBtn = document.getElementById("resend-btn");
+    const statusEl = document.getElementById("verify-status");
+
+    if (!email) {
+        subtitleEl.textContent = "We couldn't find a pending sign-up. Please sign up again.";
+        resendBtn.style.display = "none";
+        return;
+    }
+
+    emailEl.textContent = email;
+
+    let secondsLeft = 0;
+    let timer = null;
+
+    function formatLabel(seconds, resendLabel) {
+        if (seconds > 60) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${resendLabel} in ${m}m ${String(s).padStart(2, "0")}s`;
+        }
+        return `${resendLabel} in ${seconds}s`;
+    }
+
+    function startCountdown(seconds, resendLabel, onDone) {
+        secondsLeft = seconds;
+        resendBtn.disabled = true;
+        resendBtn.textContent = formatLabel(secondsLeft, resendLabel);
+        clearInterval(timer);
+        timer = setInterval(() => {
+            secondsLeft -= 1;
+            if (secondsLeft <= 0) {
+                clearInterval(timer);
+                onDone();
+            } else {
+                resendBtn.textContent = formatLabel(secondsLeft, resendLabel);
+            }
+        }, 1000);
+    }
+
+    function enableResend() {
+        resendBtn.disabled = false;
+        resendBtn.textContent = "Resend email";
+    }
+
+    function showStatus(kind, message) {
+        statusEl.className = `notice notice-${kind}`;
+        statusEl.textContent = message;
+        statusEl.style.display = "block";
+    }
+
+    startCountdown(60, "Resend", enableResend);
+
+    resendBtn.addEventListener("click", async () => {
+        resendBtn.disabled = true;
+        statusEl.style.display = "none";
+
+        try {
+            const response = await fetch("/api/student-4/auth/resend", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                showStatus("ok", "Verification email resent.");
+                startCountdown(60, "Resend", enableResend);
+                return;
+            }
+
+            if (response.status === 429 && data.retry_after_seconds) {
+                showStatus("error", data.error || "Please wait before trying again.");
+                startCountdown(data.retry_after_seconds, "Try again", enableResend);
+                return;
+            }
+
+            showStatus("error", data.error || "Something went wrong. Please try again.");
+            enableResend();
+        } catch (err) {
+            showStatus("error", "Could not reach the server. Please try again.");
+            enableResend();
+        }
+    });
+})();
+</script>
+</body>
+</html>

@@ -5,19 +5,18 @@ only through the shared AI-Mode service.
 
 User accounts and access logs live in shared-db, not student-4-db: a user's
 id and sign-in state are things any feature may need (not just Account &
-Dashboard), the same cross-cutting role shared-db already plays for
-traveller records. This service reaches them through shared-api, the same
-way student-1 reaches traveller records - never shared-db directly.
+Dashboard). This service reaches them through shared-api.
 
-student-4-db (DB_SERVICE_URL) is still this feature's own database, for
-whatever Account & Dashboard-specific data isn't cross-cutting (e.g. saved
-preferences, dashboard widgets) - it just doesn't hold users/access_logs.
+Verification emails go through Mailpit locally. Swap for Resend in a later release, 
+only send_verification_email below should need to change.
 """
 
 import os
 import re
 import secrets
-from datetime import datetime, timezone
+import smtplib
+from datetime import datetime, timedelta, timezone
+from email.mime.text import MIMEText
 from html import escape
 
 import requests
@@ -32,17 +31,75 @@ DB_SERVICE_URL = os.getenv("DB_SERVICE_URL", "http://student-4-db:5204")
 SHARED_API_URL = os.getenv("SHARED_API_URL", "http://shared-api:5000")
 AI_MODE_URL = os.getenv("AI_MODE_URL", "http://ai-mode:5300")
 
+MAILPIT_HOST = os.getenv("MAILPIT_HOST", "mailpit")
+MAILPIT_PORT = int(os.getenv("MAILPIT_PORT", "1025"))
+MAIL_FROM = os.getenv("MAIL_FROM", "no-reply@nextstop.local")
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8080")
+
 DB_DOWN = "Could not reach the Account & Dashboard database service."
 SHARED_DOWN = "Could not reach the shared access service."
 
+VERIFY_TOKEN_TTL_MINUTES = 5
+
 LOCAL_PART_RE = re.compile(r"^(?!\.)(?!.*\.\.)[A-Za-z0-9._+-]+(?<!\.)$")
 DOMAIN_RE = re.compile(r"^(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}$")
+
+ENVELOPE_SVG = (
+    "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' "
+    "stroke-linecap='round' stroke-linejoin='round'>"
+    "<rect x='3' y='5' width='18' height='14' rx='2'/><path d='M3 7l9 6 9-6'/></svg>"
+)
 
 def error_fragment(message, detail=""):
     body = f"<div class='notice notice-error'>{escape(message)}</div>"
     if detail:
         body += f"<pre>{escape(str(detail)[:600])}</pre>"
     return body
+
+def verify_page(heading, message, tone, status=200):
+    pill = "notice-ok" if tone == "ok" else "notice-error"
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{escape(heading)} - NextStop</title>
+<link rel="stylesheet" href="/shared/css/theme.css">
+</head>
+<body class="verify-body">
+<main class="verify-card">
+  <div class="verify-icon">{ENVELOPE_SVG}</div>
+  <h1 class="verify-title">{escape(heading)}</h1>
+  <p class="notice {pill} notice--top-gap">{escape(message)}</p>
+  <a class="btn btn--pill-dark verify-resend" href="/">Back to NextStop</a>
+</main>
+</body>
+</html>"""
+    return html, status
+
+def new_verification_token():
+    token = secrets.token_urlsafe(32)
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(minutes=VERIFY_TOKEN_TTL_MINUTES)
+    ).isoformat(timespec="seconds")
+    return token, expires_at
+
+def send_verification_email(name, email, token):
+    verify_url = f"{PUBLIC_BASE_URL}/api/student-4/auth/verify/{token}"
+    body = (
+        f"Hi {name},\n\n"
+        "Welcome to NextStop! Click the link below to verify your email address.\n\n"
+        f"{verify_url}\n\n"
+        f"This link can only be used once and expires in {VERIFY_TOKEN_TTL_MINUTES} minutes.\n"
+        "If you didn't request this, you can safely ignore this email."
+    )
+    message = MIMEText(body)
+    message["Subject"] = "Verify your NextStop account"
+    message["From"] = MAIL_FROM
+    message["To"] = email
+
+    with smtplib.SMTP(MAILPIT_HOST, MAILPIT_PORT, timeout=5) as smtp:
+        smtp.send_message(message)
 
 def validate_email(value):
     if not value or len(value) > 254 or value.count("@") != 1 or " " in value:
@@ -124,12 +181,13 @@ def register():
                                   "uppercase letter, a lowercase letter, a number "
                                   "and a special character."}), 400
 
-    verification_token = secrets.token_urlsafe(32)
+    verification_token, verification_expires_at = new_verification_token()
     shared_payload = {
         "name": name,
         "email": email,
         "password_hash": generate_password_hash(password),
         "verification_token": verification_token,
+        "verification_expires_at": verification_expires_at,
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
@@ -143,26 +201,74 @@ def register():
 
     user = response.json()
 
-    # TODO (Aurelia Sari): send this link by email once a mail service is
-    # wired up (e.g. SMTP or a transactional email API). Until then it is
-    # handed back directly so register -> verify can be tested end-to-end.
-    verification_link = f"/api/student-4/auth/verify/{verification_token}"
+    try:
+        send_verification_email(name, email, verification_token)
+    except OSError as exc:
+        print(f"[student-4-api] failed to send verification email: {exc}")
 
-    return jsonify({**user, "verification_link": verification_link}), 201
+    return jsonify(user), 201
+
+@app.post("/auth/resend")
+def resend():
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+
+    if not validate_email(email):
+        return jsonify({"error": "Enter a valid email address."}), 400
+
+    verification_token, verification_expires_at = new_verification_token()
+
+    try:
+        response = requests.post(
+            f"{SHARED_API_URL}/users/verification/resend",
+            json={
+                "email": email,
+                "verification_token": verification_token,
+                "verification_expires_at": verification_expires_at,
+            },
+            timeout=5,
+        )
+        data = response.json()
+    except requests.RequestException as exc:
+        return jsonify({"error": SHARED_DOWN, "detail": str(exc)[:300]}), 503
+
+    if response.status_code != 200:
+        return jsonify(data), response.status_code
+
+    try:
+        send_verification_email("there", email, verification_token)
+    except OSError as exc:
+        return jsonify({"error": "Could not send the email. Please try again."}), 503
+
+    return jsonify({"resent": True})
 
 @app.get("/auth/verify/<token>")
 def verify(token):
     try:
         response = requests.post(f"{SHARED_API_URL}/users/verify/{token}", timeout=5)
-        if response.status_code == 404:
-            return error_fragment(
-                "This verification link is invalid or has already been used."
-            ), 404
-        response.raise_for_status()
     except requests.RequestException as exc:
-        return error_fragment(SHARED_DOWN, exc), 503
+        return verify_page("Verification unavailable", SHARED_DOWN, "error", 503)
 
-    return "<div class='notice notice-ok'>Email verified - you can now log in.</div>", 200
+    if response.status_code == 404:
+        return verify_page(
+            "Link invalid",
+            "This verification link is invalid or has already been used.",
+            "error",
+            404,
+        )
+    if response.status_code == 410:
+        return verify_page(
+            "Link expired",
+            "This verification link has expired. Please request a new one.",
+            "error",
+            410,
+        )
+    if response.status_code != 200:
+        return verify_page("Verification unavailable", SHARED_DOWN, "error", 503)
+
+    return verify_page(
+        "Email verified", "You can now log in to your account.", "ok", 200
+    )
 
 @app.post("/ai/chat")
 def ai_chat():

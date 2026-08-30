@@ -59,13 +59,17 @@ cursor.executemany(
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    name                TEXT NOT NULL,
-    email               TEXT NOT NULL UNIQUE,
-    password_hash       TEXT NOT NULL,
-    is_validated        INTEGER NOT NULL DEFAULT 0,
-    verification_token  TEXT,
-    created_at          TEXT NOT NULL
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                        TEXT NOT NULL,
+    email                       TEXT NOT NULL UNIQUE,
+    password_hash               TEXT NOT NULL,
+    is_validated                INTEGER NOT NULL DEFAULT 0,
+    verification_token          TEXT,
+    verification_expires_at     TEXT,
+    last_verification_sent_at   TEXT,
+    verification_resend_count   INTEGER NOT NULL DEFAULT 0,
+    verification_blocked_until  TEXT,
+    created_at                  TEXT NOT NULL
 )
 """)
 
@@ -92,7 +96,6 @@ users = [
         f"traveller{i}@example.com",
         seed_password_hash,
         1 if i % 2 == 0 else 0,
-        None,
         (now - timedelta(days=30 - i)).isoformat(timespec="seconds"),
     )
     for i in range(1, 11)
@@ -100,8 +103,8 @@ users = [
 
 cursor.executemany(
     """
-    INSERT INTO users (id, name, email, password_hash, is_validated, verification_token, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, name, email, password_hash, is_validated, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
     """,
     users,
 )

@@ -176,16 +176,8 @@
                 return;
             }
 
-            form.reset();
-            [nameInput, emailInput, passwordInput].forEach((input) => {
-                input.classList.remove("is-valid", "is-invalid");
-            });
-            [nameError, emailError, passwordError].forEach((el) => el.classList.remove("is-visible"));
-            updatePasswordRules();
-            showFormStatus(
-                "ok",
-                "Account created! Check your email to verify your account before logging in."
-            );
+            sessionStorage.setItem("pendingVerificationEmail", email);
+            window.location.href = "verify-pending.html";
         } catch (err) {
             showFormStatus("error", "Could not reach the server. Please try again.");
         } finally {

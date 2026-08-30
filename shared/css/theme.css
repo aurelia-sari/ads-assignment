@@ -873,7 +873,6 @@ pre {
 }
 
 /* SIGNUP PAGE */
-
 .signup-body {
     min-height: 100vh;
     display: flex;
@@ -1050,4 +1049,85 @@ pre {
     font-size: 1.5rem;
     letter-spacing: 0.04em;
     color: var(--color-white);
+}
+
+/* EMAIL VERIFICATION PAGE */
+.verify-body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background: var(--color-navy-900);
+}
+
+.verify-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--color-white);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-panel);
+    padding: 2.5rem 2rem;
+    text-align: center;
+}
+
+.verify-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1.25rem;
+    border-radius: 50%;
+    background: var(--color-navy-900);
+    color: var(--color-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.verify-icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+.verify-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--color-navy-900);
+    margin-bottom: 0.6rem;
+}
+
+.verify-subtitle {
+    color: var(--color-slate-500);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+.verify-card .notice {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.verify-card .notice--top-gap {
+    margin-top: 1rem;
+}
+
+.verify-resend {
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.25rem;
+}
+
+.verify-resend:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.verify-resend:disabled:hover {
+    transform: none;
+}
+
+.verify-hint {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--color-slate-500);
 }
