@@ -244,6 +244,9 @@ Functional:
 | F4.6 | Expire a verification link after 5 minutes and allow only one use | Expired token returns 410; a reused token returns 404 |
 | F4.7 | Let the user request another verification email if they didn't get one | "Resend" on the pending page issues a fresh token and email |
 | F4.8 | Rate-limit resend requests | At most 5 resends per window, 60s apart, then a 10 minute block before the window resets |
+| F4.9 | Sign in with email and password | `POST /auth/login` returns 200 with the user record on a correct password against a verified account |
+| F4.10 | Refuse an unverified account at sign-in, and send a fresh verification email rather than leaving the user stuck | 403 with `error_code: "email_not_verified"`; a fresh email sends unless the 60s resend cooldown from 4.8 is still active |
+| F4.11 | Record every successful sign-in | A `POST /access-logs` row is written (`user_id`, `sign_in_at`, `in_session = 1`) before `/auth/login` responds |
 
 Non-functional:
 
@@ -251,9 +254,10 @@ Non-functional:
 |----|-------------|---------------|
 | N4.1 | The database never stores a plaintext password | `generate_password_hash` (Werkzeug, pbkdf2) runs before the value leaves `student-4-api` |
 | N4.2 | A resend cannot be replayed to brute-force verification | The token is single-use (cleared on verify) and time-limited (5 min); shared-db enforces the rate limit atomically per request |
-| N4.3 | An outage in a dependency does not show a stack trace to the user | `register`/`resend`/`verify` catch `RequestException` and return a JSON or rendered error page instead |
-| N4.4 | The sign-up form matches the team UI and works down to mobile width | Page links `/shared/css/theme.css` only; verified at 375px (phone) and 700px (tablet) |
-| N4.5 | Cross-cutting identity data is not duplicated per feature | `users`/`access_logs` live once in shared-db, resolved by every feature over HTTP - the same pattern `travellers` already uses (see 2.7) |
+| N4.3 | An outage in a dependency does not show a stack trace to the user | `register`/`resend`/`verify`/`login` catch `RequestException` and return a JSON or rendered error page instead |
+| N4.4 | The sign-up and sign-in forms match the team UI and work down to mobile width | Both pages link `/shared/css/theme.css` only and share the same card layout; verified at 375px (phone) and 700px (tablet) |
+| N4.5 | Cross-cutting identity data is not duplicated per feature | `users`/`access_logs` live once in shared-db, resolved by every feature over HTTP (see 2.7) |
+| N4.6 | A failed sign-in never reveals whether an email is registered | `/users/authenticate` returns the identical 401 body for "no such user" and "wrong password", and hashes a dummy value on the former so response timing does not leak it either; the `email_not_verified` code is only ever returned once the password has already been confirmed correct |
 
 *students 2, 3, 5: add your subsections here.*
 
@@ -327,6 +331,11 @@ integration time.
 | 6 | Resend rate limiting | 60s between sends, 5 sends per window, then a 10 minute block before the window resets - enforced atomically in shared-db, not in the stateless API layer | 31 Aug |
 | 7 | Accounts view | index.html's placeholder "Records" tab replaced with a live accounts list (`GET /users`), completing the scaffold's own TODO | 30 Aug |
 | 8 | Feature-specific smoke test | `student-4/tests/smoke_test.py`, dispatched from `check_student_4()` (same pattern as student-2's `check_student_2()`), replacing the generic `records`-shaped check this feature no longer matches | 31 Aug |
+| 9 | Sign-in page | `signin.html`: same card layout as sign-up (`Welcome back!`), email/password with the sign-up page's identical client-side email validation, password show/hide toggle, inert "Forgot password?" placeholder | 31 Aug |
+| 10 | Sign-in endpoint | `POST /auth/login` in student-4-api, `POST /users/authenticate` in shared-db (password check stays where the hash lives), generic error for both a wrong password and an unregistered email | 31 Aug |
+| 11 | Access logging | `POST /access-logs` in shared-db, called by `/auth/login` on every successful sign-in, finally giving the Release 0 `access_logs` schema a writer | 31 Aug |
+| 12 | Unverified-account handling | `/auth/login` returns `email_not_verified` and redirects to the existing verify-pending page rather than a bare inline error; also triggers a real resend (reusing 6's rate limit) so that page's "check your email" copy is backed by an actual email | 31 Aug |
+| 13 | Sign-in smoke tests | Extended `student-4/tests/smoke_test.py`: generic-error parity, unverified block, no-duplicate-email-within-cooldown, successful login | 31 Aug |
 
 **Design decisions worth defending.**
 
@@ -353,12 +362,27 @@ integration time.
    as annoying during review. Field errors now show on blur and re-validate
    live only once a field has been touched, while the password checklist
    (a progress indicator, not an accusation) still updates every keystroke.
+5. *Password verification stays in shared-db, next to the hash it checks.*
+   `student-4-api` never sees `password_hash`, it POSTs the raw email and
+   password to shared-db's `/users/authenticate`, which does the
+   `check_password_hash` call itself and returns only a public user record or
+   a generic error. Same trust boundary as decision 2 above, applied to
+   sign-in instead of the verification token.
+6. *A wrong password and an unregistered email are indistinguishable to the
+   caller.* Both return the exact same 401 body, and looking up a
+   non-existent email still runs a dummy `check_password_hash` so the
+   response takes about as long either way, otherwise timing alone could be
+   used to enumerate which emails are registered. Only once a password is
+   confirmed *correct* does the response reveal `email_not_verified`, so a
+   guess can never be used to probe account state.
 
 **Deferred to Release 1.**
 
 - Profile fields and the dashboard itself - Release 0 only covers identity
-- Sign-in, session cookies, and using `access_logs.in_session` for real (the
-  table and columns exist and are seeded, but no route writes to them yet)
+- Session cookies - `/auth/login` currently returns the user record and
+  writes the `access_logs` row, but nothing keeps the browser "signed in"
+  between requests yet, and no route ever sets `sign_out_at` /
+  `in_session = 0` (see 9, known issue 1b)
 - Swap Mailpit for Resend, isolated to `send_verification_email()` in
   `student-4-api`, by design
 
@@ -415,7 +439,7 @@ useful - so the tests need to assert on grounded output, not just on a 200.
 | # | Risk | Likelihood | Impact | Mitigation | Owner |
 |---|------|-----------|--------|------------|-------|
 | R4-4 | Mailpit is a dev-only SMTP catcher; nothing sends real email yet | Certain, by design | Medium | Scoped deliberately for Release 0 - `send_verification_email()` is isolated so swapping in Resend is a one-function change | Me, Release 1 |
-| R4-5 | No route writes to `access_logs` yet | High (nothing calls it) | Low | Table and columns exist and are seeded, ready for the sign-in feature that will populate `in_session` | Me, Release 1 |
+| R4-5 | *(Resolved.)* `/auth/login` now writes `access_logs`, but nothing sets `sign_out_at` / resets `in_session` yet | Medium (state only ever moves one way) | Low | Add a sign-out route in Release 1 | Me, Release 1 |
 
 ### 2.7 Data design
 
@@ -740,10 +764,11 @@ minimum, alongside the pre-existing 12 `travellers` in the same database.
 1. **No index on `access_logs(user_id)`.** At 10 rows this is irrelevant, but
    it would be the first index to add once a "sign-in history for this user"
    query exists - the same shape of gap student-1 notes for `itinerary_days`.
-2. **`access_logs` is seeded but unused.** No route writes to it yet, since
-   sign-in itself is Release 1 work (see 2.5's deferred list). It is
-   documented now because the schema decision (co-locating it with `USER` in
-   shared-db) was made in Release 0 and should not need revisiting later.
+2. **`access_logs` rows are written but never closed.** `/auth/login` inserts
+   a row (`in_session = 1`) on every successful sign-in, but no route sets
+   `sign_out_at` or flips `in_session` back to 0 - there is no sign-out
+   endpoint yet (see 2.5's deferred list and 9, known issue 1b). Until one
+   exists, `in_session` cannot be trusted as "currently signed in."
 3. **The 60s/5-attempt/10-minute resend state lives on the `USER` row itself**
    rather than in a separate rate-limit table. Simpler for one row-per-user
    at this scale; would need to move to a keyed table if rate limiting ever
@@ -988,7 +1013,7 @@ record per run.
 | student-1 Caroline | Trips & Itinerary | Two tables (12 trips, 15 itinerary days), full CRUD on both through frontend, API and database. AI assistant grounded in live trip data. Cross-feature traveller resolution from the shared access API, with a 30s cache and graceful degradation. |
 | student-2 Kevin | Attractions & Dining | Three tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration through AI-Mode. |
 | student-3 TJ | Travel Mate | Generated scaffold: working `records` CRUD trio, real schema outstanding. |
-| student-4 Aurelia | Account & Dashboard | Sign-up with live client + server validation and a required T&C checkbox; email verification via Mailpit with a single-use, 5-minute token; resend rate-limited (60s / 5 attempts / 10 min block, then repeats). Identity (`users`, `access_logs`) placed in shared-db as cross-cutting data rather than student-4-db. Profile and dashboard CRUD not yet started. |
+| student-4 Aurelia | Account & Dashboard | Sign-up with live client + server validation and a required T&C checkbox; email verification via Mailpit with a single-use, 5-minute token; resend rate-limited (60s / 5 attempts / 10 min block, then repeats). Sign-in checks the password server-side in shared-db, returns a generic error for both a wrong password and an unregistered email, blocks unverified accounts (re-sending a verification email), and logs every successful sign-in to `access_logs`. Identity (`users`, `access_logs`) placed in shared-db as cross-cutting data rather than student-4-db. Session cookies, sign-out, and dashboard CRUD not yet started. |
 | student-5 Aung | Bookings & Budget | Generated scaffold. Also designed the landing page and the shared CSS theme used across the application. |
 
 **Integration properties worth stating.** Each database container owns its schema
@@ -1030,7 +1055,7 @@ assumes the old `records` scaffold, this feature no longer has that resource
 
 ```
 $ python3 scripts/smoke_test.py 4
-Smoke test: student-4 sign-up & email verification
+Smoke test: student-4 sign-up, email verification & sign-in
   ok  GET /health returns 200
   ok  POST /auth/register without terms_accepted returns 400
   ok  error message names the T&C requirement
@@ -1051,8 +1076,18 @@ Smoke test: student-4 sign-up & email verification
   ok  second account for resend testing registers successfully
   ok  resending within 60s of registering returns 429
   ok  429 response names how long to wait
+  ok  POST /auth/login with the wrong password returns 401
+  ok  wrong-password error message is the generic one
+  ok  POST /auth/login for an email with no account returns 401
+  ok  unknown-email error is identical to wrong-password (no account enumeration)
+  ok  POST /auth/login with the correct password on an unverified account returns 403
+  ok  403 response names the email_not_verified error code
+  ok  signing in to an unverified account within the resend cooldown does not send a duplicate email
+  ok  POST /auth/login with the correct password on a verified account returns 200
+  ok  login response returns the signed-in user
+  ok  login response never leaks the password hash or verification token
 
-student-4 sign-up & email verification passed all checks.
+student-4 sign-up, email verification & sign-in passed all checks.
 Smoke test: student-4
   ok  database service is healthy
   ok  backend/API service is healthy
@@ -1072,7 +1107,43 @@ The sign-up form's client-side behaviour (submit disabled until every field
 is valid, T&C checkbox required, errors on blur rather than on keystroke)
 was additionally verified against the actual rendered pages in a browser
 through the nginx hub at `localhost:8080`, not just against the API
-directly.
+directly. The sign-in page (same layout, same email validation, plus the
+password show/hide toggle) was verified the same way, including the redirect
+to the verify-pending page for an unverified account.
+
+**Sign-in evidence the automated script does not cover**, verified manually
+instead (see `student-4/tests/README.md` for why):
+
+```
+$ curl -s -X POST http://localhost:8084/api/student-4/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email":"traveller3@example.com","password":"Placeholder1!"}'
+{"error":"Please verify your email before signing in.","error_code":"email_not_verified"}
+
+$ curl -s "http://localhost:8025/api/v1/search?query=to%3Atraveller3%40example.com"
+... "Subject":"Verify your NextStop account", "Snippet":"Hi there, Welcome to
+NextStop! Click the link below to verify your email address.
+http://localhost:8080/api/student-4/auth/verify/0eAWmuOL..." ...
+```
+
+A sign-in attempt against an unverified account really does put a fresh
+verification link in the user's inbox, not just on the pending screen -
+confirmed by finding the link in Mailpit right after the login attempt above.
+
+```
+$ docker exec shared-db python -c "
+import sqlite3
+conn = sqlite3.connect('/app/data/shared.db')
+conn.row_factory = sqlite3.Row
+for r in conn.execute('SELECT * FROM access_logs WHERE user_id=2 ORDER BY id DESC LIMIT 1'):
+    print(dict(r))
+"
+{'id': 11, 'user_id': 2, 'sign_in_at': '2026-08-30T17:57:41+00:00', 'sign_out_at': None, 'in_session': 1}
+```
+
+A successful sign-in writes the `access_logs` row it is supposed to -
+confirmed by querying `shared.db` directly inside the `shared-db` container,
+since no HTTP endpoint exposes access logs for reading yet.
 
 ### 8.2 Screenshots of the integrated application
 
@@ -1101,7 +1172,7 @@ integrated application.
 | # | Issue | Impact | Plan |
 |---|-------|--------|------|
 | 1 | Students 3 and 5 still hold the generated `records` scaffold rather than real feature schemas | Those features are not yet real | Each owner replaces their schema, routes and page |
-| 1b | No route writes to `access_logs` yet, though the table and columns are seeded | Sign-in state cannot be queried yet | Land the sign-in feature in Release 1, populating `in_session` |
+| 1b | `/auth/login` writes an `access_logs` row on sign-in, but no route ever sets `sign_out_at` or resets `in_session` to 0, and no endpoint exposes access logs for reading | `in_session` cannot be trusted as "currently signed in"; verified manually via direct DB query instead of through the API (see 8.1) | Add a sign-out endpoint and a way to read access logs, alongside real session cookies, in Release 1 |
 | 2 | Ollama runs on the host, not in a container | Deployment has a manual prerequisite | Document in the video; containerise if RAM allows |
 | 3 | Local models answer direct lookups correctly but fail aggregation across the full context - asked which of 12 trips has the smallest budget, `llama3.2` named a trip costing AUD 3,300 when the smallest is AUD 2,900 | An aggregate question gives a confidently wrong answer | Demonstrate direct lookups, which are reliable. A real fix computes aggregates in the backend and passes the answer as context, rather than asking the model to scan and compare. Release 1. |
 | 4 | AI-Mode adds one hop over the specification's direct Backend -> Ollama flow | Deviation from the spec diagram | Justified in ADR-001 |
