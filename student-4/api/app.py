@@ -56,7 +56,7 @@ def error_fragment(message, detail=""):
         body += f"<pre>{escape(str(detail)[:600])}</pre>"
     return body
 
-def verify_page(heading, message, tone, status=200):
+def verify_page(heading, message, tone, status=200, cta_href="/", cta_label="Back to NextStop"):
     pill = "notice-ok" if tone == "ok" else "notice-error"
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -71,7 +71,7 @@ def verify_page(heading, message, tone, status=200):
   <div class="verify-icon">{ENVELOPE_SVG}</div>
   <h1 class="verify-title">{escape(heading)}</h1>
   <p class="notice {pill} notice--top-gap">{escape(message)}</p>
-  <a class="btn btn--pill-dark verify-resend" href="/">Back to NextStop</a>
+  <a class="btn btn--pill-dark verify-resend" href="{escape(cta_href)}">{escape(cta_label)}</a>
 </main>
 </body>
 </html>"""
@@ -318,7 +318,8 @@ def verify(token):
         return verify_page("Verification unavailable", SHARED_DOWN, "error", 503)
 
     return verify_page(
-        "Email verified", "You can now log in to your account.", "ok", 200
+        "Email verified", "You can now log in to your account.", "ok", 200,
+        cta_href="/student-4/signin.html", cta_label="Sign in",
     )
 
 @app.post("/ai/chat")
