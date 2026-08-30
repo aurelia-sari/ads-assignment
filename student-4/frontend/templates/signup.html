@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign Up - NextStop</title>
+    <link rel="stylesheet" href="/shared/css/theme.css">
+    <script src="/shared/js/htmx.min.js"></script>
+</head>
+<body class="signup-body">
+
+<main class="signup-card">
+    <section class="signup-form-panel">
+        <h1 class="signup-title">Create an account</h1>
+        <p class="signup-subtitle">Your next adventure starts here. Get started to create, organise, and save all your travel plans in one place.</p>
+
+        <form id="signup-form" novalidate>
+            <div class="field-group">
+                <label for="signup-name">Name</label>
+                <input id="signup-name" name="name" type="text" placeholder="What should we call you?" autocomplete="nickname" required>
+                <p class="field-error" id="name-error">Please tell us what to call you.</p>
+            </div>
+
+            <div class="field-group">
+                <label for="signup-email">Email</label>
+                <input id="signup-email" name="email" type="text" placeholder="Your email" autocomplete="email" required>
+                <p class="field-error" id="email-error">Enter a valid email address.</p>
+            </div>
+
+            <div class="field-group">
+                <label for="signup-password">Password</label>
+                <div class="password-input-wrap">
+                    <input id="signup-password" name="password" type="password" placeholder="Create a password" autocomplete="new-password" required>
+                    <button type="button" class="password-toggle" id="password-toggle">Show</button>
+                </div>
+                <p class="field-error" id="password-error">Your password doesn't meet the requirements below.</p>
+
+                <div class="password-rules" id="password-rules">
+                    <span class="rule-pill" data-rule="length">8 characters</span>
+                    <span class="rule-pill" data-rule="upper">1 uppercase</span>
+                    <span class="rule-pill" data-rule="lower">1 lowercase</span>
+                    <span class="rule-pill" data-rule="number">1 number</span>
+                    <span class="rule-pill" data-rule="special">1 special character</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn--pill-dark signup-submit">Get Started</button>
+        </form>
+
+        <p class="signup-login-hint">Already have an account? Log in</p>
+    </section>
+
+    <aside class="signup-img">
+        <div class="signup-img-logo">NEXTSTOP</div>
+        <img src="https://images.unsplash.com/photo-1465056836041-7f43ac27dcb5?q=80&w=1771&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Snowy mountain landscape">
+    </aside>
+</main>
+
+<script>
+(function () {
+    const form = document.getElementById("signup-form");
+    const nameInput = document.getElementById("signup-name");
+    const emailInput = document.getElementById("signup-email");
+    const passwordInput = document.getElementById("signup-password");
+    const passwordToggle = document.getElementById("password-toggle");
+    const passwordRules = document.getElementById("password-rules");
+
+    const nameError = document.getElementById("name-error");
+    const emailError = document.getElementById("email-error");
+    const passwordError = document.getElementById("password-error");
+
+    const LOCAL_PART_RE = /^(?!\.)(?!.*\.\.)[A-Za-z0-9._+-]+(?<!\.)$/;
+    const DOMAIN_RE = /^(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}$/;
+
+    function validateEmail(value) {
+        if (!value || value.length > 254) return false;
+        if ((value.match(/@/g) || []).length !== 1) return false;
+        if (/\s/.test(value)) return false;
+
+        const [localPart, domain] = value.split("@");
+        if (!localPart || !domain) return false;
+        if (localPart.length > 64 || domain.length > 255) return false;
+        if (!LOCAL_PART_RE.test(localPart)) return false;
+        if (!DOMAIN_RE.test(domain)) return false;
+
+        return true;
+    }
+
+    function passwordChecks(value) {
+        return {
+            length: value.length >= 8 && value.length <= 64,
+            upper: /[A-Z]/.test(value),
+            lower: /[a-z]/.test(value),
+            number: /[0-9]/.test(value),
+            special: /[^A-Za-z0-9]/.test(value),
+        };
+    }
+
+    function updatePasswordRules() {
+        const checks = passwordChecks(passwordInput.value);
+        passwordRules.querySelectorAll(".rule-pill").forEach((pill) => {
+            const rule = pill.dataset.rule;
+            pill.classList.toggle("is-met", !!checks[rule]);
+        });
+        return Object.values(checks).every(Boolean);
+    }
+
+    function setFieldValidity(input, errorEl, isValid, isTouched) {
+        if (!isTouched) return;
+        input.classList.toggle("is-invalid", !isValid);
+        input.classList.toggle("is-valid", isValid);
+        errorEl.classList.toggle("is-visible", !isValid);
+    }
+
+    passwordInput.addEventListener("input", () => {
+        const isValid = updatePasswordRules();
+        setFieldValidity(passwordInput, passwordError, isValid, true);
+    });
+
+    emailInput.addEventListener("input", () => {
+        setFieldValidity(emailInput, emailError, validateEmail(emailInput.value.trim()), true);
+    });
+
+    nameInput.addEventListener("input", () => {
+        setFieldValidity(nameInput, nameError, nameInput.value.trim().length > 0, true);
+    });
+
+    passwordToggle.addEventListener("click", () => {
+        const showing = passwordInput.type === "text";
+        passwordInput.type = showing ? "password" : "text";
+        passwordToggle.textContent = showing ? "Show" : "Hide";
+    });
+
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const nameValid = nameInput.value.trim().length > 0;
+        const emailValid = validateEmail(emailInput.value.trim());
+        const passwordValid = updatePasswordRules();
+
+        setFieldValidity(nameInput, nameError, nameValid, true);
+        setFieldValidity(emailInput, emailError, emailValid, true);
+        setFieldValidity(passwordInput, passwordError, passwordValid, true);
+
+        if (!nameValid || !emailValid || !passwordValid) {
+            return;
+        }
+
+        // Frontend-only for now: no backend endpoint wired up yet.
+        alert("Looks good! Account creation isn't wired up to the backend yet.");
+    });
+})();
+</script>
+</body>
+</html>
