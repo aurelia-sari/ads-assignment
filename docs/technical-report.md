@@ -199,9 +199,10 @@ cannot start cleanly until students 3, 4 and 5 replace their scaffolds, because
 MCP and RAG have to expose real schemas. That work is the first thing on the
 Release 1 board.
 
-> **Team to confirm:** who owns MCP, who owns RAG, and the cloud platform choice
-> for Release 2. Deciding the platform early matters - accounts and credentials
-> take time to arrange.
+Task ownership for Releases 1 and 2 is not allocated here. The Release 0
+requirements ask for an overall project plan, not a work breakdown of later
+releases, and allocating work this far ahead of the features it depends on would
+be guesswork rather than planning.
 
 ### 2.4 Functional and non-functional requirements **(Individual)**
 
@@ -1306,11 +1307,22 @@ The video must show:
 - the integrated application running
 - every student demonstrating their own feature
 - deployment steps, including starting Ollama
-- the agentic loop executing in the terminal
 - the CI/CD pipeline
 
 All five students must appear. All five must attend the Week 6 showcase -
 non-attendance scores 0.
+
+> **The video requirement changed on 30 August 2026.** The earlier version of the
+> Canvas assignment page asked for "deployment steps, AI-agentic workflow
+> execution, and CICD pipeline", and marking criterion 10 read "the assigned
+> feature, AI-Mode integration, and the Agentic AI loop". Both now read
+> **CI-CD DevOps workflow** in place of the agentic loop. The loop is still
+> assessed, under criterion 4, as "implemented, demonstrated, and documented" -
+> the run records in `docs/evidence/` and a terminal demonstration cover that,
+> and it no longer has to appear in the video.
+>
+> Worth re-reading the assignment page before recording: it was edited without
+> an announcement.
 
 ---
 
