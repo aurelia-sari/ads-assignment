@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 app = Flask(__name__)
 
 # Checked against on a "user not found" login attempt so that hashing a real
-# password and hashing this dummy take about the same time either way -
+# password and hashing this dummy take about the same time either way,
 # otherwise the response latency itself would reveal whether an email exists.
 DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_hex(16))
 
@@ -270,8 +270,6 @@ def create_access_log():
 
 @app.post("/access-logs/sign-out")
 def sign_out():
-    """Close a user's open session: stamp sign_out_at and clear in_session
-    on their most recent access_logs row."""
     payload = request.get_json(silent=True) or {}
     user_id = payload.get("user_id")
 
@@ -304,7 +302,6 @@ def sign_out():
 
 @app.get("/access-logs/status/<int:user_id>")
 def session_status(user_id):
-    """Whether a user is currently signed in, for any feature to check."""
     conn = get_db_connection()
     row = conn.execute(
         "SELECT * FROM access_logs WHERE user_id = ? ORDER BY id DESC LIMIT 1",

@@ -64,6 +64,14 @@ def login(email, password):
     return _call("POST", f"{API_BASE}/auth/login", json={"email": email, "password": password})
 
 
+def logout(user_id):
+    return _call("POST", f"{API_BASE}/auth/logout", json={"user_id": user_id})
+
+
+def session_status(user_id):
+    return _call("GET", f"{API_BASE}/auth/status/{user_id}")
+
+
 def mailpit_message_count(email):
     status, response = _call(
         "GET", f"{MAILPIT_BASE}/api/v1/search", params={"query": f"to:{email}"}
@@ -198,6 +206,39 @@ def run_checks():
     expect(
         "password_hash" not in signed_in and "verification_token" not in signed_in,
         "login response never leaks the password hash or verification token",
+    )
+
+    # Sign-out and session status, the contract other features use to check
+    # whether a user is signed in (docs/ADR-001-service-boundaries.md,
+    # Decision 6)
+    user_id = signed_in["id"]
+
+    status, response = session_status(user_id)
+    expect(status == 200, "GET /auth/status/<id> returns 200")
+    expect(response.json().get("is_valid") is True, "session is valid right after login")
+    expect(response.json().get("last_logout") is None, "no last_logout recorded yet")
+
+    status, response = _call("POST", f"{API_BASE}/auth/logout", json={})
+    expect(status == 400, "POST /auth/logout without a user_id returns 400")
+
+    status, response = logout(user_id)
+    expect(status == 200, "POST /auth/logout for the signed-in user returns 200")
+    expect(response.json().get("in_session") == 0, "logout response reports in_session = 0")
+    expect(response.json().get("sign_out_at") is not None, "logout response stamps sign_out_at")
+
+    status, response = session_status(user_id)
+    expect(status == 200, "GET /auth/status/<id> returns 200 after logout")
+    expect(response.json().get("is_valid") is False, "session is invalid after logout")
+    expect(response.json().get("last_logout") is not None, "last_logout is now recorded")
+
+    status, response = logout(user_id)
+    expect(status == 404, "logging out again with no open session returns 404")
+
+    status, response = session_status(999999999)
+    expect(status == 200, "GET /auth/status/<id> for an unknown id still returns 200")
+    expect(
+        response.json().get("is_valid") is False,
+        "an unknown user id is reported as not signed in, not an error",
     )
 
 

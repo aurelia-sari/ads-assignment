@@ -45,7 +45,6 @@
                 return null;
             }
         } catch (err) {
-            // Server unreachable
             return null;
         }
 
@@ -64,7 +63,6 @@
                     body: JSON.stringify({ user_id: user.id }),
                 });
             } catch (err) {
-                // Session is cleared client-side
             }
         }
 
