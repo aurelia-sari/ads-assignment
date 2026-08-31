@@ -747,8 +747,9 @@ CREATE TABLE access_logs (
 );
 ```
 
-Seeded with **10 users and 10 access log entries**, above the ten-record
-minimum, alongside the pre-existing 12 `travellers` in the same database.
+Seeded with **10 users**, above the ten-record minimum, alongside the
+pre-existing 12 `travellers` in the same database. `access_logs` starts
+empty and fills as people sign in and out.
 
 **Where the physical model departs from the logical model, and why**
 
@@ -760,9 +761,9 @@ minimum, alongside the pre-existing 12 `travellers` in the same database.
 
 **Known limitations of the physical model**
 
-1. **No index on `access_logs(user_id)`.** At 10 rows this is irrelevant, but
-   it would be the first index to add once a "sign-in history for this user"
-   query exists - the same shape of gap student-1 notes for `itinerary_days`.
+1. **No index on `access_logs(user_id)`.** Irrelevant at this scale, but it
+   would be the first index to add once a "sign-in history for this user"
+   query exists, the same shape of gap student-1 notes for `itinerary_days`.
 2. *(Resolved.)* **`access_logs` rows are written but never closed.**
    `POST /access-logs/sign-out` now closes the most recent open row for a
    user, setting `sign_out_at` and `in_session = 0` (see ADR-001
