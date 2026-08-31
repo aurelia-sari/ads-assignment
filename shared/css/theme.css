@@ -190,7 +190,7 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
 
   background-image:
     linear-gradient(180deg, rgba(10,24,48,0.55) 0%, rgba(10,24,48,0.4) 45%, var(--color-navy-900) 100%),
-    url('https://picsum.photos/id/1018/1800/1400');
+    url('/shared/assets/hero.jpg');
   background-size: cover;
   background-position: center;
 }
