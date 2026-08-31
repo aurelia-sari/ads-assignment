@@ -223,15 +223,7 @@ def format_recommendation(question, result):
                 <button
                     type="button"
                     class="place-action-btn place-action-btn--favourite"
-                    hx-post="/api/student-2/favourites"
-                    hx-vals='{{"place_id":"{place_id}"}}'
-                    hx-target="#favourites-list"
-                    hx-swap="innerHTML"
-                    hx-on::after-request="
-                        if(event.detail.successful){{
-                            alert('Added to favourites.');
-                        }}
-                    "
+                    onclick="addFavourite({place_id})"
                     style="width:100%;"
                 >
                     {HEART_ICON}

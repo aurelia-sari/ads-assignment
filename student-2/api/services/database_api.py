@@ -63,12 +63,19 @@ def delete_place(place_id):
     )
 
 # View favorites
-def get_favourites():
-    """Fetch all favourites from the database service."""
+def get_favourites(user_id=None):
+    """Fetch favourites from the database service."""
+
+    params = {}
+
+    if user_id is not None:
+        params["user_id"] = user_id
 
     response = requests.get(
-        f"{DATABASE_SERVICE_URL}/favourites"
+        f"{DATABASE_SERVICE_URL}/favourites",
+        params=params,
     )
+
     response.raise_for_status()
 
     return response.json()
@@ -85,11 +92,13 @@ def create_favourite(payload):
 
 
 # Delete favourite
-def delete_favourite(favourite_id):
-    """Delete a favourite through the database service."""
-
+def delete_favourite(favourite_id, user_id):
     return requests.delete(
-        f"{DATABASE_SERVICE_URL}/favourites/{favourite_id}"
+        f"{DATABASE_SERVICE_URL}/favourites/{favourite_id}",
+        json={
+            "user_id": user_id
+        },
+        timeout=5,
     )
 
 # View recommendation

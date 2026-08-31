@@ -1,0 +1,47 @@
+erDiagram
+
+%% student-2 (Kevin Kim) - Attractions & Dining
+%% Entity-relationship diagram.
+
+%% PLACE, FAVOURITE, and RECOMMENDATION are owned by student-2-db.
+%% USER is owned by shared-db.
+%% USER relationships shown below are logical cross-service references only.
+%% They are not enforced as SQLite foreign keys in student-2-db.
+
+    USER ||--o{ FAVOURITE : "logical owner"
+    USER ||--o{ RECOMMENDATION : "logical requester"
+    PLACE ||--o{ FAVOURITE : "is saved as"
+
+    USER {
+        INTEGER id PK "owned by shared-db"
+    }
+
+    PLACE {
+        INTEGER id PK
+        TEXT name "NOT NULL"
+        TEXT category "NOT NULL"
+        TEXT address
+        REAL rating
+        INTEGER price_range
+        TEXT opening_hours
+        TEXT image_url
+        TEXT description
+    }
+
+    FAVOURITE {
+        INTEGER id PK
+        INTEGER user_id "shared user reference, no local FK"
+        INTEGER place_id FK "references PLACE"
+        TEXT notes
+        TEXT created_at
+    }
+
+    RECOMMENDATION {
+        INTEGER id PK
+        INTEGER user_id "shared user reference, no local FK"
+        TEXT question "NOT NULL"
+        TEXT preferences
+        TEXT location
+        TEXT recommendation_result "NOT NULL, JSON text"
+        TEXT created_at
+    }

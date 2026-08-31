@@ -1,0 +1,26 @@
+graph LR
+
+%% student-2 (Kevin Kim) - Attractions & Dining
+%% Conceptual data model.
+%%
+%% This model represents the main business concepts used by the
+%% Attractions & Dining feature and their conceptual relationships.
+%%
+%% USER represents the traveller using the feature. User data is owned
+%% outside student-2-db and is shared across the integrated application.
+%% Student 2 stores only the user's identifier where required.
+%%
+%% A user can save places as favourites and request AI recommendations.
+%% A recommendation may conceptually suggest one or more places; this
+%% relationship does not represent a physical foreign key in student-2-db.
+
+    U["USER<br/><i>traveller using the feature</i>"]
+    P["PLACE<br/><i>attraction or restaurant</i>"]
+    F["FAVOURITE<br/><i>saved place</i>"]
+    R["RECOMMENDATION<br/><i>AI recommendation request and result</i>"]
+
+    U -->|"saves<br/>1 : many"| F
+    P -->|"is saved as<br/>1 : many"| F
+
+    U -->|"requests<br/>1 : many"| R
+    R -->|"recommends<br/>one or more"| P

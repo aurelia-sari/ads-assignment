@@ -55,7 +55,7 @@ a filter over the same data rather than a change to the model.
 | Slot | Student | Feature | Frontend | Backend/API | Database |
 |------|---------|---------|----------|-------------|----------|
 | student-1 | Caroline Zhou | Trips & Itinerary (day-by-day) + AI chatbot | :8081 | :5101 | :5201 `trips`, `itinerary_days` |
-| student-2 | Kevin Kim | Sightseeing, attractions, restaurants, recommendations | :8082 | :5102 | :5202 |
+| student-2 | Kevin Kim | Sightseeing, attractions, restaurants, recommendations | :8082 | :5102 | :5202 `places`, `favourites`, `recommendations` |
 | student-3 | Tanishpreet Kour | Travel mate matching | :8083 | :5103 | :5203 |
 | student-4 | Aurelia Sari | Auth, profile, onboarding, dashboard, travel guides | :8084 | :5104 | :5204 |
 | student-5 | Aung Ko Khaing | Flights, hotels, car rentals, budget | :8085 | :5105 | :5205 |
@@ -141,6 +141,7 @@ verifiable from the commit history and CI runs.
 | S1-4 | Cross-feature traveller resolution via the shared API | Caroline | Individual | Done |
 | S2-1 | Places, favourites and recommendations CRUD | Kevin | Individual | Done |
 | S2-2 | AI integration for recommendations | Kevin | Individual | Done |
+| S2-3 | Shared user-ID alignment and final place-image integration | Kevin | Individual | Done |
 | S3-1 | Travel Mate schema and CRUD | TJ | Individual | **Scaffold only** |
 | S4-1 | Account schema (`users`, `access_logs`, both in shared-db) and sign-up flow | Aurelia | Individual | Done |
 | S4-2 | Email verification: Mailpit delivery, single-use 5 min token, rate-limited resend | Aurelia | Individual | Done |
@@ -231,6 +232,35 @@ Non-functional:
 | N1.3 | User-supplied text cannot inject HTML | All values pass through `html.escape` in `views/formatters.py` |
 | N1.4 | The page matches the team UI | The page links `/shared/css/theme.css` only |
 
+#### student-2 - Kevin Kim
+
+Functional:
+
+| ID | Requirement | Acceptance criteria |
+|----|-------------|---------------------|
+| F2.1 | View the available attractions and restaurants | `GET /places` returns the seeded place records and the frontend displays them as place cards |
+| F2.2 | Create a new place | A valid place submitted through the frontend/API is stored by student-2-db and appears in the places view with a generated ID |
+| F2.3 | Update an existing place | Changes to an existing place persist in student-2-db and are shown when the places view is refreshed |
+| F2.4 | Delete an existing place | The selected place is removed and any favourites referencing it are removed by the database `ON DELETE CASCADE` relationship |
+| F2.5 | Add a place to a traveller's favourites | The selected place is stored in `favourites` with the current shared user ID and appears in the favourites view |
+| F2.6 | View and remove favourites | Favourites for the current user can be displayed and individually removed |
+| F2.7 | Ask for an AI-based attraction or dining recommendation | A natural-language question is sent from the frontend through student-2-api to the shared AI-Mode service and a recommendation is returned |
+| F2.8 | Ground AI recommendations in real place data | The recommendation pipeline selects candidate records from the live `places` data before invoking the LLM, and the response is validated against those candidates |
+| F2.9 | Store AI recommendation history | Each completed recommendation request is persisted in `recommendations` with the user ID, question, location and recommendation result |
+| F2.10 | Associate favourites and recommendations with the shared user identity | `favourites.user_id` and `recommendations.user_id` use the integer identifier owned by shared-db rather than feature-specific string identities |
+
+Non-functional:
+
+| ID | Requirement | How it is met |
+|----|-------------|---------------|
+| N2.1 | The backend must not access the SQLite file directly | All student-2-api database operations go through `services/database_api.py` and the student-2 database API over HTTP |
+| N2.2 | Student 2 must not call Ollama directly | AI requests are sent to the shared AI-Mode service, which is the single application-level gateway to Ollama |
+| N2.3 | AI recommendations must be grounded and constrained | Deterministic filtering selects relevant candidate places before the LLM call, and the validator checks returned place names against the canonical candidate records |
+| N2.4 | A dependency failure must not expose an application stack trace to the traveller | API/database/AI failures are converted into controlled error responses or frontend fragments rather than raw exceptions |
+| N2.5 | Cross-feature identity data must not be duplicated | Student 2 stores only the shared integer `user_id`; the USER record itself remains owned by shared-db and no cross-database SQLite foreign key is created |
+| N2.6 | The feature must use the integrated team interface | The Student 2 frontend uses the shared NextStop theme and is accessible through the shared frontend reverse proxy |
+| N2.7 | External image availability must not determine whether the feature can be demonstrated | Final place imagery uses stable matching assets rather than random `picsum.photos` placeholders |
+
 #### student-4 - Aurelia Sari
 
 Functional:
@@ -308,6 +338,88 @@ API produces two suspects when something breaks.
 - Reconcile itinerary days against Kevin's attractions, so a day can reference a
   real place rather than free text
 - Server-side pagination once the trip count outgrows a single table
+
+#### student-2 - Kevin Kim - Attractions & Dining
+
+**Scope.** A traveller can browse attractions and restaurants, create and
+maintain place records, save places as favourites, and ask an AI assistant for
+dining or sightseeing recommendations grounded in the places currently
+available to the application. The feature owns three domain tables -
+`places`, `favourites` and `recommendations` - and exposes them through its own
+frontend, backend/API and database API microservices.
+
+**Why this order.** The feature was developed from the data layer upward. Places
+had to exist before favourites could reference them, and both the database API
+and normal CRUD path had to be reliable before the same records could safely be
+used as grounding context for AI recommendations. The recommendation pipeline
+was therefore added after the deterministic CRUD path rather than using the LLM
+as the primary data-processing layer.
+
+| # | Task | Deliverable | Done |
+|---|------|-------------|------|
+| 1 | Place schema and seed data | `places` table with 15 attractions and restaurants | Done |
+| 2 | Places database API | Create, read, update and delete operations over HTTP | Done |
+| 3 | Places backend and frontend | HTMX place cards, create/edit/delete interactions | Done |
+| 4 | Favourites schema and CRUD | `favourites` table with add, view and remove behaviour | Done |
+| 5 | Recommendation history schema | `recommendations` table seeded with 10 records and available through the database API | Done |
+| 6 | Shared AI-Mode integration | Student 2 recommendation requests routed through the shared AI-Mode service rather than directly to Ollama | Done |
+| 7 | Recommendation pipeline | Deterministic candidate selection from live place data before invoking the LLM | Done |
+| 8 | Recommendation validation | AI output checked against canonical candidate place names before being accepted | Done |
+| 9 | Recommendation persistence | Successful recommendation requests and results stored in `recommendations` | Done |
+| 10 | Student 2 smoke testing | Dedicated Student 2 CRUD/recommendation smoke test dispatched by the shared smoke-test runner | Done |
+| 11 | CI integration | Student 2 workflow installs its test dependencies and validates the feature against the shared Docker Compose application | Done |
+| 12 | Shared user-ID alignment | Temporary string identities replaced by integer user IDs aligned with the USER identifiers owned by shared-db | Done |
+| 13 | Place image finalisation | Random restaurant placeholder imagery replaced with stable images corresponding to the actual places | Done |
+| 14 | Architecture and data documentation | Student 2 architecture, conceptual model and ERD added to `docs/diagrams/` | Done |
+
+**Design decisions worth defending.**
+
+1. *The backend does not own the SQLite connection.* `student-2-api` accesses
+   place, favourite and recommendation data only through
+   `services/database_api.py`, which calls `student-2-db` over HTTP. The
+   database microservice is therefore the only process that opens the Student 2
+   SQLite file, preserving the project's database-ownership boundary.
+
+2. *AI-Mode is the only route to the LLM.* Student 2 does not contain its own
+   Ollama client. Recommendation requests follow
+   `student-2-api -> shared AI-Mode -> Ollama`. This keeps model configuration,
+   availability handling and the LLM runtime shared rather than duplicating
+   them inside each feature.
+
+3. *Deterministic application logic narrows the problem before AI is used.*
+   Conditions that the application can evaluate reliably - for example
+   category, relative price and rating - are applied to the live place records
+   before the LLM is called. The LLM receives a small candidate set rather than
+   being asked to rediscover database facts from an unrestricted prompt. This
+   reduces hallucination and keeps deterministic work in normal application
+   code.
+
+4. *LLM output is treated as untrusted output.* The recommendation validator
+   checks the returned place names against the canonical candidate names.
+   A recommendation that invents a place outside the supplied candidate set is
+   therefore not silently accepted.
+
+5. *Recommendation history is data, not only presentation.* A successful AI
+   request is written to `recommendations` with its user, question, location
+   and result. This gives later releases a persistent history that can be
+   exposed through RAG or other personalised services instead of losing every
+   AI interaction after the page refreshes.
+
+6. *User identity is referenced, not copied.* `favourites.user_id` and
+   `recommendations.user_id` use the integer identifier owned by shared-db.
+   Student 2 does not copy the user's name, email or account data and does not
+   create an SQLite foreign key to a table in another database service.
+
+**Deferred to Release 1.**
+
+- Replace the temporary current-user selection with the authenticated user's
+  `USER.id` once authentication/session identity is propagated to Student 2.
+- Expose place and recommendation data through MCP.
+- Use RAG where retrieval adds value to more complex recommendation questions.
+- Connect itinerary entries to real Student 2 places across the service
+  boundary.
+- Expand recommendation preferences beyond the Release 0 category, price,
+  rating and free-text question signals.
 
 #### student-4 - Aurelia Sari - Account & Dashboard
 
@@ -422,6 +534,40 @@ the layer a marker or user actually touches. Release 1 adds MCP and RAG, where
 the same trap exists - a retrieval call can succeed and still return nothing
 useful - so the tests need to assert on grounded output, not just on a 200.
 
+#### student-2 - Kevin Kim
+
+The main risks for Attractions & Dining came from the boundary between
+deterministic application behaviour and AI-generated behaviour, and from keeping
+a feature-specific implementation compatible with the team's shared
+infrastructure.
+
+**Risks that materialised**
+
+| # | Risk | Impact | What happened | Response |
+|---|------|--------|---------------|----------|
+| R2-1 | The shared smoke test does not represent the real Student 2 schema | High | The generic scaffold smoke test was built around `/records`, while Student 2 had replaced the scaffold with `places`, `favourites` and `recommendations`. A green generic check would therefore not prove that the real feature worked. | Added a dedicated `student-2/tests/smoke_test.py` and dispatched it from the shared smoke-test runner for Student 2. |
+| R2-2 | The LLM recommends a place that is not present in the supplied data | High | Free-form model output cannot be assumed to respect database boundaries even when the prompt asks it to. | Added deterministic candidate selection and a validator that checks recommendation output against canonical candidate place names before accepting it. |
+| R2-3 | Frontend HTMX targets become stale after the page structure changes | Medium | Some generated fragments still targeted earlier container IDs such as `#places-panel` while the final page uses the places/favourites list containers. The backend operation could succeed while the visible page failed to refresh correctly. | Standardised dynamic fragments and edit forms on the final HTMX targets and re-tested CRUD through the rendered feature. |
+| R2-4 | Student 2 identity values diverge from the shared identity model | High | Early Release 0 code used values such as `guest` and `user-1`, while the shared USER model uses integer primary keys. This would make later authentication integration unnecessarily difficult. | Changed Student 2 favourite and recommendation ownership to integer user IDs aligned with shared-db, while keeping the relationship logical rather than creating an invalid cross-database SQLite foreign key. |
+| R2-5 | Placeholder or externally generated images do not represent the real place | Medium | Restaurant seed records initially used random `picsum.photos` URLs. They were acceptable during layout development but were neither semantically tied to the restaurant nor suitable as final evidence. | Replaced the placeholders with stable imagery corresponding to the actual seeded places and verified the integrated frontend after the change. |
+
+**Open risks**
+
+| # | Risk | Likelihood | Impact | Mitigation | Owner |
+|---|------|-----------|--------|------------|-------|
+| R2-6 | Ollama is unavailable during the showcase | Medium | High | All LLM access is centralised in AI-Mode; Ollama availability is checked as part of the team's start-up/demo procedure and deterministic place/favourite CRUD remains independent of the model. | Team |
+| R2-7 | A small local model produces a weak recommendation even when the place names are valid | Medium | Medium | Candidate selection and canonical-name validation constrain factual errors; recommendation quality still requires human judgement. More advanced grounding is deferred to RAG in Release 1. | Me |
+| R2-8 | A shared user is removed while Student 2 still contains favourites or recommendation history for that ID | Low | Low | Cross-service foreign keys cannot be enforced by SQLite. Student 2 stores only the integer reference; reconciliation or account lifecycle handling can be added through service APIs in a later release. | Team |
+| R2-9 | Authentication is not yet propagated into the feature | Certain for Release 0 | Medium | Release 0 uses a valid temporary shared user ID consistently. Replace it with the authenticated session user's ID when the account/session integration is completed. | Me, Release 1 |
+
+**What I would carry into Release 1.** R2-1 and R2-2 exposed the same general
+problem at different boundaries: a successful low-level operation does not prove
+that the behaviour visible to the user is correct. A 200 response from the LLM
+does not prove that its recommendation is grounded, just as a generic CRUD
+smoke test does not prove that the actual Student 2 resources work. Release 1
+should continue validating semantic output as well as HTTP success when MCP and
+RAG are introduced.
+
 #### student-4 - Aurelia Sari
 
 **Risks that materialised**
@@ -453,6 +599,7 @@ thing: each adds a decision the previous level deliberately left open.
 Entities and relationships only - no attributes, no keys, no types.
 
 Source: `docs/diagrams/student-1-conceptual.mmd`
+Source: `docs/diagrams/student-2-conceptual.mmd`
 
 ```mermaid
 graph LR
@@ -476,6 +623,7 @@ cannot be a foreign key.
 Attributes, keys and cardinality.
 
 Source: `docs/diagrams/student-1-erd.mmd`
+Source: `docs/diagrams/student-2-erd.mmd`
 
 ```mermaid
 erDiagram
@@ -591,6 +739,44 @@ CREATE TABLE itinerary_days (
 );
 ```
 
+```sql
+CREATE TABLE places (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_place_id TEXT,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    address TEXT NOT NULL,
+    latitude REAL,
+    longitude REAL,
+    rating REAL,
+    opening_hours TEXT,
+    price_range INTEGER,
+    description TEXT,
+    image_url TEXT
+);
+
+CREATE TABLE favourites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    place_id INTEGER NOT NULL,
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (place_id)
+        REFERENCES places(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    question TEXT NOT NULL,
+    preferences TEXT,
+    location TEXT,
+    recommendation_result TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+'''
+
 Seeded with **12 trips and 15 itinerary days**, above the ten-record minimum
 required by specification section 2.4.
 
@@ -625,6 +811,59 @@ happen.
 3. **No indexes beyond the primary keys.** At 12 and 15 rows this is
    irrelevant; `itinerary_days(trip_id)` would be the first index to add, since
    every itinerary view filters on it.
+
+
+#### student-2 - Kevin Kim - Attractions & Dining
+
+**PLACE**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| id | integer | PK | surrogate, auto-assigned |
+| external_place_id | string | | optional external provider identifier |
+| name | string | | NOT NULL |
+| category | enum/string | | NOT NULL; supported Student 2 place category |
+| address | string | | NOT NULL |
+| latitude | decimal | | optional |
+| longitude | decimal | | optional |
+| rating | decimal | | optional |
+| opening_hours | string | | optional |
+| price_range | integer | | optional price indicator |
+| description | string | | optional |
+| image_url | string | | optional place image reference |
+
+**FAVOURITE**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| id | integer | PK | surrogate, auto-assigned |
+| user_id | integer | logical FK -> shared USER | NOT NULL, cross-service and not locally enforced |
+| place_id | integer | FK -> PLACE | NOT NULL, cascade on place deletion |
+| notes | string | | optional |
+| created_at | timestamp | | generated when saved |
+
+**RECOMMENDATION**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| id | integer | PK | surrogate, auto-assigned |
+| user_id | integer | logical FK -> shared USER | NOT NULL, cross-service and not locally enforced |
+| question | string | | NOT NULL |
+| preferences | JSON/string | | optional recommendation preferences |
+| location | string | | optional location context |
+| recommendation_result | JSON/string | | NOT NULL; persisted AI answer and recommended place identifiers |
+| created_at | timestamp | | generated when stored |
+
+**Normalisation.** The core relations are kept separate so that place facts,
+user-place associations and AI interaction history do not duplicate one
+another. PLACE stores facts about a place once. FAVOURITE represents the
+many-user-to-many-place association without copying the place's name, address or
+rating. RECOMMENDATION stores the interaction history rather than modifying the
+PLACE record with user-specific AI output.
+
+The USER's name, email and other account fields are deliberately absent from
+both FAVOURITE and RECOMMENDATION. Only `user_id` crosses the service boundary,
+preventing Student 2 from becoming a second source of truth for account data.
 
 #### student-4 - Aurelia Sari - Account & Dashboard
 
@@ -834,6 +1073,7 @@ ownership is recorded in the README and in file headers instead.
 ### 4.1 Individual software architecture **(Individual)**
 
 One diagram per student. student-1: `docs/diagrams/student-1-architecture.mmd`.
+student-2: `docs/diagrams/student-2-architecture.mmd`.
 student-4: `docs/diagrams/student-4-architecture.mmd`.
 
 ### 4.2 Integrated Release 0 software architecture
@@ -911,6 +1151,20 @@ uses).
 | `review/observe_prompt.txt` | OBSERVE step |
 | `review/adapt_prompt.txt` | ADAPT step |
 | `review/*_review_prompt.txt` | One per review target |
+| `student-2/api/prompts/implementation/recommendation_system.txt` | Student 2 recommendation grounding rules: recommend only from the supplied candidate place records and return natural traveller-facing recommendations |
+
+**Student 2 context management.** Attractions & Dining does not ask the LLM to
+search or interpret the entire database directly. The recommendation pipeline
+first retrieves the live `places` records through the Student 2 database API and
+applies deterministic filters for conditions the application can evaluate
+reliably, such as place category, relative price and rating. Only the resulting
+candidate records are included in the recommendation context.
+
+The model therefore performs the qualitative part of the task - explaining
+which supplied candidate is suitable and why - while ordinary application code
+retains responsibility for deterministic database facts. The returned
+recommendation is then validated against the canonical candidate names before
+it is accepted or persisted.
 
 Context management: `routes/ai_chat.py` builds a plain-text summary of the
 traveller's live trips and itinerary days and passes it as context, so the model
@@ -934,6 +1188,27 @@ prompt.
 
 *Paste a run from `ai-services/agentic-loop/runs/` here, or reference the copy
 in `docs/evidence/`. Each student identifies the prompts they contributed.*
+
+#### student-2 - Kevin Kim
+
+For Student 2, the loop was run against the Attractions & Dining feature after
+its CRUD and AI recommendation paths were integrated. ACT collected evidence
+from the running services and feature implementation; OBSERVE reviewed that
+evidence; and ADAPT proposed the next validation or correction.
+
+The Student 2 product-level recommendation pipeline should not be confused with
+this shared development agentic loop. The recommendation pipeline is an
+application feature that constrains and validates an LLM recommendation; the
+shared loop is a development/review workflow implementing
+Plan -> Act -> Observe -> Adapt.
+
+Student 2 also contributed the implementation prompt used to ground
+Attractions & Dining recommendations:
+
+`student-2/api/prompts/implementation/recommendation_system.txt`
+
+**Evidence:** `[UPDATE AFTER FINAL TEST: insert final Student 2/shared loop run
+filename from ai-services/agentic-loop/runs/ or docs/evidence/]`
 
 ---
 
@@ -1437,5 +1712,48 @@ chosen over `qwen2.5:0.5b` for accuracy, not speed - see A.2. `llama3.1:8b`
 remains unusable on the 8 GB machine, needing a 6.2 GB working set. The model is
 configurable per machine through `.env`, because team hardware differs - see
 ADR-001, decision 3.
+
+### A.5 Constraining Student 2 place recommendations
+
+**Problem.** A travel recommendation is partly deterministic and partly
+qualitative. Whether a place is a restaurant, whether it falls into the
+application's cheap/expensive range, and which supplied place has the highest
+rating are facts the backend can determine directly. Asking the LLM to recover
+those facts from an unrestricted prompt adds uncertainty for no benefit. A
+second risk is that a fluent model can mention a plausible Sydney venue that
+does not exist in Student 2's `places` table.
+
+**Change 1 - filter before prompting.** The Student 2 recommendation pipeline
+retrieves the live place records and applies deterministic conditions before
+calling AI-Mode. Depending on the question, this can reduce the context to the
+relevant category, price range, rating result or a small candidate set.
+
+**Change 2 - ground the prompt.**
+`student-2/api/prompts/implementation/recommendation_system.txt` instructs the
+model to recommend only from the supplied records and to answer naturally
+rather than exposing database field names to the traveller.
+
+**Change 3 - validate after generation.** Prompt instructions are not treated
+as an enforcement mechanism. After AI-Mode returns the generated response, the
+Student 2 validator checks it against the canonical candidate place names. An
+unsupported recommendation can therefore be rejected/retried rather than being
+presented as if it came from the database.
+
+The resulting flow is:
+
+`Live places -> deterministic filtering -> candidate context -> AI-Mode ->
+Ollama -> generated recommendation -> candidate-name validation -> persistence`
+
+**Why it matters.** This separates responsibilities according to what each
+component does reliably. Normal code handles database facts and filtering; the
+LLM handles the qualitative explanation; validation acts as the guardrail
+between generated text and application state.
+
+**Result.** The final recommendation path is grounded in the live Student 2
+place records and recommendation history is persisted only after the
+application-level recommendation workflow completes successfully.
+
+**Evidence:** `[UPDATE AFTER FINAL TEST: add one final recommendation question,
+returned place(s), and screenshot/run evidence.]`
 
 *To do: note any further model changes and the reason for each.*

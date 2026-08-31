@@ -29,13 +29,6 @@ normal_ui_bp = Blueprint("normal_ui", __name__)
 
 DB_DOWN = "Could not reach the Attractions & Dining database service."
 
-# TODO (Kevin Kim): student-4 (Aurelia Sari) owns authentication and does not
-# have real user accounts yet. Once student-4 ships auth, replace this with
-# the authenticated user's id (e.g. from the session) and filter GET
-# /favourites to that user.
-CURRENT_USER_ID = "guest"
-
-
 def place_form_payload():
     return {key: value.strip() for key, value in request.form.items()}
 
@@ -108,33 +101,54 @@ def delete_place_route(place_id):
 # Favourites route
 @normal_ui_bp.get("/favourites")
 def favourites():
-    favourites_data = get_favourites()
+    user_id = request.args.get("user_id", type=int)
+
+    if user_id is None:
+        return error_fragment(
+            "A valid user_id is required."
+        ), 400
+
+    favourites_data = get_favourites(user_id=user_id)
+
     return format_favourites(favourites_data)
 
 
 # Add favourite
 @normal_ui_bp.post("/favourites")
 def create_favourite_route():
-    place_id = request.values.get("place_id", type=int)
-    if place_id is None:
-        return error_fragment("place_id is required."), 400
+    data = request.get_json(silent=True) or {}
+
+    user_id = data.get("user_id")
+    place_id = data.get("place_id")
+    notes = (data.get("notes") or "").strip() or None
+
+    if not isinstance(user_id, int):
+        return error_fragment("A valid user_id is required."), 400
+
+    if not isinstance(place_id, int):
+        return error_fragment("A valid place_id is required."), 400
 
     payload = {
-        "user_id": CURRENT_USER_ID,
+        "user_id": user_id,
         "place_id": place_id,
-        "notes": (request.values.get("notes", "") or "").strip() or None,
+        "notes": notes,
     }
 
     try:
         response = create_favourite(payload)
+
         if response.status_code == 404:
             return error_fragment("Place not found."), 404
+
         if response.status_code == 400:
             return error_fragment(
                 response.json().get("error", "Could not add favourite.")
             ), 400
+
         response.raise_for_status()
+
         return format_favourites(get_favourites()), 201
+
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
 
@@ -142,11 +156,25 @@ def create_favourite_route():
 # Delete favourite
 @normal_ui_bp.delete("/favourites/<int:favourite_id>")
 def delete_favourite_route(favourite_id):
-    try:
-        response = delete_favourite(favourite_id)
-        if response.status_code == 404:
-            return error_fragment("Favourite not found."), 404
-        response.raise_for_status()
-        return format_favourites(get_favourites()), 200
-    except requests.RequestException as exc:
-        return error_fragment(DB_DOWN, exc), 503
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+
+    if not isinstance(user_id, int):
+        return error_fragment("A valid user_id is required."), 400
+
+    response = delete_favourite(
+        favourite_id,
+        user_id,
+    )
+
+    if response.status_code == 404:
+        return error_fragment(
+            "Favourite not found or not owned by this user."
+        ), 404
+
+    if not response.ok:
+        return error_fragment(
+            "Could not delete favourite."
+        ), response.status_code
+
+    return "", 200
