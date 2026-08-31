@@ -411,8 +411,9 @@ what was put in place afterwards, rather than only what might.
 |---|------|-----------|--------|------------|-------|
 | R7 | Ollama not running at showcase, so every AI feature fails live | Medium | **High** | `dev.sh up` warns when port 11434 is unreachable. Starting Ollama is an explicit step in the demo script and is shown in the video. | Me |
 | R8 | The demo machine cannot serve the model | Medium | **High** | Default is `qwen2.5:0.5b`, which runs on the 8 GB machine. `OLLAMA_MODEL` is per-machine, so no one is forced onto a model their laptop cannot run. | Me |
-| R9 | The home page loads 8 images from `picsum.photos`; venue wifi fails | Medium | Medium | Copy the images into `shared/assets/` and serve them locally before the showcase. **Not yet done.** | Team |
+| R9 | Home page images loaded from `picsum.photos` | **Occurred** | Medium | The service went down on 31 August and every image on the home page broke - internet was fine, the third party was not. Images are now downloaded once by `scripts/fetch_assets.py`, committed to `shared/assets/` and served by our own nginx. No external image host remains at runtime. Provenance in `shared/assets/ATTRIBUTION.md`. | Done |
 | R10 | Cross-feature reference integrity | Low | Low | SQLite cannot enforce a reference across a service boundary, so a trip can point at a deleted traveller. Display degrades to `#<id>`. Accepted for Release 0; see ADR-001. | Me |
+| R13 | Google Fonts is still loaded from a CDN | Low | Low | The font stack falls back to Segoe UI and the system sans, so the page degrades in appearance only. Vendoring the fonts is the fix if the showcase venue's network is unreliable. | Team |
 | R11 | Report evidence cannot be reconstructed after the fact | Medium | **High** | Screenshots, CI logs and loop run records are collected into `docs/evidence/` as work happens, not at the end. | Team |
 | R12 | Integration slips because features are built in isolation | Low | **High** | The scaffold integrated all five slots from day one, and CI runs against the shared compose file rather than a local copy. | Team |
 
