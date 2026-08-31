@@ -154,6 +154,21 @@ If the group would rather containerise the runtime, add a service to
 `/root/.ollama`, set `OLLAMA_BASE_URL=http://ollama:11434/v1`, and pull the
 model into the volume once. Expect a multi-gigabyte image pull.
 
+## Seeded accounts
+
+`shared-db` is seeded with 10 accounts for local sign-in testing, all sharing
+the password `Password123!`. Only `student1` to `student5` are verified and
+can sign in at `/student-4/signin.html`, `traveller6` to `traveller10` are
+left pending verification.
+
+| Email | Password |
+|-------|----------|
+| student1@example.com | Password123! |
+| student2@example.com | Password123! |
+| student3@example.com | Password123! |
+| student4@example.com | Password123! |
+| student5@example.com | Password123! |
+
 ## Mailpit (local email testing)
 
 `student-4-api` sends sign-up verification emails through
