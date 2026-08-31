@@ -1,9 +1,9 @@
 """
 Deterministic smoke test for student-4 (Account & Dashboard).
 
-Exercises the real sign-up and email verification flow end to end through
-student-4-api, shared-api/shared-db (which own `users`/`access_logs`, see
-docs/technical-report.md 2.7 for why) and Mailpit (the local dev SMTP
+Exercises the real sign-up, email verification and sign-in flow end to end
+through student-4-api, shared-api/shared-db (which own `users`/`access_logs`,
+see docs/technical-report.md 2.7 for why) and Mailpit (the local dev SMTP
 catcher):
 
     docker compose up -d student-4-db student-4-api shared-api shared-db mailpit
@@ -58,6 +58,17 @@ def register(email, password=PASSWORD, terms_accepted=True, name="Smoke Test"):
     if terms_accepted is not None:
         payload["terms_accepted"] = terms_accepted
     return _call("POST", f"{API_BASE}/auth/register", json=payload)
+
+
+def login(email, password):
+    return _call("POST", f"{API_BASE}/auth/login", json={"email": email, "password": password})
+
+
+def mailpit_message_count(email):
+    status, response = _call(
+        "GET", f"{MAILPIT_BASE}/api/v1/search", params={"query": f"to:{email}"}
+    )
+    return response.json().get("messages_count", 0) if status == 200 else None
 
 
 def find_verification_link(email, attempts=10, delay=1.0):
@@ -151,15 +162,53 @@ def run_checks():
         "429 response names how long to wait",
     )
 
+    # Sign-in
+    status, response = login(email, "WrongPassword1!")
+    expect(status == 401, "POST /auth/login with the wrong password returns 401")
+    wrong_password_error = response.json().get("error")
+    expect(
+        wrong_password_error == "Invalid email or password.",
+        "wrong-password error message is the generic one",
+    )
+
+    status, response = login(unique_email("smoke-no-account"), PASSWORD)
+    expect(status == 401, "POST /auth/login for an email with no account returns 401")
+    expect(
+        response.json().get("error") == wrong_password_error,
+        "unknown-email error is identical to wrong-password (no account enumeration)",
+    )
+
+    sent_before = mailpit_message_count(resend_email)
+    status, response = login(resend_email, PASSWORD)
+    expect(status == 403, "POST /auth/login with the correct password on an unverified account returns 403")
+    expect(
+        response.json().get("error_code") == "email_not_verified",
+        "403 response names the email_not_verified error code",
+    )
+    sent_after = mailpit_message_count(resend_email)
+    expect(
+        sent_after == sent_before,
+        "signing in to an unverified account within the resend cooldown does not send a duplicate email",
+    )
+
+    status, response = login(email, PASSWORD)
+    expect(status == 200, "POST /auth/login with the correct password on a verified account returns 200")
+    signed_in = response.json()
+    expect(signed_in.get("email") == email, "login response returns the signed-in user")
+    expect(
+        "password_hash" not in signed_in and "verification_token" not in signed_in,
+        "login response never leaks the password hash or verification token",
+    )
+
 
 def main():
-    print("Smoke test: student-4 sign-up & email verification")
+    print("Smoke test: student-4 sign-up, email verification & sign-in")
     try:
         run_checks()
     except SmokeFailure as failure:
         print(f"\nFAIL: {failure}")
         return 1
-    print("\nstudent-4 sign-up & email verification passed all checks.")
+    print("\nstudent-4 sign-up, email verification & sign-in passed all checks.")
     return 0
 
 

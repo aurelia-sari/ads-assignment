@@ -885,7 +885,7 @@ pre {
 .signup-card {
     width: 100%;
     max-width: 960px;
-    min-height: 560px;
+    min-height: 640px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     background: var(--color-white);
@@ -949,9 +949,6 @@ pre {
     border-color: #0d6b48;
 }
 
-/* Terms & conditions checkbox. Overrides the global `input` rule above -
-   without it, a checkbox would render as a full-width bordered box instead
-   of a small tickbox next to its label text. */
 .checkbox-label {
     display: flex;
     align-items: center;
@@ -1056,6 +1053,33 @@ pre {
     margin-top: 1.1rem;
     font-family: var(--font-body);
     font-size: 0.88rem;
+    color: var(--color-slate-500);
+}
+
+.signup-login-hint a {
+    color: var(--color-blue-500);
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.signup-login-hint a:hover {
+    text-decoration: underline;
+}
+
+.terms-hint {
+    text-align: center;
+    margin-top: 0.9rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--color-slate-500);
+}
+
+.forgot-password-text {
+    display: block;
+    text-align: right;
+    margin-top: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
     color: var(--color-slate-500);
 }
 

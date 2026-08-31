@@ -56,7 +56,7 @@ def error_fragment(message, detail=""):
         body += f"<pre>{escape(str(detail)[:600])}</pre>"
     return body
 
-def verify_page(heading, message, tone, status=200):
+def verify_page(heading, message, tone, status=200, cta_href="/", cta_label="Back to NextStop"):
     pill = "notice-ok" if tone == "ok" else "notice-error"
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -71,7 +71,7 @@ def verify_page(heading, message, tone, status=200):
   <div class="verify-icon">{ENVELOPE_SVG}</div>
   <h1 class="verify-title">{escape(heading)}</h1>
   <p class="notice {pill} notice--top-gap">{escape(message)}</p>
-  <a class="btn btn--pill-dark verify-resend" href="/">Back to NextStop</a>
+  <a class="btn btn--pill-dark verify-resend" href="{escape(cta_href)}">{escape(cta_label)}</a>
 </main>
 </body>
 </html>"""
@@ -211,14 +211,11 @@ def register():
 
     return jsonify(user), 201
 
-@app.post("/auth/resend")
-def resend():
-    payload = request.get_json(silent=True) or {}
-    email = (payload.get("email") or "").strip()
-
-    if not validate_email(email):
-        return jsonify({"error": "Enter a valid email address."}), 400
-
+def issue_verification_email(email):
+    """Generate a fresh verification token, register it with shared-api, and
+    send it. Shared between /auth/resend (explicit user request) and
+    /auth/login (an unverified account trying to sign in also needs an email
+    in their inbox to act on, not just a screen telling them to check it)."""
     verification_token, verification_expires_at = new_verification_token()
 
     try:
@@ -243,7 +240,58 @@ def resend():
     except OSError as exc:
         return jsonify({"error": "Could not send the email. Please try again."}), 503
 
-    return jsonify({"resent": True})
+    return jsonify({"resent": True}), 200
+
+@app.post("/auth/resend")
+def resend():
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+
+    if not validate_email(email):
+        return jsonify({"error": "Enter a valid email address."}), 400
+
+    return issue_verification_email(email)
+
+@app.post("/auth/login")
+def login():
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+    password = payload.get("password") or ""
+
+    generic_error = jsonify({"error": "Invalid email or password."}), 401
+
+    if not validate_email(email) or not password:
+        return generic_error
+
+    try:
+        response = requests.post(
+            f"{SHARED_API_URL}/users/authenticate",
+            json={"email": email, "password": password},
+            timeout=5,
+        )
+        data = response.json()
+    except requests.RequestException as exc:
+        return jsonify({"error": SHARED_DOWN, "detail": str(exc)[:300]}), 503
+
+    if response.status_code == 403:
+        # An unverified account trying to sign in needs an email
+        # to act on, not just a "check your email" screen.
+        issue_verification_email(email)
+        return jsonify(data), 403
+    if response.status_code != 200:
+        return generic_error
+
+    user = data
+
+    try:
+        log_response = requests.post(
+            f"{SHARED_API_URL}/access-logs", json={"user_id": user["id"]}, timeout=5
+        )
+        log_response.raise_for_status()
+    except requests.RequestException as exc:
+        return jsonify({"error": SHARED_DOWN, "detail": str(exc)[:300]}), 503
+
+    return jsonify(user), 200
 
 @app.get("/auth/verify/<token>")
 def verify(token):
@@ -270,7 +318,8 @@ def verify(token):
         return verify_page("Verification unavailable", SHARED_DOWN, "error", 503)
 
     return verify_page(
-        "Email verified", "You can now log in to your account.", "ok", 200
+        "Email verified", "You can now log in to your account.", "ok", 200,
+        cta_href="/student-4/signin.html", cta_label="Sign in",
     )
 
 @app.post("/ai/chat")

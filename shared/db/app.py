@@ -4,12 +4,19 @@ This service exclusively owns the shared access schema. No other service may
 open shared.db directly, every read or write goes through this HTTP API.
 """
 
+import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, request
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
+
+# Checked against on a "user not found" login attempt so that hashing a real
+# password and hashing this dummy take about the same time either way -
+# otherwise the response latency itself would reveal whether an email exists.
+DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_hex(16))
 
 DATABASE_NAME = "/app/data/shared.db"
 
@@ -200,6 +207,66 @@ def verify_user(token):
     conn.close()
 
     return jsonify(user_public(updated))
+
+@app.post("/users/authenticate")
+def authenticate_user():
+    """Check email/password server-side so the hash never leaves shared-db.
+
+    Always returns the same generic 401 for "no such user" and "wrong
+    password", only once the password is confirmed correct do we reveal
+    whether the account still needs verifying, so a wrong password can never
+    be used to probe which emails are registered.
+    """
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+    password = payload.get("password") or ""
+
+    invalid_response = jsonify({"error": "Invalid email or password."}), 401
+
+    if not email or not password:
+        return invalid_response
+
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+
+    if row is None:
+        check_password_hash(DUMMY_PASSWORD_HASH, password)
+        return invalid_response
+
+    if not check_password_hash(row["password_hash"], password):
+        return invalid_response
+
+    if not row["is_validated"]:
+        return jsonify({
+            "error": "Please verify your email before signing in.",
+            "error_code": "email_not_verified",
+        }), 403
+
+    return jsonify(user_public(row))
+
+@app.post("/access-logs")
+def create_access_log():
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Missing fields: user_id"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.execute(
+        """
+        INSERT INTO access_logs (user_id, sign_in_at, in_session)
+        VALUES (?, ?, 1)
+        """,
+        (user_id, now_utc().isoformat(timespec="seconds")),
+    )
+    conn.commit()
+    log_id = cursor.lastrowid
+    row = conn.execute("SELECT * FROM access_logs WHERE id = ?", (log_id,)).fetchone()
+    conn.close()
+
+    return jsonify(dict(row)), 201
 
 @app.post("/users/verification/resend")
 def resend_verification():

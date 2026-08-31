@@ -154,5 +154,29 @@ def resend_verification():
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
+@app.post("/users/authenticate")
+def authenticate_user():
+    try:
+        response = requests.post(
+            f"{SHARED_DB_URL}/users/authenticate",
+            json=request.get_json(silent=True) or {},
+            timeout=5,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
+@app.post("/access-logs")
+def create_access_log():
+    try:
+        response = requests.post(
+            f"{SHARED_DB_URL}/access-logs",
+            json=request.get_json(silent=True) or {},
+            timeout=5,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
