@@ -1,13 +1,10 @@
 /* Account & Dashboard session helper (student-4, Aurelia Sari).
  *
- * There's no server-side session store for this static-frontend + HTTP-API
- * stack, so the signed-in user is kept client-side in localStorage after
- * sign-in and cleared on sign-out. The source of truth for "is this user
- * currently signed in" stays server-side (access_logs.in_session, via
- * /api/student-4/auth/status/<id>) so other features can check it too, this
- * is just what lets a page know *which* user to ask about and to sign out.
- *
- * Include this script on any student-4 page, then call NextStopSession.*.
+ * localStorage is used to remember which user this browser last signed in as
+ * Whether that user is still signed in is decided server-side, from
+ * access_logs.in_session via /api/student-4/auth/status/<id>, because
+ * localStorage can be edited by anyone and must not be able to
+ * grant a "signed in" state by itself.
  */
 (function (global) {
     const STORAGE_KEY = "nextstop_user";
@@ -29,6 +26,32 @@
         localStorage.removeItem(STORAGE_KEY);
     }
 
+    async function verifySession() {
+        const user = getSession();
+        if (!user || !user.id) {
+            clearSession();
+            return null;
+        }
+
+        try {
+            const response = await fetch(`/api/student-4/auth/status/${user.id}`);
+            if (!response.ok) {
+                clearSession();
+                return null;
+            }
+            const data = await response.json();
+            if (!data.is_valid) {
+                clearSession();
+                return null;
+            }
+        } catch (err) {
+            // Server unreachable
+            return null;
+        }
+
+        return user;
+    }
+
     async function signOut(redirectTo) {
         const user = getSession();
         clearSession();
@@ -41,17 +64,16 @@
                     body: JSON.stringify({ user_id: user.id }),
                 });
             } catch (err) {
-                // Session is cleared client-side regardless - the user is
-                // signed out of this browser even if the server call failed.
+                // Session is cleared client-side
             }
         }
 
         window.location.href = redirectTo || "signin.html";
     }
 
-    function initSignOutButtons(redirectTo) {
+    async function initSignOutButtons(redirectTo) {
         const buttons = document.querySelectorAll("[data-signout]");
-        const signedIn = !!getSession();
+        const signedIn = !!(await verifySession());
 
         buttons.forEach((button) => {
             button.style.display = signedIn ? "" : "none";
@@ -63,6 +85,7 @@
         saveSession,
         getSession,
         clearSession,
+        verifySession,
         signOut,
         initSignOutButtons,
     };

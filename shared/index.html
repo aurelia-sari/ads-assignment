@@ -281,8 +281,8 @@
 </script>
 
 <script>
-  (function () {
-    const session = NextStopSession.getSession();
+  (async function () {
+    const session = await NextStopSession.verifySession();
     if (!session) return;
 
     const ctaText = document.getElementById("nav-cta");
