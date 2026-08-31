@@ -6,47 +6,33 @@
     <title>Account & Dashboard - NextStop</title>
     <link rel="stylesheet" href="/shared/css/theme.css">
     <script src="/shared/js/htmx.min.js"></script>
+    <script src="session.js"></script>
 </head>
 <body>
 <main class="app-shell">
-    <header class="app-header card">
-        <h1>Account & Dashboard</h1>
-        <p>Student 4 &middot; Aurelia Sari &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
+    <header class="app-header card" style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
+        <div>
+            <h1>Account & Dashboard</h1>
+            <p>Student 4 &middot; Aurelia Sari &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
+        </div>
+        <button type="button" class="btn-sm btn-secondary" data-signout>Sign out</button>
     </header>
 
-    <div class="notice notice-error">
-        Release 0 scaffold. Aurelia Sari: replace the generic records below with the
-        real Account & Dashboard feature. The wiring (frontend to API to database to
-        AI-Mode) already works, so start by changing the schema in
-        <code>student-4/db/init_db.py</code>.
-    </div>
-
     <nav class="tab-nav">
-        <button class="tab-btn is-active" data-tab="records" type="button">Records</button>
+        <button class="tab-btn is-active" data-tab="accounts" type="button">Accounts</button>
         <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
     </nav>
 
-    <section class="tab-panel is-active card" id="panel-records">
-        <div id="records-panel"
-             hx-get="/api/student-4/records"
+    <section class="tab-panel is-active card" id="panel-accounts">
+        <div id="accounts-panel"
+             hx-get="/api/student-4/users"
              hx-trigger="load"
              hx-swap="innerHTML"></div>
 
-        <form hx-post="/api/student-4/records"
-              hx-target="#records-panel"
-              hx-swap="innerHTML"
-              hx-on::after-request="this.reset()"
-              style="margin-top:1.5rem">
-            <h3 style="margin-top:0">Add a record</h3>
-            <div class="form-grid">
-                <div><label>Title</label><input name="title" required></div>
-                <div><label>Category</label><input name="category" required></div>
-                <div><label>Detail</label><input name="detail"></div>
-                <div><label>Created on</label><input type="date" name="created_on" required></div>
-            </div>
-            <button type="submit">Create</button>
-            <span class="spinner">saving...</span>
-        </form>
+        <p class="muted" style="margin-top:1rem">
+            New accounts are created from the <a href="signup.html">sign-up page</a>,
+            not here.
+        </p>
     </section>
 
     <section class="tab-panel card" id="panel-ai">
@@ -76,7 +62,7 @@
 <script>
 const buttons = Array.from(document.querySelectorAll(".tab-btn"));
 const panels = {
-    records: document.getElementById("panel-records"),
+    accounts: document.getElementById("panel-accounts"),
     ai: document.getElementById("panel-ai"),
 };
 
@@ -88,6 +74,8 @@ function activate(name) {
 }
 
 buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
+
+NextStopSession.initSignOutButtons("signin.html");
 </script>
 </body>
 </html>

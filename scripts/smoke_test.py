@@ -170,6 +170,26 @@ def check_student_2():
         raise SmokeFailure("student-2 feature smoke test failed")
 
 
+def check_student_4():
+    """Run the feature-specific smoke test for student-4.
+
+    Sign-up and email verification don't fit the generic create/read/update/
+    delete-on-one-resource shape DEFAULT_RESOURCE assumes, there is no PUT,
+    and "delete" doesn't make sense for a user account here.
+    """
+    test_file = (
+        Path(__file__).resolve().parent.parent
+        / "student-4"
+        / "tests"
+        / "smoke_test.py"
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(test_file)]
+    )
+
+    if result.returncode != 0:
+        raise SmokeFailure("student-4 feature smoke test failed")
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -192,6 +212,11 @@ def main():
 
         if n == 2:
             check_student_2()
+            print(f"\nstudent-{n} passed all checks.")
+            return 0
+
+        if n == 4:
+            check_student_4()
             print(f"\nstudent-{n} passed all checks.")
             return 0
 

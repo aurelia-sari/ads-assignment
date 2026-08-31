@@ -142,7 +142,9 @@ verifiable from the commit history and CI runs.
 | S2-1 | Places, favourites and recommendations CRUD | Kevin | Individual | Done |
 | S2-2 | AI integration for recommendations | Kevin | Individual | Done |
 | S3-1 | Travel Mate schema and CRUD | TJ | Individual | **Scaffold only** |
-| S4-1 | Account, profile and dashboard schema and CRUD | Aurelia | Individual | **Scaffold only** |
+| S4-1 | Account schema (`users`, `access_logs`, both in shared-db) and sign-up flow | Aurelia | Individual | Done |
+| S4-2 | Email verification: Mailpit delivery, single-use 5 min token, rate-limited resend | Aurelia | Individual | Done |
+| S4-3 | Profile and dashboard CRUD | Aurelia | Individual | **Not started** |
 | S5-1 | Bookings and budget schema and CRUD | Aung | Individual | **Scaffold only** |
 | S5-2 | Landing page design and shared theme | Aung | Individual | Done |
 
@@ -153,13 +155,15 @@ verifiable from the commit history and CI runs.
 | student-1 | `trips`, `itinerary_days` | 12, 15 |
 | student-2 | `places`, `favourites`, `recommendations` | 15, 10, 10 |
 | student-3 | `records` (placeholder) | 12 |
-| student-4 | `records` (placeholder) | 12 |
+| student-4 | *(no domain tables - `users`/`access_logs` moved to shared-db, see 2.7)* | - |
 | student-5 | `records` (placeholder) | 12 |
-| shared | `travellers` | 12 |
+| shared | `travellers`, `users`, `access_logs` | 12, 10, 10 |
 
-Students 3, 4 and 5 currently hold the generated scaffold rather than their real
+Students 3 and 5 currently hold the generated scaffold rather than their real
 schema. The record counts satisfy the minimum, but the tables are placeholders,
-which is recorded as known issue 1.
+which is recorded as known issue 1. student-4 replaced its scaffold with a real
+sign-up/verification flow, but `users` and `access_logs` were deliberately moved
+into shared-db rather than kept in student-4-db - see 2.7 for why.
 
 ### 2.3 Overall project plan (Group)
 
@@ -195,9 +199,10 @@ cannot start cleanly until students 3, 4 and 5 replace their scaffolds, because
 MCP and RAG have to expose real schemas. That work is the first thing on the
 Release 1 board.
 
-> **Team to confirm:** who owns MCP, who owns RAG, and the cloud platform choice
-> for Release 2. Deciding the platform early matters - accounts and credentials
-> take time to arrange.
+Task ownership for Releases 1 and 2 is not allocated here. The Release 0
+requirements ask for an overall project plan, not a work breakdown of later
+releases, and allocating work this far ahead of the features it depends on would
+be guesswork rather than planning.
 
 ### 2.4 Functional and non-functional requirements **(Individual)**
 
@@ -226,7 +231,37 @@ Non-functional:
 | N1.3 | User-supplied text cannot inject HTML | All values pass through `html.escape` in `views/formatters.py` |
 | N1.4 | The page matches the team UI | The page links `/shared/css/theme.css` only |
 
-*students 2-5: add your subsections here.*
+#### student-4 - Aurelia Sari
+
+Functional:
+
+| ID | Requirement | Acceptance criteria |
+|----|-------------|---------------------|
+| F4.1 | Create an account with name, email and password | Account appears in `users` (shared-db) with a generated ID, `is_validated = 0` |
+| F4.2 | Reject a sign-up whose email is already registered | `POST /auth/register` returns 409 with "This email is already associated with an account." |
+| F4.3 | Reject a password that fails the strength rules | 400 response naming the 8-64 char / upper / lower / number / special rule, both client- and server-side |
+| F4.4 | Require agreement to Terms and Conditions before an account can be created | Checkbox required client-side; `POST /auth/register` returns 400 if `terms_accepted` is missing or false |
+| F4.5 | Send a one-time verification email and let the user confirm it | Email arrives in Mailpit, visiting the link marks `is_validated = 1` |
+| F4.6 | Expire a verification link after 5 minutes and allow only one use | Expired token returns 410; a reused token returns 404 |
+| F4.7 | Let the user request another verification email if they didn't get one | "Resend" on the pending page issues a fresh token and email |
+| F4.8 | Rate-limit resend requests | At most 5 resends per window, 60s apart, then a 10 minute block before the window resets |
+| F4.9 | Sign in with email and password | `POST /auth/login` returns 200 with the user record on a correct password against a verified account |
+| F4.10 | Refuse an unverified account at sign-in, and send a fresh verification email rather than leaving the user stuck | 403 with `error_code: "email_not_verified"`; a fresh email sends unless the 60s resend cooldown from 4.8 is still active |
+| F4.11 | Record every successful sign-in | A `POST /access-logs` row is written (`user_id`, `sign_in_at`, `in_session = 1`) before `/auth/login` responds |
+| F4.12 | Sign out, closing the session other features can see | `POST /auth/logout` and `GET /auth/status/<id>` in student-4-api close and expose the session (see ADR-001 Decision 6) |
+
+Non-functional:
+
+| ID | Requirement | How it is met |
+|----|-------------|---------------|
+| N4.1 | The database never stores a plaintext password | `generate_password_hash` (Werkzeug, pbkdf2) runs before the value leaves `student-4-api` |
+| N4.2 | A resend cannot be replayed to brute-force verification | The token is single-use (cleared on verify) and time-limited (5 min); shared-db enforces the rate limit atomically per request |
+| N4.3 | An outage in a dependency does not show a stack trace to the user | `register`/`resend`/`verify`/`login` catch `RequestException` and return a JSON or rendered error page instead |
+| N4.4 | The sign-up and sign-in forms match the team UI and work down to mobile width | Both pages link `/shared/css/theme.css` only and share the same card layout; verified at 375px (phone) and 700px (tablet) |
+| N4.5 | Cross-cutting identity data is not duplicated per feature | `users`/`access_logs` live once in shared-db, resolved by every feature over HTTP (see 2.7) |
+| N4.6 | A failed sign-in never reveals whether an email is registered | `/users/authenticate` returns the identical 401 body for "no such user" and "wrong password", and hashes a dummy value on the former so response timing does not leak it either; the `email_not_verified` code is only ever returned once the password has already been confirmed correct |
+
+*students 2, 3, 5: add your subsections here.*
 
 ### 2.5 Feature plan **(Individual)**
 
@@ -274,6 +309,81 @@ API produces two suspects when something breaks.
   real place rather than free text
 - Server-side pagination once the trip count outgrows a single table
 
+#### student-4 - Aurelia Sari - Account & Dashboard
+
+**Scope.** Release 0 delivers sign-up and email verification: create an
+account, verify it through a real (locally caught) email, and resend that
+email under a rate limit. Profile editing and the dashboard itself are Release
+1 work - see 1.1's "known scaffold, not secured" note and 2.3's critical path.
+
+**Why this order.** Sign-up has to exist before anything else in this feature
+can - a dashboard has nothing to show without an account, and no other
+feature can resolve "the current user" without one. Verification was built
+alongside it rather than deferred, because an unverified-account state that
+never gets exercised is exactly the kind of gap that only shows up at
+integration time.
+
+| # | Task | Deliverable | Done |
+|---|------|-------------|------|
+| 1 | Sign-up page | `signup.html`: name/email/password, live password-rule checklist, required T&C checkbox, submit disabled until the form is valid, errors shown on blur not on every keystroke | 30 Aug |
+| 2 | Registration endpoint | `POST /auth/register` in student-4-api: server-side email/password/T&C validation mirroring the client, duplicate-email rejection | 30 Aug |
+| 3 | Identity schema decision | `users`/`access_logs` placed in shared-db, not student-4-db - see 2.7 | 30 Aug |
+| 4 | Email verification | Single-use, 5-minute token; `GET /auth/verify/<token>` renders a confirm/expired/invalid page | 31 Aug |
+| 5 | Verification delivery | Real SMTP send to Mailpit (`ai-services`-style local dev dependency, new `mailpit` container); "check your email" pending page with a live 60s resend countdown | 31 Aug |
+| 6 | Resend rate limiting | 60s between sends, 5 sends per window, then a 10 minute block before the window resets - enforced atomically in shared-db, not in the stateless API layer | 31 Aug |
+| 7 | Accounts view | index.html's placeholder "Records" tab replaced with a live accounts list (`GET /users`), completing the scaffold's own TODO | 30 Aug |
+| 8 | Feature-specific smoke test | `student-4/tests/smoke_test.py`, dispatched from `check_student_4()` (same pattern as student-2's `check_student_2()`), replacing the generic `records`-shaped check this feature no longer matches | 31 Aug |
+| 9 | Sign-in page | `signin.html`: same card layout as sign-up (`Welcome back!`), email/password with the sign-up page's identical client-side email validation, password show/hide toggle, inert "Forgot password?" placeholder | 31 Aug |
+| 10 | Sign-in endpoint | `POST /auth/login` in student-4-api, `POST /users/authenticate` in shared-db (password check stays where the hash lives), generic error for both a wrong password and an unregistered email | 31 Aug |
+| 11 | Access logging | `POST /access-logs` in shared-db, called by `/auth/login` on every successful sign-in, finally giving the Release 0 `access_logs` schema a writer | 31 Aug |
+| 12 | Unverified-account handling | `/auth/login` returns `email_not_verified` and redirects to the existing verify-pending page rather than a bare inline error; also triggers a real resend (reusing 6's rate limit) so that page's "check your email" copy is backed by an actual email | 31 Aug |
+| 13 | Sign-in smoke tests | Extended `student-4/tests/smoke_test.py`: generic-error parity, unverified block, no-duplicate-email-within-cooldown, successful login | 31 Aug |
+
+**Design decisions worth defending.**
+
+1. *Identity lives in shared-db, not student-4-db.* `shared-db` already existed
+   for exactly this purpose - the header comment in `shared/db/init_db.py`
+   describes it as owning "cross-cutting access data ... every feature needs."
+   A user's id and sign-in state are that same kind of data: student-1 already
+   resolves `traveller_id` cross-service, and any feature that gates content on
+   "is this user signed in" would need the same resolution. Duplicating
+   `users` into student-4-db would have created a second, competing source of
+   truth for identity. `travellers` was left untouched rather than merged with
+   `users`, since other students already depend on its shape.
+2. *Token generation stays in the API layer, not the database layer.*
+   `student-4-api` generates the verification token and hands it to shared-db
+   to store, shared-db never re-derives or returns it. This mirrors the
+   project's existing trust boundary (student-1's `database_api.py` is the
+   only path to its own database) and means a token is never present in an
+   HTTP response body a browser could read.
+3. *Rate limiting is enforced where the state lives.* The 60s/5-attempt/10-minute
+   logic runs as one atomic check-and-update in shared-db, not as two round
+   trips from the API layer, so a resend can't race the check.
+4. *The password rule checklist stays live; the error text doesn't.* Early
+   versions showed a red error under every field on each keystroke - flagged
+   as annoying during review. Field errors now show on blur and re-validate
+   live only once a field has been touched, while the password checklist
+   (a progress indicator, not an accusation) still updates every keystroke.
+5. *Password verification stays in shared-db, next to the hash it checks.*
+   `student-4-api` never sees `password_hash`, it POSTs the raw email and
+   password to shared-db's `/users/authenticate`, which does the
+   `check_password_hash` call itself and returns only a public user record or
+   a generic error. Same trust boundary as decision 2 above, applied to
+   sign-in instead of the verification token.
+6. *A wrong password and an unregistered email are indistinguishable to the
+   caller.* Both return the exact same 401 body, and looking up a
+   non-existent email still runs a dummy `check_password_hash` so the
+   response takes about as long either way, otherwise timing alone could be
+   used to enumerate which emails are registered. Only once a password is
+   confirmed *correct* does the response reveal `email_not_verified`, so a
+   guess can never be used to probe account state.
+
+**Deferred to Release 1.**
+
+- Profile fields and the dashboard itself - Release 0 only covers identity
+- Swap Mailpit for Resend, isolated to `send_verification_email()` in
+  `student-4-api`, by design
+
 ### 2.6 Risk management plan **(Individual)**
 
 #### student-1 - Caroline Zhou
@@ -299,8 +409,9 @@ what was put in place afterwards, rather than only what might.
 |---|------|-----------|--------|------------|-------|
 | R7 | Ollama not running at showcase, so every AI feature fails live | Medium | **High** | `dev.sh up` warns when port 11434 is unreachable. Starting Ollama is an explicit step in the demo script and is shown in the video. | Me |
 | R8 | The demo machine cannot serve the model | Medium | **High** | Default is `qwen2.5:0.5b`, which runs on the 8 GB machine. `OLLAMA_MODEL` is per-machine, so no one is forced onto a model their laptop cannot run. | Me |
-| R9 | The home page loads 8 images from `picsum.photos`; venue wifi fails | Medium | Medium | Copy the images into `shared/assets/` and serve them locally before the showcase. **Not yet done.** | Team |
+| R9 | Home page images loaded from `picsum.photos` | **Occurred** | Medium | The service went down on 31 August and every image on the home page broke - internet was fine, the third party was not. Images are now downloaded once by `scripts/fetch_assets.py`, committed to `shared/assets/` and served by our own nginx. No external image host remains at runtime. Provenance in `shared/assets/ATTRIBUTION.md`. | Done |
 | R10 | Cross-feature reference integrity | Low | Low | SQLite cannot enforce a reference across a service boundary, so a trip can point at a deleted traveller. Display degrades to `#<id>`. Accepted for Release 0; see ADR-001. | Me |
+| R13 | Google Fonts is still loaded from a CDN | Low | Low | The font stack falls back to Segoe UI and the system sans, so the page degrades in appearance only. Vendoring the fonts is the fix if the showcase venue's network is unreliable. | Team |
 | R11 | Report evidence cannot be reconstructed after the fact | Medium | **High** | Screenshots, CI logs and loop run records are collected into `docs/evidence/` as work happens, not at the end. | Team |
 | R12 | Integration slips because features are built in isolation | Low | **High** | The scaffold integrated all five slots from day one, and CI runs against the shared compose file rather than a local copy. | Team |
 
@@ -310,6 +421,24 @@ the one that mattered. The response in each case was to move the assertion up to
 the layer a marker or user actually touches. Release 1 adds MCP and RAG, where
 the same trap exists - a retrieval call can succeed and still return nothing
 useful - so the tests need to assert on grounded output, not just on a 200.
+
+#### student-4 - Aurelia Sari
+
+**Risks that materialised**
+
+| # | Risk | Impact | What happened | Response |
+|---|------|--------|---------------|----------|
+| R4-1 | An absolute link 404s once the page is only reachable through the hub proxy | Medium | `signup.html`'s post-registration redirect and `index.html`'s sign-up link both used `/verify-pending.html`-style absolute paths. Those resolve fine when the frontend is hit directly on :8084, but the hub only proxies paths under `/student-4/`, so the same link 404'd through `localhost:8080`. | Both changed to relative paths (`verify-pending.html`), which resolve correctly whichever origin serves the page. |
+| R4-2 | A stale service is tested instead of the current code | Medium | Rebuilding `student-4-api` after a schema change repeatedly hit a container still running the old image (or a Docker volume seeded under the old schema), producing confusing errors that looked like application bugs. | Verified every change against the actual running containers (`docker compose up -d --build <service>`), not just `py_compile`; reset the affected named volume when a schema change needed a clean reseed. |
+| R4-3 | A change to a shared file breaks other students' pages | **High** | This feature's CSS lives in `shared/css/theme.css` and its identity schema in `shared-db`. Both are exactly the kind of shared surface flagged in R4/R6 of student-1's register. | New rules were additive only (new classes, new tables alongside the untouched `travellers` table); verified `shared-db`'s existing `/travellers` endpoint and seed count were unaffected after every change. |
+| R4-6 | `scripts/smoke_test.py 4` assumed the generic `records` shape this feature no longer has, so `python3 scripts/smoke_test.py 4` failed CI with `FAIL: GET /records returns 200` | High | CI could not validate registration or verification automatically, the same shape of gap R1/R2 describe for student-1: a check testing a layer the feature no longer has. | Added `student-4/tests/smoke_test.py`, dispatched via `check_student_4()` (same pattern as student-2's `check_student_2()`), exercising registration validation, duplicate-email rejection, and real email verification by polling Mailpit for the actual link. Verified passing both directly and through `scripts/smoke_test.py 4`. |
+
+**Open risks**
+
+| # | Risk | Likelihood | Impact | Mitigation | Owner |
+|---|------|-----------|--------|------------|-------|
+| R4-4 | Mailpit is a dev-only SMTP catcher; nothing sends real email yet | Certain, by design | Medium | Scoped deliberately for Release 0 - `send_verification_email()` is isolated so swapping in Resend is a one-function change | Me, Release 1 |
+| R4-5 | *(Resolved.)* `POST /auth/logout` now closes the `access_logs` row `/auth/login` opens (see ADR-001 Decision 6) | Low | Low | None, closed | Me |
 
 ### 2.7 Data design
 
@@ -497,6 +626,152 @@ happen.
    irrelevant; `itinerary_days(trip_id)` would be the first index to add, since
    every itinerary view filters on it.
 
+#### student-4 - Aurelia Sari - Account & Dashboard
+
+**A decision worth stating before the models.** `USER` and `ACCESS_LOG` are
+modelled here because student-4 designed them, but they are **not** stored in
+student-4-db - they live in shared-db, next to `TRAVELLER`. shared-db's own
+header comment already describes its role as owning "access data every feature
+may needs", and a user's id and sign-in state are exactly that: any feature
+that needs to know who is asking, or whether they're signed in, needs the
+same resolution student-1 already does for `traveller_id`.
+Keeping a second, competing `users` table in student-4-db would have created
+two sources of truth for identity. `TRAVELLER` was left untouched rather than
+merged with `USER`, since student-1 already depends on its exact shape, see
+ADR-001 and R4-3.
+
+**Conceptual model**
+
+Source: `docs/diagrams/student-4-conceptual.mmd`
+
+```mermaid
+graph LR
+    U["USER<br/><i>who holds an account</i>"]
+    L["ACCESS LOG<br/><i>when they signed in and out</i>"]
+
+    U -->|"generates<br/>1 : many"| L
+```
+
+One user generates many access log entries. Unlike student-1's model, this
+relationship is **not** cross-service, both entities live in the same
+shared.db file, so the foreign key below is enforceable.
+
+**Entity-relationship diagram**
+
+Source: `docs/diagrams/student-4-erd.mmd`
+
+```mermaid
+erDiagram
+    USER ||--o{ ACCESS_LOG : "signs in as"
+
+    USER {
+        INTEGER id                          PK "owned by shared-db"
+        TEXT    name                            "NOT NULL"
+        TEXT    email                       UK  "NOT NULL"
+        TEXT    password_hash                   "NOT NULL, werkzeug pbkdf2"
+        INTEGER is_validated                    "NOT NULL, default 0"
+        TEXT    verification_token              "single-use, cleared once spent"
+        TEXT    verification_expires_at         "5 minute TTL"
+        TEXT    last_verification_sent_at       "resend 60s gate"
+        INTEGER verification_resend_count       "NOT NULL, default 0, max 5"
+        TEXT    verification_blocked_until      "10 minute cooldown, then resets"
+        TEXT    created_at                      "NOT NULL, ISO 8601"
+    }
+
+    ACCESS_LOG {
+        INTEGER id          PK
+        INTEGER user_id     FK "NOT NULL, references USER"
+        TEXT    sign_in_at      "NOT NULL, ISO 8601"
+        TEXT    sign_out_at     "nullable - still signed in if NULL"
+        INTEGER in_session      "NOT NULL, default 0"
+    }
+```
+
+**Logical model**
+
+**USER**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| id | integer | PK | surrogate, auto-assigned |
+| name | string | | NOT NULL |
+| email | string | UK | NOT NULL, unique |
+| password_hash | string | | NOT NULL, never the plaintext password |
+| is_validated | boolean | | NOT NULL, default false |
+| verification_token | string | | nullable, single-use |
+| verification_expires_at | timestamp | | nullable, 5 minutes from issue |
+| last_verification_sent_at | timestamp | | nullable |
+| verification_resend_count | integer | | NOT NULL, default 0, resets after a block |
+| verification_blocked_until | timestamp | | nullable |
+| created_at | timestamp | | NOT NULL |
+
+**ACCESS_LOG**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| id | integer | PK | surrogate, auto-assigned |
+| user_id | integer | FK -> USER | NOT NULL |
+| sign_in_at | timestamp | | NOT NULL |
+| sign_out_at | timestamp | | nullable |
+| in_session | boolean | | NOT NULL, default false |
+
+**Normalisation.** Both relations are in third normal form: every attribute is
+atomic (1NF), each uses a single-attribute surrogate key so no partial
+dependency is possible (2NF), and no non-key attribute determines another -
+`verification_resend_count` does not derive `is_validated`, `sign_in_at` does
+not derive `user_id` (3NF).
+
+**Physical model**
+
+```sql
+CREATE TABLE users (
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                        TEXT NOT NULL,
+    email                       TEXT NOT NULL UNIQUE,
+    password_hash               TEXT NOT NULL,
+    is_validated                INTEGER NOT NULL DEFAULT 0,
+    verification_token          TEXT,
+    verification_expires_at     TEXT,
+    last_verification_sent_at   TEXT,
+    verification_resend_count   INTEGER NOT NULL DEFAULT 0,
+    verification_blocked_until  TEXT,
+    created_at                  TEXT NOT NULL
+);
+
+CREATE TABLE access_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    sign_in_at  TEXT NOT NULL,
+    sign_out_at TEXT,
+    in_session  INTEGER NOT NULL DEFAULT 0
+);
+```
+
+Seeded with **10 users and 10 access log entries**, above the ten-record
+minimum, alongside the pre-existing 12 `travellers` in the same database.
+
+**Where the physical model departs from the logical model, and why**
+
+| Logical | Physical | Reason |
+|---------|----------|--------|
+| `timestamp` | `TEXT` | Same reasoning as student-1's `date` fields: SQLite has no timestamp type, and ISO 8601 strings sort and compare correctly as text. |
+| `boolean` | `INTEGER` | SQLite has no boolean type; `0`/`1` is the idiom used throughout this project. |
+| Password stored | never as plaintext | Only `generate_password_hash()`'s output ever reaches this table - enforced by convention in `student-4-api`, not by a database constraint. |
+
+**Known limitations of the physical model**
+
+1. **No index on `access_logs(user_id)`.** At 10 rows this is irrelevant, but
+   it would be the first index to add once a "sign-in history for this user"
+   query exists - the same shape of gap student-1 notes for `itinerary_days`.
+2. *(Resolved.)* **`access_logs` rows are written but never closed.**
+   `POST /access-logs/sign-out` now closes the most recent open row for a
+   user, setting `sign_out_at` and `in_session = 0` (see ADR-001
+   Decision 6).
+3. **The 60s/5-attempt/10-minute resend state lives on the `USER` row itself**
+   rather than in a separate rate-limit table. Simpler for one row-per-user
+   at this scale; would need to move to a keyed table if rate limiting ever
+   needs to apply per-IP as well as per-account.
+
 ## 3. Repository structure
 
 The repository follows the structure required by specification 7.1.
@@ -558,6 +833,7 @@ ownership is recorded in the README and in file headers instead.
 ### 4.1 Individual software architecture **(Individual)**
 
 One diagram per student. student-1: `docs/diagrams/student-1-architecture.mmd`.
+student-4: `docs/diagrams/student-4-architecture.mmd`.
 
 ### 4.2 Integrated Release 0 software architecture
 
@@ -735,7 +1011,7 @@ record per run.
 | student-1 Caroline | Trips & Itinerary | Two tables (12 trips, 15 itinerary days), full CRUD on both through frontend, API and database. AI assistant grounded in live trip data. Cross-feature traveller resolution from the shared access API, with a 30s cache and graceful degradation. |
 | student-2 Kevin | Attractions & Dining | Three tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration through AI-Mode. |
 | student-3 TJ | Travel Mate | Generated scaffold: working `records` CRUD trio, real schema outstanding. |
-| student-4 Aurelia | Account & Dashboard | Generated scaffold: working `records` CRUD trio, real schema outstanding. |
+| student-4 Aurelia | Account & Dashboard | Sign-up with live client + server validation and a required T&C checkbox; email verification via Mailpit with a single-use, 5-minute token; resend rate-limited (60s / 5 attempts / 10 min block, then repeats). Sign-in checks the password server-side in shared-db, returns a generic error for both a wrong password and an unregistered email, blocks unverified accounts (re-sending a verification email), and logs every successful sign-in to `access_logs`. Identity (`users`, `access_logs`) placed in shared-db as cross-cutting data rather than student-4-db. Session cookies, sign-out, and dashboard CRUD not yet started. |
 | student-5 Aung | Bookings & Budget | Generated scaffold. Also designed the landing page and the shared CSS theme used across the application. |
 
 **Integration properties worth stating.** Each database container owns its schema
@@ -767,7 +1043,110 @@ Smoke test: student-1
 student-1 passed all checks.
 ```
 
-*Add the runs for students 2-5.*
+*Add the runs for students 2, 3 and 5.*
+
+**student-4.** `scripts/smoke_test.py 4` initially failed with
+`FAIL: GET /records returns 200`, because the generic smoke test's fallback
+assumes the old `records` scaffold, this feature no longer has that resource
+(recorded as R4-6 in 2.6, now resolved). Fixed by adding
+`student-4/tests/smoke_test.py`, dispatched from `check_student_4()`:
+
+```
+$ python3 scripts/smoke_test.py 4
+Smoke test: student-4 sign-up, email verification & sign-in
+  ok  GET /health returns 200
+  ok  POST /auth/register without terms_accepted returns 400
+  ok  error message names the T&C requirement
+  ok  POST /auth/register with a weak password returns 400
+  ok  POST /auth/register with an invalid email returns 400
+  ok  POST /auth/register with valid data returns 201
+  ok  created account has the requested email
+  ok  created account starts unverified
+  ok  the response never leaks the token or the password hash
+  ok  registering the same email again returns 409
+  ok  GET /users returns 200
+  ok  the new account appears in the accounts fragment
+  ok  verification email arrives in Mailpit with a link
+  ok  visiting the verification link returns 200
+  ok  the link confirms verification
+  ok  reusing the same (now-spent) link returns 404
+  ok  resending for an already-verified account returns 400
+  ok  second account for resend testing registers successfully
+  ok  resending within 60s of registering returns 429
+  ok  429 response names how long to wait
+  ok  POST /auth/login with the wrong password returns 401
+  ok  wrong-password error message is the generic one
+  ok  POST /auth/login for an email with no account returns 401
+  ok  unknown-email error is identical to wrong-password (no account enumeration)
+  ok  POST /auth/login with the correct password on an unverified account returns 403
+  ok  403 response names the email_not_verified error code
+  ok  signing in to an unverified account within the resend cooldown does not send a duplicate email
+  ok  POST /auth/login with the correct password on a verified account returns 200
+  ok  login response returns the signed-in user
+  ok  login response never leaks the password hash or verification token
+
+student-4 sign-up, email verification & sign-in passed all checks.
+Smoke test: student-4
+  ok  database service is healthy
+  ok  backend/API service is healthy
+
+student-4 passed all checks.
+```
+
+The verification check is real, not stubbed: it polls Mailpit's API
+(`http://localhost:8025/api/v1/messages`) for the actual email
+`student-4-api` sent, extracts the real link from its body, and visits it -
+the same thing a person would do by hand. Each run registers
+freshly-randomised emails, so it is safe to re-run without leaving stray
+state or hitting the duplicate-email check by accident; confirmed by running
+it twice in a row.
+
+The sign-up form's client-side behaviour (submit disabled until every field
+is valid, T&C checkbox required, errors on blur rather than on keystroke)
+was additionally verified against the actual rendered pages in a browser
+through the nginx hub at `localhost:8080`, not just against the API
+directly. The sign-in page (same layout, same email validation, plus the
+password show/hide toggle) was verified the same way, including the redirect
+to the verify-pending page for an unverified account.
+
+**Sign-in evidence the automated script does not cover**, verified manually
+instead (see `student-4/tests/README.md` for why):
+
+```
+$ curl -s -X POST http://localhost:8084/api/student-4/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email":"traveller3@example.com","password":"Placeholder1!"}'
+{"error":"Please verify your email before signing in.","error_code":"email_not_verified"}
+
+$ curl -s "http://localhost:8025/api/v1/search?query=to%3Atraveller3%40example.com"
+... "Subject":"Verify your NextStop account", "Snippet":"Hi there, Welcome to
+NextStop! Click the link below to verify your email address.
+http://localhost:8080/api/student-4/auth/verify/0eAWmuOL..." ...
+```
+
+A sign-in attempt against an unverified account really does put a fresh
+verification link in the user's inbox, not just on the pending screen -
+confirmed by finding the link in Mailpit right after the login attempt above.
+
+```
+$ docker exec shared-db python -c "
+import sqlite3
+conn = sqlite3.connect('/app/data/shared.db')
+conn.row_factory = sqlite3.Row
+for r in conn.execute('SELECT * FROM access_logs WHERE user_id=2 ORDER BY id DESC LIMIT 1'):
+    print(dict(r))
+"
+{'id': 11, 'user_id': 2, 'sign_in_at': '2026-08-30T17:57:41+00:00', 'sign_out_at': None, 'in_session': 1}
+```
+
+A successful sign-in writes the `access_logs` row it is supposed to -
+confirmed here by querying `shared.db` directly, now also readable over
+HTTP via `GET /auth/status/<id>`:
+
+```
+$ curl http://localhost:8080/api/student-4/auth/status/2
+{"is_valid": true, "last_logout": null, "user_id": 2}
+```
 
 ### 8.2 Screenshots of the integrated application
 
@@ -795,7 +1174,8 @@ integrated application.
 
 | # | Issue | Impact | Plan |
 |---|-------|--------|------|
-| 1 | Students 2-5 still hold the generated `records` scaffold rather than real feature schemas | Those features are not yet real | Each owner replaces their schema, routes and page |
+| 1 | Students 3 and 5 still hold the generated `records` scaffold rather than real feature schemas | Those features are not yet real | Each owner replaces their schema, routes and page |
+| 1b | *(Resolved.)* `POST /auth/logout` now closes the `access_logs` row `/auth/login` opens, exposed for reading via `GET /auth/status/<id>` (see ADR-001 Decision 6) | None | n/a |
 | 2 | Ollama runs on the host, not in a container | Deployment has a manual prerequisite | Document in the video; containerise if RAM allows |
 | 3 | Local models answer direct lookups correctly but fail aggregation across the full context - asked which of 12 trips has the smallest budget, `llama3.2` named a trip costing AUD 3,300 when the smallest is AUD 2,900 | An aggregate question gives a confidently wrong answer | Demonstrate direct lookups, which are reliable. A real fix computes aggregates in the backend and passes the answer as context, rather than asking the model to scan and compare. Release 1. |
 | 4 | AI-Mode adds one hop over the specification's direct Backend -> Ollama flow | Deviation from the spec diagram | Justified in ADR-001 |
@@ -869,7 +1249,7 @@ ce5cb28 caramelchew 2026-08-24 Ground the review prompts, fix false-negative hea
 | Kevin Kim | Attractions & Dining feature: 3 tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration | 6 | PR #6 |
 | Aung Ko Khaing | Landing page design and shared CSS theme (navy/cream palette, Poppins + Inter) | 1 | commit `b2678a0` |
 | Tanishpreet Kour | *(to complete)* | | |
-| Aurelia Sari | *(to complete)* | | |
+| Aurelia Sari | Account & Dashboard: sign-up page, `POST /auth/register` with client + server validation, email verification via Mailpit (single-use, 5-minute token), rate-limited resend, and the `users`/`access_logs` shared-db schema decision (2.7) | *(to complete once committed - see git log)* | `git log --author="Aurelia Sari"` |
 
 Per-student commit counts:
 
@@ -887,6 +1267,19 @@ git shortlog -sn --all
 | 24 Aug | Fixed an nginx startup deadlock and a CI readiness race |
 | 28 Aug | Restored feature-page function after a design regression; added frontend wiring assertions to CI |
 | 28 Aug | Completed CRUD on itinerary days |
+
+#### Aurelia Sari - detail
+
+| Date | Contribution |
+|------|--------------|
+| 30 Aug | Sign-up page (`signup.html`): name/email/password, live password-rule checklist, RFC-ish email validation, wired to `POST /auth/register` |
+| 30 Aug | `student-4-api` register/list-users endpoints; replaced `index.html`'s placeholder "Records" tab with a live accounts view, closing the scaffold's own TODO |
+| 30 Aug | Moved `users`/`access_logs` from student-4-db into shared-db as cross-cutting identity data, alongside the pre-existing `travellers` table; updated `shared-api`/`shared-db` proxy routes accordingly |
+| 30-31 Aug | Email verification: single-use 5-minute token, `GET /auth/verify/<token>` confirm/expired/invalid pages, "check your email" pending page with a live resend countdown |
+| 31 Aug | Real email delivery through Mailpit (new `mailpit` service in `docker-compose.yml`); resend rate limiting (60s / 5 attempts / 10 min block) enforced atomically in shared-db |
+| 31 Aug | Required Terms & Conditions checkbox, submit-disabled-until-valid, and blur-based (not per-keystroke) field validation on the sign-up form |
+| 31 Aug | This section, plus `docs/diagrams/student-4-architecture.mmd`, `student-4-conceptual.mmd` and `student-4-erd.mmd` |
+| 31 Aug | `student-4/tests/smoke_test.py`, a real end-to-end CI check replacing the generic `records`-shaped one this feature no longer matched (fixed R4-6 / `scripts/smoke_test.py 4` failing with `FAIL: GET /records returns 200`) |
 
 ### 10.3 Attendance checkpoints
 
@@ -915,11 +1308,22 @@ The video must show:
 - the integrated application running
 - every student demonstrating their own feature
 - deployment steps, including starting Ollama
-- the agentic loop executing in the terminal
 - the CI/CD pipeline
 
 All five students must appear. All five must attend the Week 6 showcase -
 non-attendance scores 0.
+
+> **The video requirement changed on 30 August 2026.** The earlier version of the
+> Canvas assignment page asked for "deployment steps, AI-agentic workflow
+> execution, and CICD pipeline", and marking criterion 10 read "the assigned
+> feature, AI-Mode integration, and the Agentic AI loop". Both now read
+> **CI-CD DevOps workflow** in place of the agentic loop. The loop is still
+> assessed, under criterion 4, as "implemented, demonstrated, and documented" -
+> the run records in `docs/evidence/` and a terminal demonstration cover that,
+> and it no longer has to appear in the video.
+>
+> Worth re-reading the assignment page before recording: it was edited without
+> an announcement.
 
 ---
 

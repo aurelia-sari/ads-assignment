@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign In - NextStop</title>
+    <link rel="stylesheet" href="/shared/css/theme.css">
+    <script src="/shared/js/htmx.min.js"></script>
+    <script src="session.js"></script>
+</head>
+<body class="signup-body">
+
+<main class="signup-card">
+    <aside class="signup-img">
+        <div class="signup-img-logo">NEXTSTOP</div>
+        <img src="https://images.unsplash.com/photo-1465056836041-7f43ac27dcb5?q=80&w=1771&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Snowy mountain landscape">
+    </aside>
+
+    <section class="signup-form-panel">
+        <h1 class="signup-title">Welcome back!</h1>
+        <p class="signup-subtitle">Sign in to access your trips, manage your itineraries, and keep your travel plans all in one place.</p>
+
+        <p class="notice" id="form-status" style="display:none"></p>
+
+        <form id="signin-form" novalidate>
+            <div class="field-group">
+                <label for="signin-email">Email</label>
+                <input id="signin-email" name="email" type="text" placeholder="Your email" autocomplete="email" required>
+                <p class="field-error" id="email-error">Enter a valid email address.</p>
+            </div>
+
+            <div class="field-group">
+                <label for="signin-password">Password</label>
+                <div class="password-input-wrap">
+                    <input id="signin-password" name="password" type="password" placeholder="Your password" autocomplete="current-password" required>
+                    <button type="button" class="password-toggle" id="password-toggle">Show</button>
+                </div>
+                <p class="field-error" id="password-error">Enter your password.</p>
+                <span class="forgot-password-text">Forgot password?</span>
+            </div>
+
+            <button type="submit" class="btn btn--pill-dark signup-submit" id="submit-btn" disabled>Sign in</button>
+        </form>
+
+        <p class="terms-hint">By continuing you agree to the Terms and Conditions.</p>
+
+        <p class="signup-login-hint">Don't have an account? <a href="signup.html">Sign up</a></p>
+    </section>
+</main>
+
+<script>
+(function () {
+    const form = document.getElementById("signin-form");
+    const emailInput = document.getElementById("signin-email");
+    const passwordInput = document.getElementById("signin-password");
+    const passwordToggle = document.getElementById("password-toggle");
+
+    const emailError = document.getElementById("email-error");
+    const passwordError = document.getElementById("password-error");
+    const formStatus = document.getElementById("form-status");
+    const submitButton = document.getElementById("submit-btn");
+
+    function showFormStatus(kind, message) {
+        formStatus.className = `notice notice-${kind}`;
+        formStatus.textContent = message;
+        formStatus.style.display = "block";
+    }
+
+    const LOCAL_PART_RE = /^(?!\.)(?!.*\.\.)[A-Za-z0-9._+-]+(?<!\.)$/;
+    const DOMAIN_RE = /^(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}$/;
+
+    function validateEmail(value) {
+        if (!value || value.length > 254) return false;
+        if ((value.match(/@/g) || []).length !== 1) return false;
+        if (/\s/.test(value)) return false;
+
+        const [localPart, domain] = value.split("@");
+        if (!localPart || !domain) return false;
+        if (localPart.length > 64 || domain.length > 255) return false;
+        if (!LOCAL_PART_RE.test(localPart)) return false;
+        if (!DOMAIN_RE.test(domain)) return false;
+
+        return true;
+    }
+
+    function setFieldValidity(input, errorEl, isValid, isTouched) {
+        if (!isTouched) return;
+        input.classList.toggle("is-invalid", !isValid);
+        input.classList.toggle("is-valid", isValid);
+        errorEl.classList.toggle("is-visible", !isValid);
+    }
+
+    function isFormComplete() {
+        const emailValid = validateEmail(emailInput.value.trim());
+        const passwordValid = passwordInput.value.length > 0;
+        return emailValid && passwordValid;
+    }
+
+    function updateSubmitState() {
+        submitButton.disabled = !isFormComplete();
+    }
+
+    let emailTouched = false;
+    let passwordTouched = false;
+
+    emailInput.addEventListener("blur", () => {
+        emailTouched = true;
+        setFieldValidity(emailInput, emailError, validateEmail(emailInput.value.trim()), true);
+    });
+
+    passwordInput.addEventListener("blur", () => {
+        passwordTouched = true;
+        setFieldValidity(passwordInput, passwordError, passwordInput.value.length > 0, true);
+    });
+
+    emailInput.addEventListener("input", () => {
+        setFieldValidity(emailInput, emailError, validateEmail(emailInput.value.trim()), emailTouched);
+        updateSubmitState();
+    });
+
+    passwordInput.addEventListener("input", () => {
+        setFieldValidity(passwordInput, passwordError, passwordInput.value.length > 0, passwordTouched);
+        updateSubmitState();
+    });
+
+    passwordToggle.addEventListener("click", () => {
+        const showing = passwordInput.type === "text";
+        passwordInput.type = showing ? "password" : "text";
+        passwordToggle.textContent = showing ? "Show" : "Hide";
+    });
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        const emailValid = validateEmail(email);
+        const passwordValid = password.length > 0;
+
+        setFieldValidity(emailInput, emailError, emailValid, true);
+        setFieldValidity(passwordInput, passwordError, passwordValid, true);
+
+        if (!emailValid || !passwordValid) {
+            return;
+        }
+
+        formStatus.style.display = "none";
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch("/api/student-4/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                if (response.status === 403 && data.error_code === "email_not_verified") {
+                    sessionStorage.setItem("pendingVerificationEmail", email);
+                    window.location.href = "verify-pending.html";
+                    return;
+                }
+
+                showFormStatus("error", data.error || "Invalid email or password.");
+                return;
+            }
+
+            NextStopSession.saveSession(data);
+            window.location.href = "/";
+        } catch (err) {
+            showFormStatus("error", "Could not reach the server. Please try again.");
+        } finally {
+            updateSubmitState();
+        }
+    });
+})();
+</script>
+</body>
+</html>

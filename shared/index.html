@@ -13,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/shared/css/theme.css">
 <script src="/shared/js/htmx.min.js" defer></script>
+<script src="/student-4/session.js"></script>
 </head>
 <body>
 
@@ -37,8 +38,8 @@
       </ul>
 
       <div class="nav__actions">
-        <a href="#start" class="btn btn--pill-light">Get started</a>
-        <a href="#start" class="btn btn--icon" aria-label="Get started">
+        <a href="/student-4/signup.html" class="btn btn--pill-light" id="nav-cta">Get started</a>
+        <a href="/student-4/signup.html" class="btn btn--icon" id="nav-cta-icon" aria-label="Get started">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 17L17 7M9 7h8v8"/></svg>
         </a>
       </div>
@@ -140,7 +141,7 @@
 
       <a class="feature-card" href="/student-1/">
         <div class="feature-card__media">
-          <img src="https://picsum.photos/id/1040/640/780" alt="Trips &amp; Itinerary">
+          <img src="/shared/assets/feature-01.jpg" alt="Trips &amp; Itinerary">
           <span class="feature-card__badge">01</span>
         </div>
         <div class="feature-card__body">
@@ -151,7 +152,7 @@
       </a>
       <a class="feature-card" href="/student-2/">
         <div class="feature-card__media">
-          <img src="https://picsum.photos/id/1080/640/780" alt="Attractions &amp; Dining">
+          <img src="/shared/assets/feature-02.jpg" alt="Attractions &amp; Dining">
           <span class="feature-card__badge">02</span>
         </div>
         <div class="feature-card__body">
@@ -162,7 +163,7 @@
       </a>
       <a class="feature-card" href="/student-3/">
         <div class="feature-card__media">
-          <img src="https://picsum.photos/id/1074/640/780" alt="Travel Mate">
+          <img src="/shared/assets/feature-03.jpg" alt="Travel Mate">
           <span class="feature-card__badge">03</span>
         </div>
         <div class="feature-card__body">
@@ -173,7 +174,7 @@
       </a>
       <a class="feature-card" href="/student-4/">
         <div class="feature-card__media">
-          <img src="https://picsum.photos/id/1036/640/780" alt="Account &amp; Dashboard">
+          <img src="/shared/assets/feature-04.jpg" alt="Account &amp; Dashboard">
           <span class="feature-card__badge">04</span>
         </div>
         <div class="feature-card__body">
@@ -184,7 +185,7 @@
       </a>
       <a class="feature-card" href="/student-5/">
         <div class="feature-card__media">
-          <img src="https://picsum.photos/id/1015/640/780" alt="Bookings &amp; Budget">
+          <img src="/shared/assets/feature-05.jpg" alt="Bookings &amp; Budget">
           <span class="feature-card__badge">05</span>
         </div>
         <div class="feature-card__body">
@@ -240,11 +241,11 @@
   // Each card routes to the student frontend that owns that feature. The
   // unified index is required to be the single entry point to all five.
   const FEATURE_SET = [
-    { href: "/student-1/", owner: "Caroline Zhou",    img: "https://picsum.photos/id/1040/640/780", badge: "01", title: "Trips &amp; Itinerary", tag: "Day by day", desc: "plan trips and build an itinerary, with an AI chatbot" },
-    { href: "/student-2/", owner: "Kevin Kim",        img: "https://picsum.photos/id/1080/640/780", badge: "02", title: "Attractions &amp; Dining", tag: "Personalised", desc: "sightseeing, restaurants and recommendations" },
-    { href: "/student-3/", owner: "Tanishpreet Kour", img: "https://picsum.photos/id/1074/640/780", badge: "03", title: "Travel Mate", tag: "Matched", desc: "find companions heading to the same destination" },
-    { href: "/student-4/", owner: "Aurelia Sari",     img: "https://picsum.photos/id/1036/640/780", badge: "04", title: "Account &amp; Dashboard", tag: "Always on", desc: "profile, onboarding, dashboard and travel guides" },
-    { href: "/student-5/", owner: "Aung Ko Khaing",   img: "https://picsum.photos/id/1015/640/780", badge: "05", title: "Bookings &amp; Budget", tag: "Tracked", desc: "flights, hotels, car rentals and trip budget" }
+    { href: "/student-1/", owner: "Caroline Zhou",    img: "/shared/assets/feature-01.jpg", badge: "01", title: "Trips &amp; Itinerary", tag: "Day by day", desc: "plan trips and build an itinerary, with an AI chatbot" },
+    { href: "/student-2/", owner: "Kevin Kim",        img: "/shared/assets/feature-02.jpg", badge: "02", title: "Attractions &amp; Dining", tag: "Personalised", desc: "sightseeing, restaurants and recommendations" },
+    { href: "/student-3/", owner: "Tanishpreet Kour", img: "/shared/assets/feature-03.jpg", badge: "03", title: "Travel Mate", tag: "Matched", desc: "find companions heading to the same destination" },
+    { href: "/student-4/", owner: "Aurelia Sari",     img: "/shared/assets/feature-04.jpg", badge: "04", title: "Account &amp; Dashboard", tag: "Always on", desc: "profile, onboarding, dashboard and travel guides" },
+    { href: "/student-5/", owner: "Aung Ko Khaing",   img: "/shared/assets/feature-05.jpg", badge: "05", title: "Bookings &amp; Budget", tag: "Tracked", desc: "flights, hotels, car rentals and trip budget" }
   ];
 
   let startIndex = 0;
@@ -277,6 +278,29 @@
     startIndex = (startIndex + 1) % FEATURE_SET.length;
     renderFeatures();
   });
+</script>
+
+<script>
+  (async function () {
+    const session = await NextStopSession.verifySession();
+    if (!session) return;
+
+    const ctaText = document.getElementById("nav-cta");
+    const ctaIcon = document.getElementById("nav-cta-icon");
+
+    ctaText.textContent = "Sign out";
+    ctaText.setAttribute("href", "#");
+    ctaIcon.setAttribute("aria-label", "Sign out");
+    ctaIcon.setAttribute("href", "#");
+
+    [ctaText, ctaIcon].forEach((el) => {
+      el.style.cursor = "pointer";
+      el.addEventListener("click", (event) => {
+        event.preventDefault();
+        NextStopSession.signOut("/");
+      });
+    });
+  })();
 </script>
 
 </body>

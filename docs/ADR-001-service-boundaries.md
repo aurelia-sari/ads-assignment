@@ -138,6 +138,41 @@ start cannot break someone else's demonstration.
 fell back to a raw id, so a broken cross-feature read fails CI rather than
 quietly degrading.
 
+## Decision 6: session state is shared, checked the same way identity is
+
+Whether a user is signed in is a cross-cutting fact under Decision 5's test,
+so it lives in `shared-db.access_logs` (`in_session`, `sign_out_at`) next to
+`travellers` and `users`, not in a per-feature table.
+
+There is no server-side session store or cookie in this stack. The
+`user_id` returned by `POST /auth/login` plays the role of "the session",
+and `access_logs` is the server-side record of whether that id is still
+signed in.
+
+**Getting the user id.** `student-4/frontend/templates/session.js` keeps it
+in `localStorage` after login. Every frontend shares one origin (Decision
+4), so any page can load this script from `/student-4/session.js` and call
+it, which is how the shared landing page swaps "Get started" for "Sign
+out".
+
+**Checking it server-side.** `GET /access-logs/status/<user_id>` on
+shared-db, proxied through shared-api the same way `GET /travellers/<id>`
+is, returns `{"user_id": 2, "is_valid": true, "last_logout": null}`. Any
+backend can call `shared-api:5000/access-logs/status/<user_id>` directly.
+student-4-api's `GET /auth/status/<id>` is a thin proxy for frontends that
+would rather not call shared-api by hand. `POST /access-logs/sign-out`
+closes the session the same way `POST /access-logs` opens one at login.
+
+`localStorage` is editable in devtools, so it never grants a signed-in UI
+state by itself: `session.js`'s `verifySession()` always confirms the
+stored id against `/auth/status/<id>` first, clearing it if the server
+disagrees, and fails closed on a network error.
+
+**Alternative rejected:** a real cookie-based server session. More
+standard, but a much bigger change across all five backends than a
+Release 0/1 feature warrants, given `user_id` plus `access_logs.in_session`
+already gives every feature a server-verifiable answer.
+
 ## Rejected: one shared database for the whole application
 
 Worth recording, because it is the obvious first instinct and the reasons

@@ -17,7 +17,7 @@ microservice; one shared Docker Compose configuration runs the whole thing.
 | student-5 | Aung Ko Khaing | Flights, hotels, car rentals, budget | 8085 | 5105 | 5205 |
 
 Shared services: `shared-frontend` (8080), `shared-api` (5000), `shared-db`
-(5200), `ai-mode` (5300).
+(5200), `ai-mode` (5300), `mailpit` (8025 web UI / 1025 SMTP).
 
 > **Directory naming is fixed.** The project specification (section 7.1)
 > requires each student's artefacts to live in their designated `student-x/`
@@ -154,6 +154,42 @@ If the group would rather containerise the runtime, add a service to
 `/root/.ollama`, set `OLLAMA_BASE_URL=http://ollama:11434/v1`, and pull the
 model into the volume once. Expect a multi-gigabyte image pull.
 
+## Seeded accounts
+
+`shared-db` is seeded with 10 accounts for local sign-in testing, all sharing
+the password `Password123!`. Only `student1` to `student5` are verified and
+can sign in at `/student-4/signin.html`, `traveller6` to `traveller10` are
+left pending verification.
+
+| Email | Password |
+|-------|----------|
+| student1@example.com | Password123! |
+| student2@example.com | Password123! |
+| student3@example.com | Password123! |
+| student4@example.com | Password123! |
+| student5@example.com | Password123! |
+
+## Mailpit (local email testing)
+
+`student-4-api` sends sign-up verification emails through
+[Mailpit](https://mailpit.axllent.org/), a fake local SMTP server with a web
+UI - nothing is sent to a real inbox in local dev. To check an email a feature
+sent:
+
+```bash
+open http://localhost:8025
+```
+
+Every message `student-4-api` sends (account verification, and any resends)
+shows up there instantly, including the verification link. No configuration
+is needed, `mailpit` starts with the rest of the stack via `docker compose
+up`, and `student-4-api` is already pointed at it (`MAILPIT_HOST=mailpit`,
+`MAILPIT_PORT=1025` in `docker-compose.yml`).
+
+This is a Release 0 stand-in. `send_verification_email()` in
+`student-4/api/app.py` is the only place a swap to a real provider (e.g.
+Resend) needs to happen for a later release.
+
 ## The agentic loop
 
 The shared Plan -> Act -> Observe -> Adapt workflow reviews the running
@@ -193,7 +229,7 @@ student's directory, the shared directories, or the compose file.
 
 ## Working on your feature
 
-Students 2-5 currently have a generated scaffold: a working `records` CRUD
+Students 3 and 5 currently have a generated scaffold: a working `records` CRUD
 microservice trio, marked with `TODO` comments. The wiring already works, so
 replace it from the bottom up:
 
@@ -204,6 +240,16 @@ replace it from the bottom up:
 
 `student-1/` shows the fuller layout (`routes/`, `services/`, `views/`) to move
 to once a feature outgrows a single module.
+
+`scripts/smoke_test.py N` falls back to a generic create/read/update/delete
+check against a `records`-shaped resource once you replace your schema, that
+check will start failing (`FAIL: GET /records returns 200`) unless your
+feature's flow fits the same shape. Either add a `RESOURCES[N]` entry (see
+student-1's `trips` entry) if it does, or write a dedicated
+`student-N/tests/smoke_test.py` and a `check_student_N()` dispatcher in
+`scripts/smoke_test.py` if it doesn't - student-2 and student-4 both do this,
+for a places/favourites/recommendations flow and a sign-up/verification flow
+respectively, neither of which is a single CRUD resource.
 
 Branch, then open a pull request into `main`:
 
