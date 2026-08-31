@@ -1,0 +1,42 @@
+flowchart LR
+
+%% student-2 (Kevin Kim) - Attractions & Dining
+%% Software architecture diagram.
+%%
+%% Student 2 owns the frontend, backend/API, and database API for the
+%% Attractions & Dining feature. The backend accesses student-2-db only
+%% through its Database API over HTTP; it does not access SQLite directly.
+%%
+%% AI recommendations are requested through the shared AI-Mode service.
+%% Student 2 services do not communicate with Ollama directly. AI-Mode
+%% centralises model access and communicates with the locally running LLM.
+
+    U["Traveller / User"]
+
+    SF["Shared Frontend<br/>nginx :8080"]
+    F["Student 2 Frontend<br/>Attractions & Dining<br/>nginx :8082"]
+    API["Student 2 Backend/API<br/>Flask :5102"]
+    DBAPI["Student 2 Database API<br/>Flask :5202"]
+    DB[("Student 2 SQLite DB<br/>places<br/>favourites<br/>recommendations")]
+
+    AIM["Shared AI-Mode<br/>Flask :5300"]
+    O["Ollama"]
+    LLM["LLM<br/>llama3.2"]
+
+    U -->|"opens integrated app"| SF
+    SF -->|"reverse proxy /student-2/"| F
+
+    F -->|"HTMX / HTTP requests"| SF
+    SF -->|"reverse proxy /api/student-2/"| API
+
+    API -->|"Places / Favourites / Recommendation History<br/>HTTP"| DBAPI
+    DBAPI -->|"owns and accesses"| DB
+
+    API -->|"AI recommendation request"| AIM
+    AIM -->|"OpenAI-compatible API"| O
+    O -->|"inference"| LLM
+    LLM -->|"generated recommendation"| O
+    O -->|"response"| AIM
+    AIM -->|"AI answer"| API
+
+    API -->|"save recommendation result"| DBAPI

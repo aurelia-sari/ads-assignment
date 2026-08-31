@@ -13,6 +13,7 @@ Release 0 project specification.
 
 The script is idempotent.
 Existing table data is preserved when the script is re-run.
+Re-check or replace the image URL if it stops resolving.
 """
 
 
@@ -41,10 +42,13 @@ DB_PATH = Path(
 # Seed data - Places
 # ------------------------------------------------------------------
 
-WIKIMEDIA = (
-    "https://commons.wikimedia.org/wiki/"
-    "Special:FilePath/{}?width=400"
-)
+# Representative photo for each place, taken directly from that
+# place's Google Maps listing (lh3.googleusercontent.com CDN).
+# NOTE: these are unofficial Google Maps photo URLs (not the paid
+# Places API). They are good enough for the current demo video, but
+# are not guaranteed to stay valid indefinitely - re-scrape from
+# Google Maps if any of them stop resolving.
+GOOGLE_MAPS_PHOTO = "https://lh3.googleusercontent.com/gps-cs-s/{}"
 
 
 PLACES = [
@@ -61,8 +65,10 @@ PLACES = [
         "description": (
             "Iconic performing arts venue located on Sydney Harbour."
         ),
-        "image_url": WIKIMEDIA.format(
-            "Sydney_Opera_House%2C_2017_%2801%29.jpg"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWmq1x_dIvwbRdfEAaWEYBAA60lg1nW81qFDVAQPHMq4yupZN9BGkGb6"
+            "klOPnkrcb19Y_FbjNMtDnu5aGEI2n36yLkHxhVmmvhk4X-J1saNdOHdl_H6U"
+            "7VOa4RjvC5Yaz9VZpeow=w408-h306-k-no"
         ),
     },
     {
@@ -79,8 +85,10 @@ PLACES = [
             "Iconic steel arch bridge connecting Sydney CBD "
             "and the North Shore."
         ),
-        "image_url": WIKIMEDIA.format(
-            "Sydney_Harbour_Bridge.jpg"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWnEu3dPpYCa1Tne3FqySnZRlowQ_AkvvmAR-WxncxI6RyBfUYmnXp2Z"
+            "_uPs-m0kK0T14kLp5Arq2YLDprhssGIJsUfzHP5LPdxFPu68nR9WkhInVXbQ"
+            "bblHpJz3P17UTiZj7aNJ=w408-h306-k-no"
         ),
     },
     {
@@ -97,8 +105,10 @@ PLACES = [
             "Harbourside zoo featuring native "
             "and international wildlife."
         ),
-        "image_url": WIKIMEDIA.format(
-            "Wallaby_at_Taronga_Zoo%2C_2016.jpg"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWmTHimFHUOVaAjKTk5mWxFeekf20d_50eIFQnorJEU2D5NZtlVlnX8U"
+            "fJS46_7WjFF0v2RmMs6QbjYZF_cv3ymFXW0pkX_2i20SeuDskEj5gZuDN4hd"
+            "NAWNHfmNpHJO_JWancEYUMeimC49=w408-h269-k-no"
         ),
     },
     {
@@ -114,9 +124,10 @@ PLACES = [
         "description": (
             "Large historic botanical garden beside Sydney Harbour."
         ),
-        "image_url": WIKIMEDIA.format(
-            "Gates_at_Royal_Botanic_Gardens_"
-            "viewed_from_Art_Gallery_Road.jpg"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWk6SZIANy0T-A5ZmGWE7G0OdfY_myRs2cv_S1pDh312kc5HLqPtJyj"
+            "GhQ4CIqa0TZbnULdwqSyk6bE-iybo953tRK4DMIr722CmoAuNSoCf5RkO7Y3"
+            "oxbFJrDbFsDFgqz2c7fh7zg=w408-h306-k-no"
         ),
     },
     {
@@ -132,8 +143,10 @@ PLACES = [
         "description": (
             "Popular Sydney beach known for surfing and coastal walks."
         ),
-        "image_url": WIKIMEDIA.format(
-            "Bondi_from_above.jpg"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWnHTE4e6IHIvJwdbLE2R3NH076vupHFRujWBz9tFKg5fkiXn1vbjiM6"
+            "ACxjL9h6BwAqvdaw-A02V1W1Fcc3lrYogbIAtrYvUqjBG7Zb2dpibeO-8UFG"
+            "Mm-FEA6mxdmfNLdLrZ5KI-28p0Bs=w408-h306-k-no"
         ),
     },
     {
@@ -150,8 +163,10 @@ PLACES = [
             "Historic Sydney precinct with markets, restaurants "
             "and harbour views."
         ),
-        "image_url": WIKIMEDIA.format(
-            "Sydney_%28AU%29%2C_The_Rocks_--_2019_--_2133.jpg"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWlDrnTBpUzfZUxTvAejqK9j_lCE1a7hlY1fdGWUVrOmITbS8yH8vHMD"
+            "vvPGgNmChWF0jv5FMj-R-DagnQDgKy7mAe0apsFCQ1wydcIBL__TJnGyr76r"
+            "_auOBdKcorrTISgoKTte=w408-h306-k-no"
         ),
     },
     {
@@ -168,8 +183,10 @@ PLACES = [
             "Popular beach destination accessible by ferry "
             "from Circular Quay."
         ),
-        "image_url": WIKIMEDIA.format(
-            "Summer_days_at_Manly_Beach.jpg"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWmfx3P-BV77Tk3GNu-bSZQ26uESjkL3n8F0dhPrR1x7eMSKjgdRCira"
+            "kpVnPXLl2xVV9xQqaEiF8o8hHMcgEkgGli7JPUhOoPOxxJaQu42hYeF7End9"
+            "kD0pgcS13iXgvbKGkhai=w433-h240-k-no"
         ),
     },
     {
@@ -185,8 +202,10 @@ PLACES = [
         "description": (
             "Major public art museum located beside The Domain."
         ),
-        "image_url": WIKIMEDIA.format(
-            "Art_Gallery_of_New_South_Wales%2C_2022%2C_09.jpg"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWnli0LdsbTDeitDbYE2ThysQtxI8XLiZ7QWASzzSG1y0LUXAXaUyU7f"
+            "FZJrtl4Sq-ApFa_wo5NymHH4ZosZc4y1zd9biDbzs7xl3B3S4s6MhjpoCJsl"
+            "mvRkflbr1fYpj0h5HbRbbj19bdgB=w408-h306-k-no"
         ),
     },
     {
@@ -202,9 +221,10 @@ PLACES = [
         "description": (
             "Popular Sydney food venue known for pies and hot dogs."
         ),
-        "image_url": (
-            "https://picsum.photos/seed/"
-            "harrys-cafe-de-wheels/400/240"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWnqOrhJF0893-3o1d1Qv869y8tD8C5vdKhpWr469cjoSqmwACVmu2h"
+            "JkhuDPRm5EnIAF7I6ZLRcpqDp_F-Be2nkdmrTE38DYyUrd3fAhuFYMorWpK"
+            "R3nxfEVSCfqRFTJk36S59H=w408-h271-k-no"
         ),
     },
     {
@@ -220,9 +240,10 @@ PLACES = [
         "description": (
             "Thai restaurant offering a range of traditional dishes."
         ),
-        "image_url": (
-            "https://picsum.photos/seed/"
-            "chat-thai-haymarket/400/240"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWnzK4pPOf_KROAjm4RXy9EXPHosfKVUTMIfi80omjfVFBEgsVLVk8g4"
+            "XeFHp223OGAyz6d3etybUM-Qc5L0As0AKbPMMPkR0oelfB8X5W6TURTUBE3"
+            "riGWEKUVIooVhp1fcgCWmNA=w408-h306-k-no"
         ),
     },
     {
@@ -239,8 +260,10 @@ PLACES = [
             "Malaysian restaurant popular for roti "
             "and traditional dishes."
         ),
-        "image_url": (
-            "https://picsum.photos/seed/mamak/400/240"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWmgf08oCPnrsiYMYUG2oRuXbjkWrPHh1ycCIw7rT2HxUpTygFYGl_N"
+            "h4B2yr47vRNRxxZSm67LttviGZj5KEOt8x5tQ8XXSXyPaWEIZnkFoAqlKVz"
+            "_vtZlp9WHRPiBeFStxYM6b=w512-h240-k-no"
         ),
     },
     {
@@ -256,9 +279,10 @@ PLACES = [
         "description": (
             "Large cafe and garden precinct known for brunch and coffee."
         ),
-        "image_url": (
-            "https://picsum.photos/seed/"
-            "the-grounds-of-alexandria/400/240"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWk9NeWt0ilP5Xe8bwpkp4Xm-LzM84APXkZ19kvag1NIuW1H-BoW-s2"
+            "KlT0t9NyQPvu70n9v8aKi1BHAwZd8PRWVsX_tSOEs8USHv7D4HBxPs07Bk1"
+            "qxA13lL6DwmvCVLxOLHjKJQ2HHes8=w408-h271-k-no"
         ),
     },
     {
@@ -272,8 +296,10 @@ PLACES = [
         "opening_hours": "12:00-24:00",
         "price_range": 70,
         "description": "Cantonese restaurant located in Sydney CBD.",
-        "image_url": (
-            "https://picsum.photos/seed/mr-wong/400/240"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWnYzpgKPS__G-b6qgXRAdO01t27qi08YwKC7S3uEwlK1gUPfCC0Mk"
+            "BuKhGxsxtmpUw_idzeusGsISU4Pb_I1fkUf9XpGsKvX_ghRzHQCjc4FQma"
+            "SLVUSnyz1jMBH6jwGY7k71uE6Q=w408-h256-k-no"
         ),
     },
     {
@@ -289,9 +315,10 @@ PLACES = [
         "description": (
             "Popular bakery offering pastries, bread and cafe meals."
         ),
-        "image_url": (
-            "https://picsum.photos/seed/"
-            "bourke-street-bakery/400/240"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWmsuPKzX9osLOWKAhjqWy64jXd8FzvYDIYB4XMzYqK3UYILr72UwV"
+            "4_B5IOXanU5db_COmmi1fOD4WWrYtLwo4hOgjoYOjXaeAFZwzu6uU3oTY"
+            "C9ZTJqweRaSKcjKfFOUNr3YRv=w408-h285-k-no"
         ),
     },
     {
@@ -307,9 +334,10 @@ PLACES = [
         "description": (
             "Popular gelato shop offering a rotating range of flavours."
         ),
-        "image_url": (
-            "https://picsum.photos/seed/"
-            "gelato-messina-darlinghurst/400/240"
+        "image_url": GOOGLE_MAPS_PHOTO.format(
+            "AHRPTWnwXp5jeHl4EdMZV14GtQ5ytmvYeTgGOZ9FdWoCp2nTTnw9SSBATp"
+            "QSGoU3X-UnCwzkbYgDCUX3kcqA_pPfj_eQD1OJN9P4Mck-GhKiHfdardPD"
+            "Oc_DvMvQQAvGeqrnAaL-N18=w426-h240-k-no"
         ),
     },
 ]
@@ -357,7 +385,7 @@ def create_schema(conn: sqlite3.Connection) -> None:
 
         CREATE TABLE IF NOT EXISTS favourites (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
             place_id INTEGER NOT NULL,
             notes TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -369,7 +397,7 @@ def create_schema(conn: sqlite3.Connection) -> None:
         
         CREATE TABLE IF NOT EXISTS recommendations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
+            user_id INTEGER ,
             question TEXT NOT NULL,
             preferences TEXT,
             location TEXT,
@@ -490,7 +518,7 @@ def seed_favourites(conn: sqlite3.Connection) -> None:
             VALUES (?, ?, ?)
             """,
             (
-                f"user-{(index % 3) + 1}",
+                index + 1,
                 place_ids[index],
                 notes[index],
             ),
@@ -596,7 +624,7 @@ def seed_recommendations(conn: sqlite3.Connection) -> None:
             VALUES (?, ?, ?, ?, ?)
             """,
             (
-                f"user-{(index % 3) + 1}",
+                index + 1,
                 questions[index],
                 json.dumps(preferences),
                 "Sydney",

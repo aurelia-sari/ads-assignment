@@ -1,18 +1,9 @@
 """
 Deterministic smoke test for student-2 (Attractions & Dining).
 
-Exercises the real, currently-implemented `places` and `favourites` CRUD and
-validation behaviour end to end through student-2-api. No LLM involved -
-this is a plain pass/fail regression test:
-
-    docker compose up -d student-2-db student-2-api
-    python3 student-2/tests/smoke_test.py
-
-Every check that creates data also deletes it again, so re-running this
-script never leaves stray rows behind in the shared docker volume.
-
-Override the target host with STUDENT2_API_URL / STUDENT2_DB_URL if the
-services are not on their default ports.
+Exercises the currently implemented `places`, `favourites`, and
+`recommendations` CRUD and validation behaviour. No LLM involved -
+this is a plain pass/fail regression test.
 """
 
 import os
@@ -24,6 +15,8 @@ import requests
 API_BASE = os.getenv("STUDENT2_API_URL", "http://localhost:5102")
 DB_BASE = os.getenv("STUDENT2_DB_URL", "http://localhost:5202")
 
+TEST_USER_ID = 15
+OTHER_USER_ID = 999999
 
 class SmokeFailure(Exception):
     pass
@@ -110,43 +103,184 @@ def run_checks():
     expect(status == 404, "DELETE /places/<id> again returns 404")
 
     # --- Favourites -----------------------------------------------------
-    status, _ = _call("GET", f"{API_BASE}/favourites")
-    expect(status == 200, "GET /favourites returns 200")
 
-    status, db_response = _call("GET", f"{DB_BASE}/places")
-    expect(status == 200, "GET /places (database) returns 200")
+    # user_id is now required when favourites are requested
+    # through the Student 2 API.
+    status, _ = _call(
+        "GET",
+        f"{API_BASE}/favourites",
+    )
+    expect(
+        status == 400,
+        "GET /favourites without user_id returns 400",
+    )
+
+    status, _ = _call(
+        "GET",
+        f"{API_BASE}/favourites",
+        params={"user_id": TEST_USER_ID},
+    )
+    expect(
+        status == 200,
+        "GET /favourites?user_id=<id> returns 200",
+    )
+
+    status, db_response = _call(
+        "GET",
+        f"{DB_BASE}/places",
+    )
+    expect(
+        status == 200,
+        "GET /places (database) returns 200",
+    )
+
     rows = db_response.json()
-    expect(bool(rows), "at least one seeded place is available to favourite")
+
+    expect(
+        bool(rows),
+        "at least one seeded place is available to favourite",
+    )
+
     sample_place_id = rows[0]["id"]
 
-    status, _ = _call("POST", f"{API_BASE}/favourites", data={"place_id": str(sample_place_id)})
-    expect(status == 201, "POST /favourites valid place_id returns 201")
+    # Create favourite for the test user.
+    status, _ = _call(
+        "POST",
+        f"{API_BASE}/favourites",
+        json={
+            "user_id": TEST_USER_ID,
+            "place_id": sample_place_id,
+        },
+    )
+    expect(
+        status == 201,
+        "POST /favourites valid user_id/place_id returns 201",
+    )
 
-    status, _ = _call("POST", f"{API_BASE}/favourites", data={"place_id": str(sample_place_id)})
-    expect(status == 400, "POST /favourites duplicate returns 400")
+    # Same user + same place must be rejected.
+    status, _ = _call(
+        "POST",
+        f"{API_BASE}/favourites",
+        json={
+            "user_id": TEST_USER_ID,
+            "place_id": sample_place_id,
+        },
+    )
+    expect(
+        status == 400,
+        "POST /favourites duplicate returns 400",
+    )
 
-    status, _ = _call("POST", f"{API_BASE}/favourites", data={"place_id": "999999"})
-    expect(status == 404, "POST /favourites unknown place_id returns 404")
+    # Unknown place.
+    status, _ = _call(
+        "POST",
+        f"{API_BASE}/favourites",
+        json={
+            "user_id": TEST_USER_ID,
+            "place_id": 999999,
+        },
+    )
+    expect(
+        status == 404,
+        "POST /favourites unknown place_id returns 404",
+    )
 
-    status, _ = _call("POST", f"{API_BASE}/favourites", data={})
-    expect(status == 400, "POST /favourites missing place_id returns 400")
+    # Missing user_id.
+    status, _ = _call(
+        "POST",
+        f"{API_BASE}/favourites",
+        json={
+            "place_id": sample_place_id,
+        },
+    )
+    expect(
+        status == 400,
+        "POST /favourites missing user_id returns 400",
+    )
 
-    status, db_response = _call("GET", f"{DB_BASE}/favourites")
-    expect(status == 200, "GET /favourites (database) returns 200")
+    # Missing place_id.
+    status, _ = _call(
+        "POST",
+        f"{API_BASE}/favourites",
+        json={
+            "user_id": TEST_USER_ID,
+        },
+    )
+    expect(
+        status == 400,
+        "POST /favourites missing place_id returns 400",
+    )
+
+    # Find the favourite directly through the database API.
+    status, db_response = _call(
+        "GET",
+        f"{DB_BASE}/favourites",
+        params={"user_id": TEST_USER_ID},
+    )
+    expect(
+        status == 200,
+        "GET /favourites (database) returns 200",
+    )
+
     favourite_id = next(
         (
-            row["id"] for row in db_response.json()
-            if row["user_id"] == "guest" and row["place_id"] == sample_place_id
+            row["id"]
+            for row in db_response.json()
+            if row["user_id"] == TEST_USER_ID
+            and row["place_id"] == sample_place_id
         ),
         None,
     )
-    expect(favourite_id is not None, "created test favourite can be located")
 
-    status, _ = _call("DELETE", f"{API_BASE}/favourites/{favourite_id}")
-    expect(status == 200, "DELETE /favourites/<id> returns 200")
+    expect(
+        favourite_id is not None,
+        "created test favourite can be located",
+    )
 
-    status, _ = _call("DELETE", f"{API_BASE}/favourites/{favourite_id}")
-    expect(status == 404, "DELETE /favourites/<id> again returns 404")
+    # A different user must not be able to delete it.
+    status, response = _call(
+        "DELETE",
+        f"{API_BASE}/favourites/{favourite_id}",
+        json={
+            "user_id": 999999,
+        },
+    )
+
+    print(
+        f"  DEBUG wrong-user delete: "
+        f"status={status}, body={response.text}"
+    )
+
+    expect(
+        status == 404,
+        "DELETE /favourites/<id> by another user returns 404",
+    )
+
+    # Owner can delete it.
+    status, _ = _call(
+        "DELETE",
+        f"{API_BASE}/favourites/{favourite_id}",
+        json={
+            "user_id": TEST_USER_ID,
+        },
+    )
+    expect(
+        status == 200,
+        "DELETE /favourites/<id> by owner returns 200",
+    )
+
+    # Deleting the same favourite again should fail.
+    status, _ = _call(
+        "DELETE",
+        f"{API_BASE}/favourites/{favourite_id}",
+        json={
+            "user_id": TEST_USER_ID,
+        },
+    )
+    expect(
+        status == 404,
+        "DELETE /favourites/<id> again returns 404",
+    )
     
     # --- Recommendations ------------------------------------------------
     status, db_response = _call("GET", f"{DB_BASE}/recommendations")
@@ -155,7 +289,7 @@ def run_checks():
     before_count = len(db_response.json())
 
     recommendation_payload = {
-        "user_id": "smoke-test-user",
+        "user_id": TEST_USER_ID,
         "question": "Recommend one cheap restaurant.",
         "preferences": None,
         "location": "Sydney",
@@ -197,7 +331,7 @@ def run_checks():
     saved_recommendation = recommendation_response.json()
 
     expect(
-        saved_recommendation.get("user_id") == "smoke-test-user",
+        saved_recommendation.get("user_id") == TEST_USER_ID,
         "created recommendation stores correct user_id",
     )
 
@@ -280,16 +414,83 @@ def run_checks():
         "DELETE /recommendations/<id> again returns 404",
     )
 
+    # Anonymous recommendation should also be accepted.
+    anonymous_payload = {
+        "user_id": None,
+        "question": "Recommend an attraction.",
+        "preferences": None,
+        "location": "Sydney",
+        "recommendation_result": json.dumps(
+            {
+                "answer": "Anonymous smoke test recommendation",
+                "place_ids": [1],
+            }
+        ),
+    }
+
+    status, anonymous_response = _call(
+        "POST",
+        f"{DB_BASE}/recommendations",
+        json=anonymous_payload,
+    )
+
+    expect(
+        status == 201,
+        "POST /recommendations without user_id returns 201",
+    )
+
+    anonymous_id = anonymous_response.json().get("id")
+
+    expect(
+        anonymous_id is not None,
+        "anonymous recommendation returns an id",
+    )
+
+    status, anonymous_response = _call(
+        "GET",
+        f"{DB_BASE}/recommendations/{anonymous_id}",
+    )
+
+    expect(
+        status == 200,
+        "GET anonymous recommendation returns 200",
+    )
+
+    anonymous_saved = anonymous_response.json()
+
+    expect(
+        anonymous_saved.get("user_id") is None,
+        "anonymous recommendation stores NULL user_id",
+    )
+
+    # Clean up anonymous recommendation.
+    status, _ = _call(
+        "DELETE",
+        f"{DB_BASE}/recommendations/{anonymous_id}",
+    )
+
+    expect(
+        status == 200,
+        "DELETE anonymous recommendation returns 200",
+    )
+
 
 def main():
-    print("Smoke test: student-2 places & favourites")
+    print(
+        "Smoke test: student-2 places, favourites & recommendations"
+    )
+
     try:
         run_checks()
     except SmokeFailure as failure:
         print(f"\nFAIL: {failure}")
         return 1
-    print("\nstudent-2 places & favourites passed all checks.")
-    return 0
+
+    print(
+        "\nstudent-2 places, favourites & recommendations "
+        "passed all checks."
+    )
+    return 0    
 
 
 if __name__ == "__main__":

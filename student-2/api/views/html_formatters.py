@@ -353,19 +353,11 @@ def format_places(places):
                         ">
 
                             <!-- Add Favourite -->
+                            <!-- Add Favourite -->
                             <button
                                 type="button"
                                 class="place-action-btn place-action-btn--favourite"
-                                hx-post="/api/student-2/favourites"
-                                hx-vals='{{"place_id":"{place["id"]}"}}'
-                                hx-target="#favourites-list"
-                                hx-swap="innerHTML"
-                                hx-on::after-request="
-                                    if(event.detail.successful){{
-                                        alert('Added to favourites.');
-                                        location.reload();
-                                    }}
-                                "
+                                onclick="addFavourite({place['id']})"
                                 style="
                                     display:inline-flex;
                                     align-items:center;
@@ -577,30 +569,21 @@ def format_favourites(favourites):
                             justify-content:flex-end;
                         ">
 
-                            <button
-                                type="button"
-                                class="place-action-btn place-action-btn--delete"
-                                hx-delete="/api/student-2/favourites/{favourite["id"]}"
-                                hx-target="#favourites-list"
-                                hx-swap="innerHTML"
-                                hx-confirm="Remove {place_name} from favourites?"
-                                hx-on::after-request="
-                                    if(event.detail.successful){{
-                                        alert('Removed from favourites.');
-                                        location.reload();
-                                    }}
-                                "
-                                style="
-                                    background:#b3261e;
-                                    display:inline-flex;
-                                    align-items:center;
-                                    justify-content:center;
-                                    gap:0.5rem;
-                                "
-                            >
-                                {TRASH_ICON}
-                                <span>Delete Favourite</span>
-                            </button>
+                        <button
+                            type="button"
+                            class="place-action-btn place-action-btn--delete"
+                            onclick="deleteFavourite({favourite['id']})"
+                            style="
+                                background:#b3261e;
+                                display:inline-flex;
+                                align-items:center;
+                                justify-content:center;
+                                gap:0.5rem;
+                            "
+                        >
+                            {TRASH_ICON}
+                            <span>Delete Favourite</span>
+                        </button>
 
                         </div>
 

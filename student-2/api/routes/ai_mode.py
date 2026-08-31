@@ -5,27 +5,36 @@ from services.database_api import create_recommendation
 
 import json
 
+
 ai_mode_bp = Blueprint("ai_mode", __name__)
 
 
 @ai_mode_bp.post("/ai/recommend")
 def recommend():
     payload = request.get_json(silent=True) or {}
+
     question = (
         payload.get("question")
         or request.form.get("question")
         or ""
     ).strip()
 
+    user_id = payload.get("user_id")
+
     if not question:
         return jsonify({
             "error": "question is required"
         }), 400
 
+    if user_id is not None and not isinstance(user_id, int):
+        return jsonify({
+            "error": "user_id must be an integer"
+        }), 400
+
     try:
         result = run_agentic_recommendation(question)
-        
-        # Save result to db
+
+        # Save valid recommendation result to DB
         if result["validation"]["valid"]:
 
             recommendation_data = {
@@ -37,7 +46,7 @@ def recommend():
             }
 
             recommendation_payload = {
-                "user_id": "guest",
+                "user_id": user_id,
                 "question": question,
                 "preferences": None,
                 "location": "Sydney",
@@ -46,12 +55,17 @@ def recommend():
                     ensure_ascii=False,
                 ),
             }
-        
-        create_recommendation(recommendation_payload)
-        
-        # Return result to html
+
+            create_recommendation(
+                recommendation_payload
+            )
+
+        # Return result to HTML
         if request.headers.get("HX-Request"):
-            return format_recommendation(question, result)
+            return format_recommendation(
+                question,
+                result
+            )
 
         return jsonify(result)
 

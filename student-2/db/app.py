@@ -188,12 +188,25 @@ def get_place(place_id):
 # View favorites
 @app.get("/favourites")
 def get_favourites():
+    user_id = request.args.get("user_id", type=int)
+
     conn = get_db_connection()
 
-    rows = conn.execute(
-        f"{FAVOURITE_SELECT} ORDER BY favourites.created_at DESC"
-    ).fetchall()
+    if user_id is None:
+        rows = conn.execute(
+            f"{FAVOURITE_SELECT} "
+            "ORDER BY favourites.created_at DESC"
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            f"{FAVOURITE_SELECT} "
+            "WHERE favourites.user_id = ? "
+            "ORDER BY favourites.created_at DESC",
+            (user_id,),
+        ).fetchall()
+
     conn.close()
+
     return jsonify([dict(row) for row in rows])
 
 # View Recommendation
@@ -350,6 +363,11 @@ def validate_favourite(payload):
         return f"Missing fields: {', '.join(missing)}"
 
     try:
+        int(payload["user_id"])
+    except (TypeError, ValueError):
+        return "user_id must be an integer"
+
+    try:
         int(payload["place_id"])
     except (TypeError, ValueError):
         return "place_id must be an integer"
@@ -365,7 +383,7 @@ def create_favourite():
     if error:
         return jsonify({"error": error}), 400
 
-    user_id = str(payload["user_id"]).strip()
+    user_id = int(payload["user_id"])
     place_id = int(payload["place_id"])
 
     conn = get_db_connection()
@@ -402,18 +420,39 @@ def create_favourite():
 # Delete favourite
 @app.delete("/favourites/<int:favourite_id>")
 def delete_favourite(favourite_id):
+    data = request.get_json(silent=True) or {}
+    user_id = data.get("user_id")
+
+    if not isinstance(user_id, int):
+        return jsonify({"error": "A valid user_id is required."}), 400
+
     conn = get_db_connection()
+
     cursor = conn.execute(
-        "DELETE FROM favourites WHERE id = ?", (favourite_id,)
+        """
+        DELETE FROM favourites
+        WHERE id = ?
+        AND user_id = ?
+        """,
+        (
+            favourite_id,
+            user_id,
+        ),
     )
+
     conn.commit()
     deleted = cursor.rowcount
     conn.close()
 
-    if not deleted:
-        return jsonify({"error": "Favourite not found"}), 404
+    if deleted == 0:
+        return jsonify({
+            "error": "Favourite not found or not owned by this user."
+        }), 404
 
-    return jsonify({"deleted": favourite_id})
+    return jsonify({
+        "deleted": True,
+        "id": favourite_id,
+    }), 200
 
 # Add recommendation
 @app.post("/recommendations")
@@ -426,9 +465,14 @@ def create_recommendation():
     location = payload.get("location")
     recommendation_result = payload.get("recommendation_result")
 
-    if not user_id or not question or not recommendation_result:
+    if user_id is not None and not isinstance(user_id, int):
         return jsonify({
-            "error": "user_id, question and recommendation_result are required"
+            "error": "user_id must be an integer when provided"
+        }), 400
+
+    if not question or not recommendation_result:
+        return jsonify({
+            "error": "question and recommendation_result are required"
         }), 400
 
     conn = get_db_connection()

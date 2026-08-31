@@ -20,6 +20,7 @@
 
     <!-- HTMX -->
     <script src="/shared/js/htmx.min.js" defer></script>
+    <script src="/student-4/session.js"></script>
 
     <style>
 
@@ -511,11 +512,7 @@
                 Favourite Places
             </h3>
 
-            <div
-                id="favourites-list"
-                hx-get="/api/student-2/favourites"
-                hx-trigger="load, favouritesChanged from:body"
-                hx-swap="innerHTML">
+            <div id="favourites-list">
 
                 <p class="muted">
                     Loading favourites...
@@ -549,16 +546,10 @@
                 AI QUESTION FORM
                 ===================================================== -->
 
-            <form
-                class="ai-question-form"
-                hx-post="/api/student-2/ai/recommend"
-                hx-target="#recommendation-result"
-                hx-swap="innerHTML"
-                hx-on::after-request="
-                    if(event.detail.successful){
-                        this.reset()
-                    }
-                ">
+                <form
+                    id="ai-question-form"
+                    class="ai-question-form"
+                    onsubmit="submitAiRecommendation(event)">
 
                 <div class="form-grid">
 
@@ -654,9 +645,212 @@
                 selectedPanel.classList.add("is-active");
             }
 
+            if (selectedTab === "favourites") {
+                loadFavourites();
+            }
         });
 
     });
+
+    async function addFavourite(placeId) {
+        const user = await NextStopSession.verifySession();
+
+        if (!user) {
+            alert("Please sign in to add favourites.");
+            return;
+        }
+
+        try {
+            const response = await fetch("/api/student-2/favourites", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    place_id: placeId,
+                    user_id: user.id
+                })
+            });
+
+            if (!response.ok) {
+                if (response.status === 400) {
+                    alert("This place is already in your favourites.");
+                } else if (response.status === 401) {
+                    alert("Please sign in to add favourites.");
+                } else {
+                    alert("Could not add this place to your favourites.");
+                }
+
+                return;
+            }
+
+            alert("Added to favourites.");
+            await loadFavourites();
+
+        } catch (error) {
+            alert("Could not add favourite.");
+        }
+    }
+
+    async function deleteFavourite(favouriteId) {
+        const user = await NextStopSession.verifySession();
+
+        if (!user) {
+            alert("Please sign in to delete favourites.");
+            return;
+        }
+
+        const confirmed = confirm(
+            "Remove this place from favourites?"
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/api/student-2/favourites/${favouriteId}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        user_id: user.id
+                    })
+                }
+            );
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                alert("You can only remove your own favourites.");
+            } else {
+                alert("Could not remove this favourite.");
+            }
+
+            return;
+        }
+
+        alert("Removed from favourites.");
+        await loadFavourites();
+
+        } catch (error) {
+            alert("Could not delete favourite.");
+        }
+    }
+
+async function loadFavourites() {
+    const user = await NextStopSession.verifySession();
+
+    const favouritesList =
+        document.getElementById("favourites-list");
+
+    if (!user) {
+        favouritesList.innerHTML = `
+            <div class="notice">
+                Please sign in to view your favourites.
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/student-2/favourites?user_id=${user.id}`
+        );
+
+        if (!response.ok) {
+            favouritesList.innerHTML = `
+                <div class="notice notice-error">
+                    Could not load favourites.
+                </div>
+            `;
+            return;
+        }
+
+        favouritesList.innerHTML =
+            await response.text();
+
+    } catch (error) {
+        favouritesList.innerHTML = `
+            <div class="notice notice-error">
+                Could not load favourites.
+            </div>
+        `;
+    }
+}
+
+async function submitAiRecommendation(event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const questionInput =
+        form.querySelector('[name="question"]');
+
+    const result =
+        document.getElementById("recommendation-result");
+
+    const question = questionInput.value.trim();
+
+    if (!question) {
+        return;
+    }
+
+    const user = await NextStopSession.verifySession();
+
+    const payload = {
+        question: question
+    };
+
+    if (user) {
+        payload.user_id = user.id;
+    }
+
+    result.innerHTML = `
+        <p class="muted">
+            Thinking...
+        </p>
+    `;
+
+    try {
+        const response = await fetch(
+            "/api/student-2/ai/recommend",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "HX-Request": "true"
+                },
+                body: JSON.stringify(payload)
+            }
+        );
+
+        if (!response.ok) {
+            result.innerHTML = `
+                <div class="notice notice-error">
+                    Could not generate a recommendation.
+                </div>
+            `;
+            return;
+        }
+
+        result.innerHTML = await response.text();
+        form.reset();
+
+    } catch (error) {
+        result.innerHTML = `
+            <div class="notice notice-error">
+                Could not generate a recommendation.
+            </div>
+        `;
+    }
+}
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadFavourites
+);
 
 </script>
 
