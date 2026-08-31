@@ -268,6 +268,59 @@ def create_access_log():
 
     return jsonify(dict(row)), 201
 
+@app.post("/access-logs/sign-out")
+def sign_out():
+    """Close a user's open session: stamp sign_out_at and clear in_session
+    on their most recent access_logs row."""
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Missing fields: user_id"}), 400
+
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM access_logs WHERE user_id = ? AND in_session = 1 "
+        "ORDER BY id DESC LIMIT 1",
+        (user_id,),
+    ).fetchone()
+
+    if row is None:
+        conn.close()
+        return jsonify({"error": "No open session for this user"}), 404
+
+    sign_out_at = now_utc().isoformat(timespec="seconds")
+    conn.execute(
+        "UPDATE access_logs SET sign_out_at = ?, in_session = 0 WHERE id = ?",
+        (sign_out_at, row["id"]),
+    )
+    conn.commit()
+    updated = conn.execute(
+        "SELECT * FROM access_logs WHERE id = ?", (row["id"],)
+    ).fetchone()
+    conn.close()
+
+    return jsonify(dict(updated))
+
+@app.get("/access-logs/status/<int:user_id>")
+def session_status(user_id):
+    """Whether a user is currently signed in, for any feature to check."""
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM access_logs WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+        (user_id,),
+    ).fetchone()
+    conn.close()
+
+    if row is None:
+        return jsonify({"user_id": user_id, "is_valid": False, "last_logout": None})
+
+    return jsonify({
+        "user_id": user_id,
+        "is_valid": bool(row["in_session"]),
+        "last_logout": row["sign_out_at"],
+    })
+
 @app.post("/users/verification/resend")
 def resend_verification():
     """Issue a fresh verification token for an unverified user, enforcing:

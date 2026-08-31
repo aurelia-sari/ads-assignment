@@ -293,6 +293,35 @@ def login():
 
     return jsonify(user), 200
 
+@app.post("/auth/logout")
+def logout():
+    payload = request.get_json(silent=True) or {}
+    user_id = payload.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Missing fields: user_id"}), 400
+
+    try:
+        response = requests.post(
+            f"{SHARED_API_URL}/access-logs/sign-out", json={"user_id": user_id}, timeout=5
+        )
+        data = response.json()
+    except requests.RequestException as exc:
+        return jsonify({"error": SHARED_DOWN, "detail": str(exc)[:300]}), 503
+
+    if response.status_code != 200:
+        return jsonify(data), response.status_code
+
+    return jsonify(data), 200
+
+@app.get("/auth/status/<int:user_id>")
+def auth_status(user_id):
+    try:
+        response = requests.get(f"{SHARED_API_URL}/access-logs/status/{user_id}", timeout=5)
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": SHARED_DOWN, "detail": str(exc)[:300]}), 503
+
 @app.get("/auth/verify/<token>")
 def verify(token):
     try:

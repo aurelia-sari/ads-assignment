@@ -6,6 +6,7 @@
     <title>Sign In - NextStop</title>
     <link rel="stylesheet" href="/shared/css/theme.css">
     <script src="/shared/js/htmx.min.js"></script>
+    <script src="session.js"></script>
 </head>
 <body class="signup-body">
 
@@ -166,7 +167,8 @@
                 return;
             }
 
-            window.location.href = "index.html";
+            NextStopSession.saveSession(data);
+            window.location.href = "/";
         } catch (err) {
             showFormStatus("error", "Could not reach the server. Please try again.");
         } finally {

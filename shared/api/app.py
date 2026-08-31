@@ -178,5 +178,27 @@ def create_access_log():
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
+@app.post("/access-logs/sign-out")
+def sign_out():
+    try:
+        response = requests.post(
+            f"{SHARED_DB_URL}/access-logs/sign-out",
+            json=request.get_json(silent=True) or {},
+            timeout=5,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
+@app.get("/access-logs/status/<int:user_id>")
+def session_status(user_id):
+    try:
+        response = requests.get(
+            f"{SHARED_DB_URL}/access-logs/status/{user_id}", timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
