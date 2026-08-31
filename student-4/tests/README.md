@@ -17,6 +17,10 @@ python3 student-4/tests/smoke_test.py
 
 It exercises the real flow end to end:
 
+- **Seed data.** The `student1`-`student5` and `traveller6`-`traveller10`
+  accounts from `shared/db/init_db.py` are present, `student1` can sign in,
+  and `traveller6` is still pending verification. Confirms the seed is baked
+  into the image rather than only existing on one machine's Docker volume.
 - **Sign-up.** Registration validation (missing T&C, weak password, invalid
   email), duplicate-email rejection, and the accounts listing.
 - **Email verification.** By polling Mailpit's API for the actual email and

@@ -156,10 +156,16 @@ model into the volume once. Expect a multi-gigabyte image pull.
 
 ## Seeded accounts
 
-`shared-db` is seeded with 10 accounts for local sign-in testing, all sharing
-the password `Password123!`. Only `student1` to `student5` are verified and
-can sign in at `/student-4/signin.html`, `traveller6` to `traveller10` are
-left pending verification.
+`shared-db` is seeded (via `shared/db/init_db.py`, baked in at build time) with
+10 accounts for local sign-in testing, all sharing the password
+`Password123!`. `student1` to `student5` are verified and can sign in at
+`/student-4/signin.html`. `traveller6` to `traveller10` are left pending
+verification. Rebuild and reset the volume to pick up a change here:
+
+```bash
+docker compose down -v
+docker compose up -d --build shared-db
+```
 
 | Email | Password |
 |-------|----------|

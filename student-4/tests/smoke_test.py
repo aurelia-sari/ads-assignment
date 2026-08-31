@@ -29,6 +29,7 @@ API_BASE = os.getenv("STUDENT4_API_URL", "http://localhost:5104")
 MAILPIT_BASE = os.getenv("STUDENT4_MAILPIT_URL", "http://localhost:8025")
 
 PASSWORD = "Str0ng!Pass1"
+SEED_PASSWORD = "Password123!"
 
 
 class SmokeFailure(Exception):
@@ -106,6 +107,24 @@ def find_verification_link(email, attempts=10, delay=1.0):
 def run_checks():
     status, _ = _call("GET", f"{API_BASE}/health")
     expect(status == 200, "GET /health returns 200")
+
+    # Seed data baked into shared/db/init_db.py, checked here so a build
+    # missing it fails CI instead of only showing up on one machine.
+    status, response = _call("GET", f"{API_BASE}/users")
+    expect(status == 200, "GET /users returns 200")
+    for i in list(range(1, 6)) + list(range(6, 11)):
+        prefix = "student" if i < 6 else "traveller"
+        expect(
+            f"{prefix}{i}@example.com" in response.text,
+            f"seeded {prefix}{i} account is present",
+        )
+
+    status, response = login("student1@example.com", SEED_PASSWORD)
+    expect(status == 200, "seeded student1 can sign in")
+    logout(response.json()["id"])
+
+    status, response = login("traveller6@example.com", SEED_PASSWORD)
+    expect(status == 403, "seeded traveller6 is pending verification")
 
     email = unique_email("smoke")
 

@@ -10,7 +10,7 @@ still lives in each student's own database microservice.
 
 import os
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from werkzeug.security import generate_password_hash
 
@@ -87,19 +87,17 @@ cursor.execute("DELETE FROM access_logs")
 cursor.execute("DELETE FROM users")
 
 now = datetime.now(timezone.utc)
-seed_password_hash = generate_password_hash("Placeholder1!")
 
-users = [
-    (
-        i,
-        f"Traveller {i}",
-        f"traveller{i}@example.com",
-        seed_password_hash,
-        1 if i % 2 == 0 else 0,
-        (now - timedelta(days=30 - i)).isoformat(timespec="seconds"),
-    )
-    for i in range(1, 11)
-]
+# traveller6-10 stay unverified on purpose, testing the pending path.
+SEED_PASSWORD = "Password123!"
+seed_password_hash = generate_password_hash(SEED_PASSWORD)
+
+users = (
+    [(i, f"student{i}", f"student{i}@example.com", seed_password_hash, 1) for i in range(1, 6)]
+    + [(i, f"traveller{i}", f"traveller{i}@example.com", seed_password_hash, 0) for i in range(6, 11)]
+)
+users = [(i, name, email, password_hash, is_validated, now.isoformat(timespec="seconds"))
+         for i, name, email, password_hash, is_validated in users]
 
 cursor.executemany(
     """
@@ -109,29 +107,11 @@ cursor.executemany(
     users,
 )
 
-access_logs = []
-for i in range(1, 11):
-    signed_out = i % 3 != 0
-    sign_in_at = (now - timedelta(days=30 - i, hours=1)).isoformat(timespec="seconds")
-    sign_out_at = (
-        (now - timedelta(days=30 - i, minutes=30)).isoformat(timespec="seconds")
-        if signed_out
-        else None
-    )
-    access_logs.append((i, i, sign_in_at, sign_out_at, 0 if signed_out else 1))
-
-cursor.executemany(
-    """
-    INSERT INTO access_logs (id, user_id, sign_in_at, sign_out_at, in_session)
-    VALUES (?, ?, ?, ?, ?)
-    """,
-    access_logs,
-)
-
 conn.commit()
 conn.close()
 
 print(
-    f"shared-db initialised with {len(travellers)} travellers, "
-    f"{len(users)} users and {len(access_logs)} access log entries."
+    f"shared-db initialised with {len(travellers)} travellers and "
+    f"{len(users)} users (student1-5 verified, traveller6-10 pending), "
+    "no access log entries."
 )
