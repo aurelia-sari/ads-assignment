@@ -248,6 +248,7 @@ Functional:
 | F4.9 | Sign in with email and password | `POST /auth/login` returns 200 with the user record on a correct password against a verified account |
 | F4.10 | Refuse an unverified account at sign-in, and send a fresh verification email rather than leaving the user stuck | 403 with `error_code: "email_not_verified"`; a fresh email sends unless the 60s resend cooldown from 4.8 is still active |
 | F4.11 | Record every successful sign-in | A `POST /access-logs` row is written (`user_id`, `sign_in_at`, `in_session = 1`) before `/auth/login` responds |
+| F4.12 | Sign out, closing the session other features can see | `POST /auth/logout` and `GET /auth/status/<id>` in student-4-api close and expose the session (see ADR-001 Decision 6) |
 
 Non-functional:
 
@@ -380,10 +381,6 @@ integration time.
 **Deferred to Release 1.**
 
 - Profile fields and the dashboard itself - Release 0 only covers identity
-- Session cookies - `/auth/login` currently returns the user record and
-  writes the `access_logs` row, but nothing keeps the browser "signed in"
-  between requests yet, and no route ever sets `sign_out_at` /
-  `in_session = 0` (see 9, known issue 1b)
 - Swap Mailpit for Resend, isolated to `send_verification_email()` in
   `student-4-api`, by design
 
@@ -441,7 +438,7 @@ useful - so the tests need to assert on grounded output, not just on a 200.
 | # | Risk | Likelihood | Impact | Mitigation | Owner |
 |---|------|-----------|--------|------------|-------|
 | R4-4 | Mailpit is a dev-only SMTP catcher; nothing sends real email yet | Certain, by design | Medium | Scoped deliberately for Release 0 - `send_verification_email()` is isolated so swapping in Resend is a one-function change | Me, Release 1 |
-| R4-5 | *(Resolved.)* `/auth/login` now writes `access_logs`, but nothing sets `sign_out_at` / resets `in_session` yet | Medium (state only ever moves one way) | Low | Add a sign-out route in Release 1 | Me, Release 1 |
+| R4-5 | *(Resolved.)* `POST /auth/logout` now closes the `access_logs` row `/auth/login` opens (see ADR-001 Decision 6) | Low | Low | None, closed | Me |
 
 ### 2.7 Data design
 
@@ -766,11 +763,10 @@ minimum, alongside the pre-existing 12 `travellers` in the same database.
 1. **No index on `access_logs(user_id)`.** At 10 rows this is irrelevant, but
    it would be the first index to add once a "sign-in history for this user"
    query exists - the same shape of gap student-1 notes for `itinerary_days`.
-2. **`access_logs` rows are written but never closed.** `/auth/login` inserts
-   a row (`in_session = 1`) on every successful sign-in, but no route sets
-   `sign_out_at` or flips `in_session` back to 0 - there is no sign-out
-   endpoint yet (see 2.5's deferred list and 9, known issue 1b). Until one
-   exists, `in_session` cannot be trusted as "currently signed in."
+2. *(Resolved.)* **`access_logs` rows are written but never closed.**
+   `POST /access-logs/sign-out` now closes the most recent open row for a
+   user, setting `sign_out_at` and `in_session = 0` (see ADR-001
+   Decision 6).
 3. **The 60s/5-attempt/10-minute resend state lives on the `USER` row itself**
    rather than in a separate rate-limit table. Simpler for one row-per-user
    at this scale; would need to move to a keyed table if rate limiting ever
@@ -1144,8 +1140,13 @@ for r in conn.execute('SELECT * FROM access_logs WHERE user_id=2 ORDER BY id DES
 ```
 
 A successful sign-in writes the `access_logs` row it is supposed to -
-confirmed by querying `shared.db` directly inside the `shared-db` container,
-since no HTTP endpoint exposes access logs for reading yet.
+confirmed here by querying `shared.db` directly, now also readable over
+HTTP via `GET /auth/status/<id>`:
+
+```
+$ curl http://localhost:8080/api/student-4/auth/status/2
+{"is_valid": true, "last_logout": null, "user_id": 2}
+```
 
 ### 8.2 Screenshots of the integrated application
 
@@ -1174,7 +1175,7 @@ integrated application.
 | # | Issue | Impact | Plan |
 |---|-------|--------|------|
 | 1 | Students 3 and 5 still hold the generated `records` scaffold rather than real feature schemas | Those features are not yet real | Each owner replaces their schema, routes and page |
-| 1b | `/auth/login` writes an `access_logs` row on sign-in, but no route ever sets `sign_out_at` or resets `in_session` to 0, and no endpoint exposes access logs for reading | `in_session` cannot be trusted as "currently signed in"; verified manually via direct DB query instead of through the API (see 8.1) | Add a sign-out endpoint and a way to read access logs, alongside real session cookies, in Release 1 |
+| 1b | *(Resolved.)* `POST /auth/logout` now closes the `access_logs` row `/auth/login` opens, exposed for reading via `GET /auth/status/<id>` (see ADR-001 Decision 6) | None | n/a |
 | 2 | Ollama runs on the host, not in a container | Deployment has a manual prerequisite | Document in the video; containerise if RAM allows |
 | 3 | Local models answer direct lookups correctly but fail aggregation across the full context - asked which of 12 trips has the smallest budget, `llama3.2` named a trip costing AUD 3,300 when the smallest is AUD 2,900 | An aggregate question gives a confidently wrong answer | Demonstrate direct lookups, which are reliable. A real fix computes aggregates in the backend and passes the answer as context, rather than asking the model to scan and compare. Release 1. |
 | 4 | AI-Mode adds one hop over the specification's direct Backend -> Ollama flow | Deviation from the spec diagram | Justified in ADR-001 |

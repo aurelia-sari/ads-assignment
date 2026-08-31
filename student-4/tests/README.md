@@ -29,6 +29,12 @@ It exercises the real flow end to end:
   user (never the password hash) once the account is verified. Also checks
   that an unverified sign-in attempt made within the 60s resend cooldown
   does not trigger a duplicate verification email.
+- **Sign-out and session status.** `GET /auth/status/<id>` reports
+  `is_valid: true` right after login, `POST /auth/logout` closes that
+  session (`is_valid` flips to `false` and `last_logout` is stamped), and a
+  second logout on the same (now-closed) session returns 404. This is the
+  same contract any other feature uses to check whether a user is signed in,
+  documented in `docs/ADR-001-service-boundaries.md`, Decision 6.
 
 Each run registers freshly-randomised email addresses, so it is safe to
 re-run without leaving stray state behind; there is deliberately no
@@ -39,10 +45,7 @@ resend cooldown, which the existing resend test also avoids for the same
 reason): that a sign-in attempt *outside* the cooldown actually sends a fresh
 verification email. Verified manually instead, `POST /auth/login` for an
 unverified account, then Mailpit's API confirms a new message arrives with
-the verification link. Also not covered: the `access_logs` row a successful
-sign-in writes, since no endpoint exposes access logs for reading yet (see
-`docs/technical-report.md` 2.7 known limitations), verified manually via a
-direct query against `shared.db` inside the `shared-db` container.
+the verification link.
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted
 unit testing (project specification, section 7.3). Unit tests for this feature

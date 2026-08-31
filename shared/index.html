@@ -13,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/shared/css/theme.css">
 <script src="/shared/js/htmx.min.js" defer></script>
+<script src="/student-4/session.js"></script>
 </head>
 <body>
 
@@ -37,8 +38,8 @@
       </ul>
 
       <div class="nav__actions">
-        <a href="/student-4/signup.html" class="btn btn--pill-light">Get started</a>
-        <a href="/student-4/signup.html" class="btn btn--icon" aria-label="Get started">
+        <a href="/student-4/signup.html" class="btn btn--pill-light" id="nav-cta">Get started</a>
+        <a href="/student-4/signup.html" class="btn btn--icon" id="nav-cta-icon" aria-label="Get started">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 17L17 7M9 7h8v8"/></svg>
         </a>
       </div>
@@ -277,6 +278,29 @@
     startIndex = (startIndex + 1) % FEATURE_SET.length;
     renderFeatures();
   });
+</script>
+
+<script>
+  (async function () {
+    const session = await NextStopSession.verifySession();
+    if (!session) return;
+
+    const ctaText = document.getElementById("nav-cta");
+    const ctaIcon = document.getElementById("nav-cta-icon");
+
+    ctaText.textContent = "Sign out";
+    ctaText.setAttribute("href", "#");
+    ctaIcon.setAttribute("aria-label", "Sign out");
+    ctaIcon.setAttribute("href", "#");
+
+    [ctaText, ctaIcon].forEach((el) => {
+      el.style.cursor = "pointer";
+      el.addEventListener("click", (event) => {
+        event.preventDefault();
+        NextStopSession.signOut("/");
+      });
+    });
+  })();
 </script>
 
 </body>
