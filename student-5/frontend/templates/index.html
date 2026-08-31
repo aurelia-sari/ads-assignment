@@ -3,91 +3,1181 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bookings & Budget - NextStop</title>
+    <title>Flights, Hotels & Budget - NextStop</title>
+
     <link rel="stylesheet" href="/shared/css/theme.css">
     <script src="/shared/js/htmx.min.js"></script>
 </head>
 <body>
+
 <main class="app-shell">
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
     <header class="app-header card">
-        <h1>Bookings & Budget</h1>
-        <p>Student 5 &middot; Aung Ko Khaing &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
+        <h1>Flights, Hotels &amp; Budget</h1>
+        <p>
+            Student 5 &middot;
+            Aung Ko Khaing &middot;
+            <a href="/" style="color:var(--accent)">back to all features</a>
+        </p>
     </header>
 
-    <div class="notice notice-error">
-        Release 0 scaffold. Aung Ko Khaing: replace the generic records below with the
-        real Bookings & Budget feature. The wiring (frontend to API to database to
-        AI-Mode) already works, so start by changing the schema in
-        <code>student-5/db/init_db.py</code>.
-    </div>
+
+    <!-- =====================================================
+         INTRODUCTION
+    ====================================================== -->
+
+    <section class="card">
+        <h2 style="margin-top:0">Plan your travel within budget</h2>
+        <p class="muted">
+            Search flights and hotels, compare prices and ratings,
+            manage your travel budget, and use NextStop AI to find
+            the best option for your trip.
+        </p>
+    </section>
+
+
+    <!-- =====================================================
+         TABS
+    ====================================================== -->
 
     <nav class="tab-nav">
-        <button class="tab-btn is-active" data-tab="records" type="button">Records</button>
-        <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
+        <button class="tab-btn is-active" data-tab="search" type="button">Search</button>
+        <button class="tab-btn" data-tab="budget" type="button">Budget</button>
+        <button class="tab-btn" data-tab="trip" type="button">My selections</button>
+        <button class="tab-btn" data-tab="history" type="button">Search history</button>
+        <button class="tab-btn" data-tab="ai" type="button">AI assistant</button>
     </nav>
 
-    <section class="tab-panel is-active card" id="panel-records">
-        <div id="records-panel"
-             hx-get="/api/student-5/records"
-             hx-trigger="load"
-             hx-swap="innerHTML"></div>
 
-        <form hx-post="/api/student-5/records"
-              hx-target="#records-panel"
-              hx-swap="innerHTML"
-              hx-on::after-request="this.reset()"
-              style="margin-top:1.5rem">
-            <h3 style="margin-top:0">Add a record</h3>
-            <div class="form-grid">
-                <div><label>Title</label><input name="title" required></div>
-                <div><label>Category</label><input name="category" required></div>
-                <div><label>Detail</label><input name="detail"></div>
-                <div><label>Created on</label><input type="date" name="created_on" required></div>
+    <!-- =====================================================
+         SEARCH TAB
+    ====================================================== -->
+
+    <section class="tab-panel is-active card" id="panel-search">
+
+        <div class="chat-head">
+            <div>
+                <h2 style="margin-top:0">Search flights &amp; hotels</h2>
+                <p class="muted">
+                    Enter your travel requirements and NextStop
+                    will rank the available options using price,
+                    rating and popularity.
+                </p>
             </div>
-            <button type="submit">Create</button>
-            <span class="spinner">saving...</span>
-        </form>
-    </section>
-
-    <section class="tab-panel card" id="panel-ai">
-        <h3 style="margin-top:0">NextStop AI</h3>
-        <p class="muted">Runs locally through AI-Mode and Ollama.</p>
-
-        <div class="chat-log" id="chat-log">
-            <p class="muted">Ask a question about this feature's data.</p>
         </div>
 
-        <form hx-post="/api/student-5/ai/chat"
-              hx-target="#chat-log"
-              hx-swap="beforeend"
-              hx-on::after-request="this.reset()">
-            <div class="form-grid">
-                <div style="grid-column:1/-1">
-                    <label>Question</label>
-                    <input name="question" required>
-                </div>
+        <!-- Search type -->
+        <div class="form-grid">
+            <div>
+                <label for="search-type">Search type</label>
+                <select id="search-type">
+                    <option value="flight">Flights</option>
+                    <option value="hotel">Hotels</option>
+                </select>
             </div>
-            <button type="submit">Ask</button>
-            <span class="spinner">thinking...</span>
+
+            <div>
+                <label for="trip-id">Trip ID</label>
+                <input id="trip-id" type="number" min="1" value="1" placeholder="Feature 2 Trip ID">
+            </div>
+        </div>
+
+        <!-- Search form -->
+        <form id="search-form" onsubmit="performSearch(event)">
+            <div class="form-grid">
+
+                <div id="origin-field">
+                    <label for="origin">Origin</label>
+                    <input id="origin" name="origin" placeholder="e.g. Sydney">
+                </div>
+
+                <div>
+                    <label for="destination">Destination</label>
+                    <input id="destination" name="destination" placeholder="e.g. Tokyo" required>
+                </div>
+
+                <div>
+                    <label for="start-date">Start / Check-in</label>
+                    <input id="start-date" type="date" name="start_date" required>
+                </div>
+
+                <div>
+                    <label for="end-date">End / Check-out</label>
+                    <input id="end-date" type="date" name="end_date">
+                </div>
+
+                <div>
+                    <label for="travellers">Travellers</label>
+                    <input id="travellers" type="number" name="travellers" min="1" value="1" required>
+                </div>
+
+                <div>
+                    <label for="search-budget">Maximum budget (AUD)</label>
+                    <input id="search-budget" type="number" name="budget_aud" min="0" step="0.01" placeholder="e.g. 1500">
+                </div>
+
+            </div>
+
+            <button type="submit">Search</button>
+            <span id="search-spinner" class="spinner">searching...</span>
         </form>
+
+        <!-- Search status -->
+        <div id="search-status" style="margin-top:1rem"></div>
+
+        <!-- Results -->
+        <div id="search-results" style="margin-top:1.5rem">
+            <p class="muted">Enter your requirements and select Search.</p>
+        </div>
+
     </section>
+
+
+    <!-- =====================================================
+         BUDGET TAB
+    ====================================================== -->
+
+    <section class="tab-panel card" id="panel-budget">
+
+        <h2 style="margin-top:0">Travel budget</h2>
+        <p class="muted">
+            Set the overall trip budget and allocate it between
+            flights and hotels.
+        </p>
+
+        <form id="budget-form" onsubmit="saveBudget(event)">
+            <div class="form-grid">
+
+                <div>
+                    <label for="budget-trip-id">Trip ID</label>
+                    <input id="budget-trip-id" type="number" min="1" value="1" required>
+                </div>
+
+                <div>
+                    <label for="total-budget">Total budget (AUD)</label>
+                    <input id="total-budget" type="number" min="0" step="0.01" required>
+                </div>
+
+                <div>
+                    <label for="flight-budget">Flight budget (AUD)</label>
+                    <input id="flight-budget" type="number" min="0" step="0.01" value="0" required>
+                </div>
+
+                <div>
+                    <label for="hotel-budget">Hotel budget (AUD)</label>
+                    <input id="hotel-budget" type="number" min="0" step="0.01" value="0" required>
+                </div>
+
+            </div>
+
+            <div class="notice" id="budget-status" style="margin-top:1rem">
+                Enter your budget allocation.
+            </div>
+
+            <button type="submit">Save budget</button>
+        </form>
+
+        <!-- Budget summary -->
+        <div id="budget-summary" style="margin-top:1.5rem"></div>
+
+        <button type="button" onclick="loadBudget()" style="margin-top:1rem">Load current budget</button>
+        <button type="button" onclick="askBudgetAdvisor()" style="margin-top:1rem">Ask AI budget advisor</button>
+
+        <div id="budget-ai-result" style="margin-top:1rem"></div>
+
+    </section>
+
+
+    <!-- =====================================================
+         MY SELECTIONS TAB
+    ====================================================== -->
+
+    <section class="tab-panel card" id="panel-trip">
+
+        <h2 style="margin-top:0">My trip selections</h2>
+        <p class="muted">
+            Flights and hotels added to your Feature 2 trip appear here.
+        </p>
+
+        <div class="form-grid">
+            <div>
+                <label for="selection-trip-id">Trip ID</label>
+                <input id="selection-trip-id" type="number" min="1" value="1">
+            </div>
+        </div>
+
+        <button type="button" onclick="loadSelections()">Load selections</button>
+
+        <div id="selection-results" style="margin-top:1.5rem">
+            <p class="muted">No selections loaded.</p>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         SEARCH HISTORY TAB
+    ====================================================== -->
+
+    <section class="tab-panel card" id="panel-history">
+
+        <h2 style="margin-top:0">Search history</h2>
+        <p class="muted">Previous flight and hotel searches for your trip.</p>
+
+        <div class="form-grid">
+            <div>
+                <label for="history-trip-id">Trip ID</label>
+                <input id="history-trip-id" type="number" min="1" value="1">
+            </div>
+        </div>
+
+        <button type="button" onclick="loadHistory()">Load search history</button>
+
+        <div id="history-results" style="margin-top:1.5rem">
+            <p class="muted">No search history loaded.</p>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         AI TAB
+    ====================================================== -->
+
+    <section class="tab-panel card" id="panel-ai">
+
+        <h2 style="margin-top:0">NextStop AI</h2>
+        <p class="muted">
+            Ask about flights, hotels, budgets and your
+            selected trip. AI responses are grounded using
+            data retrieved through the Student 5 API.
+        </p>
+
+        <!-- Natural language search -->
+        <div class="card" style="margin-top:1rem">
+            <h3 style="margin-top:0">AI travel search</h3>
+            <p class="muted">Describe your travel requirements naturally.</p>
+
+            <form onsubmit="parseAISearch(event)">
+                <div>
+                    <label for="ai-search-question">Travel request</label>
+                    <input id="ai-search-question"
+                           placeholder="e.g. Find me a cheap flight from Sydney to Tokyo for September 15 under $800"
+                           required>
+                </div>
+
+                <button type="submit">Understand my request</button>
+            </form>
+
+            <div id="ai-search-result" style="margin-top:1rem"></div>
+        </div>
+
+        <!-- Chat -->
+        <div class="chat-log" id="chat-log" style="margin-top:1.5rem">
+            <div class="chat-log__empty" id="chat-empty">
+                No messages yet.
+                Try:
+                <strong>"How much budget do I have left?"</strong>
+            </div>
+        </div>
+
+        <form onsubmit="sendChat(event)" style="margin-top:1rem">
+            <label for="ai-question" class="sr-only-label">Ask NextStop AI</label>
+
+            <div class="chat-input-row">
+                <input id="ai-question" type="text"
+                       placeholder="Ask about your flights, hotels or budget..."
+                       autocomplete="off" required>
+                <button type="submit">Ask</button>
+            </div>
+
+            <div class="chat-options">
+                <label for="ai-chat-trip-id" style="margin:0">Trip ID</label>
+                <input id="ai-chat-trip-id" type="number" min="1" value="1">
+                <span id="chat-spinner" class="spinner">thinking...</span>
+            </div>
+        </form>
+
+    </section>
+
 </main>
 
+<!-- =========================================================
+     JAVASCRIPT
+========================================================== -->
+
 <script>
+
+/* =========================================================
+   API BASE URL
+   ---------------------------------------------------------
+   FIX: every fetch() call used a *relative* path like
+   "/api/student-5/...". That only works if this page is
+   served from the same origin as a gateway/reverse-proxy that
+   forwards those paths to the Flask API. When this HTML is
+   opened directly (e.g. via VS Code Live Server on
+   http://localhost:5500), there is no such gateway, so those
+   relative paths resolve against port 5500 itself and 404.
+
+   Point this at wherever your student-5-api Flask process is
+   actually listening. Change it to an empty string ("") once
+   this page is served behind a real gateway that proxies
+   /api/student-5/* for you.
+========================================================= */
+
+const API_BASE = "http://localhost:5105";
+
+
 const buttons = Array.from(document.querySelectorAll(".tab-btn"));
+
 const panels = {
-    records: document.getElementById("panel-records"),
-    ai: document.getElementById("panel-ai"),
+    search: document.getElementById("panel-search"),
+    budget: document.getElementById("panel-budget"),
+    trip: document.getElementById("panel-trip"),
+    history: document.getElementById("panel-history"),
+    ai: document.getElementById("panel-ai")
 };
 
 function activate(name) {
-    buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
-    Object.entries(panels).forEach(([key, panel]) =>
-        panel.classList.toggle("is-active", key === name)
+
+    buttons.forEach(
+        button => button.classList.toggle("is-active", button.dataset.tab === name)
     );
+
+    Object.entries(panels).forEach(
+        ([key, panel]) => panel.classList.toggle("is-active", key === name)
+    );
+
+    window.location.hash = name;
+
+    if (name === "ai") {
+        const input = document.getElementById("ai-question");
+        if (input) input.focus();
+    }
 }
 
-buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
+buttons.forEach(
+    button => button.addEventListener("click", () => activate(button.dataset.tab))
+);
+
+
+/* =========================================================
+   SEARCH TYPE
+========================================================= */
+
+const searchType = document.getElementById("search-type");
+
+searchType.addEventListener("change", function () {
+
+    const originField = document.getElementById("origin-field");
+    const endDate = document.getElementById("end-date");
+
+    if (this.value === "flight") {
+        originField.style.display = "";
+        endDate.required = false;
+    }
+    else {
+        originField.style.display = "none";
+        endDate.required = true;
+    }
+});
+
+
+/* =========================================================
+   SEARCH RESULTS CACHE
+   ---------------------------------------------------------
+   FIX: Previously each "Add to Trip" button embedded
+   JSON.stringify(item) directly inside an onclick='...'
+   attribute. Because JSON.stringify uses double quotes and
+   the attribute used single quotes, any result field
+   containing an apostrophe (e.g. an airline or hotel name
+   like "O'Malley's") broke the HTML and could produce
+   invalid/unsafe markup. We now keep the last results in
+   memory and reference them by index instead, so nothing
+   from the API ever gets embedded into an inline attribute.
+========================================================= */
+
+let lastSearchResults = [];
+let lastSearchType = "flight";
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+async function performSearch(event) {
+
+    event.preventDefault();
+
+    const type = document.getElementById("search-type").value;
+    const params = new URLSearchParams();
+
+    const destination = document.getElementById("destination").value.trim();
+    const startDate = document.getElementById("start-date").value;
+    const endDate = document.getElementById("end-date").value;
+    const travellers = document.getElementById("travellers").value;
+    const budget = document.getElementById("search-budget").value;
+    const tripId = document.getElementById("trip-id").value;
+
+    // FIX: only read/send origin when the search is actually a flight
+    // search. Previously the raw field value was always read and saved
+    // to search history, even for hotel searches where the origin field
+    // is hidden but may still hold a leftover value from an earlier
+    // flight search.
+    const origin =
+        type === "flight"
+            ? document.getElementById("origin").value.trim()
+            : "";
+
+    if (type === "flight" && origin) {
+        params.set("origin", origin);
+    }
+
+    params.set("destination", destination);
+
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    if (travellers) params.set("travellers", travellers);
+    if (budget) params.set("budget_aud", budget);
+
+    const endpoint =
+        type === "flight"
+            ? `${API_BASE}/api/student-5/flights/search`
+            : `${API_BASE}/api/student-5/hotels/search`;
+
+    const results = document.getElementById("search-results");
+    const status = document.getElementById("search-status");
+
+    results.innerHTML = "<p class='muted'>Searching...</p>";
+    status.innerHTML = "";
+
+    try {
+
+        const response = await fetch(`${endpoint}?${params.toString()}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Search failed.");
+        }
+
+        renderResults(data.results || [], type, tripId);
+
+        // Save search history
+        await fetch(`${API_BASE}/api/student-5/search-history`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                trip_id: Number(tripId),
+                search_type: type,
+                origin, // FIX: empty string for hotel searches instead of a stale field value
+                destination,
+                start_date: startDate,
+                end_date: endDate,
+                travellers: Number(travellers),
+                budget_aud: budget ? Number(budget) : null,
+                search_query: `${type}: ${destination}`
+            })
+        });
+
+    }
+    catch (error) {
+        results.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+
+/* =========================================================
+   RENDER RESULTS
+========================================================= */
+
+function renderResults(results, type, tripId) {
+
+    const container = document.getElementById("search-results");
+
+    // FIX: cache results so "Add to Trip" buttons can look items
+    // up by index instead of having the item JSON embedded
+    // directly in an inline onclick attribute.
+    lastSearchResults = results;
+    lastSearchType = type;
+
+    if (!results.length) {
+        container.innerHTML = `<div class="notice">No ${type} results found.</div>`;
+        return;
+    }
+
+    let html = "";
+
+    html += `
+        <h3>${results.length} ${type} result(s)</h3>
+        <p class="muted">
+            Results are ranked using
+            <strong>50% price</strong>,
+            <strong>30% rating</strong> and
+            <strong>20% popularity</strong>.
+        </p>
+    `;
+
+    html += `<div class="table-wrap"><table><thead><tr>`;
+
+    if (type === "flight") {
+        html += `
+            <th>Airline</th>
+            <th>Route</th>
+            <th>Departure</th>
+            <th>Arrival</th>
+            <th>Duration</th>
+            <th>Stops</th>
+            <th>Price</th>
+            <th>Rating</th>
+            <th>Score</th>
+            <th></th>
+        `;
+    }
+    else {
+        html += `
+            <th>Hotel</th>
+            <th>Destination</th>
+            <th>Check-in</th>
+            <th>Check-out</th>
+            <th>Price/night</th>
+            <th>Total</th>
+            <th>Rating</th>
+            <th>Score</th>
+            <th></th>
+        `;
+    }
+
+    html += `</tr></thead><tbody>`;
+
+    results.forEach((item, index) => {
+
+        if (type === "flight") {
+            html += `
+                <tr>
+                    <td>
+                        <strong>${escapeHTML(item.airline)}</strong>
+                        <br>
+                        <span class="muted">${escapeHTML(item.flight_number)}</span>
+                    </td>
+                    <td>${escapeHTML(item.origin)} → ${escapeHTML(item.destination)}</td>
+                    <td>${escapeHTML(item.departure_date)}<br>${escapeHTML(item.departure_time)}</td>
+                    <td>${escapeHTML(item.arrival_time)}</td>
+                    <td>${formatDuration(item.duration_minutes)}</td>
+                    <td>${item.stops}</td>
+                    <td><strong>$${Number(item.price_aud).toFixed(2)}</strong></td>
+                    <td>${Number(item.rating).toFixed(1)}/5</td>
+                    <td><strong>${Number(item.recommendation_score).toFixed(1)}</strong></td>
+                    <td>
+                        <button class="btn-sm" data-add-index="${index}" data-trip-id="${escapeHTML(String(tripId))}">
+                            Add to Trip
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+        else {
+            html += `
+                <tr>
+                    <td><strong>${escapeHTML(item.name)}</strong></td>
+                    <td>${escapeHTML(item.destination)}</td>
+                    <td>${escapeHTML(item.check_in)}</td>
+                    <td>${escapeHTML(item.check_out)}</td>
+                    <td>$${Number(item.price_per_night_aud).toFixed(2)}</td>
+                    <td><strong>$${Number(item.total_price_aud).toFixed(2)}</strong></td>
+                    <td>${Number(item.rating).toFixed(1)}/5</td>
+                    <td><strong>${Number(item.recommendation_score).toFixed(1)}</strong></td>
+                    <td>
+                        <button class="btn-sm" data-add-index="${index}" data-trip-id="${escapeHTML(String(tripId))}">
+                            Add to Trip
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+
+    });
+
+    html += `</tbody></table></div>`;
+
+    container.innerHTML = html;
+
+    // FIX: delegate clicks instead of using inline onclick='...JSON...'.
+    // This avoids embedding untrusted/unescaped API data into HTML
+    // attributes entirely.
+    container.querySelectorAll("[data-add-index]").forEach(button => {
+        button.addEventListener("click", () => {
+            const index = Number(button.dataset.addIndex);
+            const tripId = button.dataset.tripId;
+            const item = lastSearchResults[index];
+            if (item) {
+                addSelection(item, lastSearchType, tripId);
+            }
+        });
+    });
+
+}
+
+
+/* =========================================================
+   ADD SELECTION
+========================================================= */
+
+async function addSelection(item, type, tripId) {
+
+    const itemName =
+        type === "flight"
+            ? `${item.airline} ${item.flight_number}`
+            : item.name;
+
+    const price =
+        type === "flight"
+            ? Number(item.price_aud)
+            : Number(item.total_price_aud);
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/selections`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                trip_id: Number(tripId),
+                item_type: type,
+                item_id: type === "flight" ? item.flight_id : item.hotel_id,
+                item_name: itemName,
+                price_aud: price
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not add selection.");
+        }
+
+        alert(`${itemName} was added to Trip ${tripId}.`);
+
+        loadSelections();
+
+    }
+    catch (error) {
+        alert(error.message);
+    }
+
+}
+
+
+/* =========================================================
+   LOAD SELECTIONS
+========================================================= */
+
+async function loadSelections() {
+
+    const tripId = document.getElementById("selection-trip-id").value;
+    const container = document.getElementById("selection-results");
+
+    container.innerHTML = "<p class='muted'>Loading...</p>";
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/selections/${tripId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not load selections.");
+        }
+
+        if (!data.length) {
+            container.innerHTML = `<div class="notice">No items have been added to this trip.</div>`;
+            return;
+        }
+
+        let total = 0;
+
+        let html = `
+            <div class="table-wrap">
+            <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Item</th>
+                <th>Price</th>
+                <th>Selected</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+        `;
+
+        data.forEach(item => {
+
+            total += Number(item.price_aud);
+
+            html += `
+                <tr>
+                    <td>${item.selection_id}</td>
+                    <td>${escapeHTML(item.item_type)}</td>
+                    <td><strong>${escapeHTML(item.item_name)}</strong></td>
+                    <td>$${Number(item.price_aud).toFixed(2)}</td>
+                    <td>${escapeHTML(item.selected_at)}</td>
+                    <td>
+                        <button class="btn-sm btn-danger" data-remove-id="${item.selection_id}">
+                            Remove
+                        </button>
+                    </td>
+                </tr>
+            `;
+
+        });
+
+        html += `
+            </tbody>
+            </table>
+            </div>
+
+            <div class="notice" style="margin-top:1rem">
+                <strong>Current selected total:</strong>
+                $${total.toFixed(2)}
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+        // FIX: same delegation pattern as renderResults — no data is
+        // embedded in an inline onclick attribute here either.
+        container.querySelectorAll("[data-remove-id]").forEach(button => {
+            button.addEventListener("click", () => {
+                removeSelection(Number(button.dataset.removeId));
+            });
+        });
+
+    }
+    catch (error) {
+        container.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+
+/* =========================================================
+   REMOVE SELECTION
+========================================================= */
+
+async function removeSelection(selectionId) {
+
+    if (!confirm("Remove this item from the trip?")) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/selections/${selectionId}`, {
+            method: "DELETE"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not remove selection.");
+        }
+
+        loadSelections();
+
+    }
+    catch (error) {
+        alert(error.message);
+    }
+
+}
+
+
+/* =========================================================
+   SAVE BUDGET
+========================================================= */
+
+async function saveBudget(event) {
+
+    event.preventDefault();
+
+    const tripId = Number(document.getElementById("budget-trip-id").value);
+    const total = Number(document.getElementById("total-budget").value);
+    const flight = Number(document.getElementById("flight-budget").value);
+    const hotel = Number(document.getElementById("hotel-budget").value);
+
+    const status = document.getElementById("budget-status");
+
+    if (flight + hotel > total) {
+        status.className = "notice notice-error";
+        status.textContent = "Flight and hotel allocations cannot exceed the total budget.";
+        return;
+    }
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/budgets/${tripId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                total_budget: total,
+                flight_budget: flight,
+                hotel_budget: hotel
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not save budget.");
+        }
+
+        status.className = "notice notice-success";
+        status.textContent = "Budget successfully saved.";
+
+        displayBudget(data);
+
+    }
+    catch (error) {
+        status.className = "notice notice-error";
+        status.textContent = error.message;
+    }
+
+}
+
+
+/* =========================================================
+   LOAD BUDGET
+========================================================= */
+
+async function loadBudget() {
+
+    const tripId = Number(document.getElementById("budget-trip-id").value);
+    const container = document.getElementById("budget-summary");
+
+    container.innerHTML = "<p class='muted'>Loading budget...</p>";
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/budgets/${tripId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not load budget.");
+        }
+
+        displayBudget(data);
+
+    }
+    catch (error) {
+        container.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+
+/* =========================================================
+   DISPLAY BUDGET
+========================================================= */
+
+function displayBudget(budget) {
+
+    const total = Number(budget.total_budget || 0);
+    const flight = Number(budget.flight_budget || 0);
+    const hotel = Number(budget.hotel_budget || 0);
+    const remaining = total - flight - hotel;
+
+    document.getElementById("total-budget").value = total;
+    document.getElementById("flight-budget").value = flight;
+    document.getElementById("hotel-budget").value = hotel;
+
+    document.getElementById("budget-summary").innerHTML = `
+        <div class="notice">
+            <h3 style="margin-top:0">Budget summary</h3>
+            <p><strong>Total:</strong> $${total.toFixed(2)} AUD</p>
+            <p><strong>Flight allocation:</strong> $${flight.toFixed(2)} AUD</p>
+            <p><strong>Hotel allocation:</strong> $${hotel.toFixed(2)} AUD</p>
+            <p><strong>Unallocated:</strong> $${remaining.toFixed(2)} AUD</p>
+        </div>
+    `;
+
+}
+
+
+/* =========================================================
+   SEARCH HISTORY
+========================================================= */
+
+async function loadHistory() {
+
+    const tripId = document.getElementById("history-trip-id").value;
+    const container = document.getElementById("history-results");
+
+    container.innerHTML = "<p class='muted'>Loading...</p>";
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/search-history/${tripId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not load search history.");
+        }
+
+        if (!data.length) {
+            container.innerHTML = `<div class="notice">No search history found.</div>`;
+            return;
+        }
+
+        let html = `
+            <div class="table-wrap">
+            <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Destination</th>
+                <th>Dates</th>
+                <th>Travellers</th>
+                <th>Budget</th>
+                <th>Created</th>
+            </tr>
+            </thead>
+            <tbody>
+        `;
+
+        data.forEach(item => {
+
+            html += `
+                <tr>
+                    <td>${item.search_id}</td>
+                    <td>${escapeHTML(item.search_type)}</td>
+                    <td>${escapeHTML(item.destination)}</td>
+                    <td>
+                        ${escapeHTML(item.start_date || "")}
+                        ${item.end_date ? " → " + escapeHTML(item.end_date) : ""}
+                    </td>
+                    <td>${item.travellers}</td>
+                    <td>${item.budget_aud ? "$" + Number(item.budget_aud).toFixed(2) : "No limit"}</td>
+                    <td>${escapeHTML(item.created_at)}</td>
+                </tr>
+            `;
+
+        });
+
+        html += `</tbody></table></div>`;
+
+        container.innerHTML = html;
+
+    }
+    catch (error) {
+        container.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+
+/* =========================================================
+   AI NATURAL LANGUAGE SEARCH
+========================================================= */
+
+async function parseAISearch(event) {
+
+    event.preventDefault();
+
+    const question = document.getElementById("ai-search-question").value.trim();
+    const container = document.getElementById("ai-search-result");
+
+    container.innerHTML = "<p class='muted'>AI is analysing your request...</p>";
+
+    const formData = new FormData();
+    formData.append("question", question);
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/ai/parse-search`, {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "AI search failed.");
+        }
+
+        container.innerHTML = `
+            <div class="notice">
+                <h3 style="margin-top:0">AI understood your request</h3>
+                <pre style="white-space:pre-wrap; margin-bottom:0;">${escapeHTML(data.parsed_request)}</pre>
+            </div>
+        `;
+
+    }
+    catch (error) {
+        container.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+
+/* =========================================================
+   AI BUDGET ADVISOR
+========================================================= */
+
+async function askBudgetAdvisor() {
+
+    const tripId = document.getElementById("budget-trip-id").value;
+    const container = document.getElementById("budget-ai-result");
+
+    container.innerHTML = "<p class='muted'>AI is reviewing your budget...</p>";
+
+    const formData = new FormData();
+    formData.append("trip_id", tripId);
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/ai/budget-advisor`, {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Budget advisor failed.");
+        }
+
+        container.innerHTML = `
+            <div class="notice">
+                <h3 style="margin-top:0">NextStop AI Budget Advice</h3>
+                <p style="white-space:pre-wrap; margin-bottom:0;">${escapeHTML(data.answer)}</p>
+            </div>
+        `;
+
+    }
+    catch (error) {
+        container.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+
+/* =========================================================
+   AI CHAT
+========================================================= */
+
+async function sendChat(event) {
+
+    event.preventDefault();
+
+    const question = document.getElementById("ai-question").value.trim();
+    const tripId = document.getElementById("ai-chat-trip-id").value;
+    const chatLog = document.getElementById("chat-log");
+    const empty = document.getElementById("chat-empty");
+
+    if (empty) empty.remove();
+
+    chatLog.innerHTML += `
+        <div class="chat-msg user">
+            <div class="who">You</div>
+            <div class="bubble">${escapeHTML(question)}</div>
+        </div>
+    `;
+
+    const thinking = document.createElement("div");
+    thinking.className = "chat-msg bot";
+    thinking.innerHTML = `
+        <div class="who">NextStop AI</div>
+        <div class="bubble">Thinking...</div>
+    `;
+
+    chatLog.appendChild(thinking);
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    const formData = new FormData();
+    formData.append("question", question);
+    formData.append("trip_id", tripId);
+
+    document.getElementById("ai-question").value = "";
+
+    try {
+
+        const response = await fetch(`${API_BASE}/api/student-5/ai/chat`, {
+            method: "POST",
+            body: formData
+        });
+
+        const text = await response.text();
+
+        if (!response.ok) {
+            throw new Error(text || "AI request failed.");
+        }
+
+        /*
+         * The backend returns the two chat message fragments.
+         * We already inserted the user message, so only display
+         * the generated response.
+         */
+
+        const parser = new DOMParser();
+        const documentFragment = parser.parseFromString(text, "text/html");
+        const bot = documentFragment.querySelector(".chat-msg.bot");
+
+        if (bot) {
+            thinking.replaceWith(bot);
+        }
+        else {
+            thinking.querySelector(".bubble").textContent = text;
+        }
+
+    }
+    catch (error) {
+        thinking.querySelector(".bubble").textContent = error.message;
+    }
+
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+}
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function formatDuration(minutes) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+}
+
+function escapeHTML(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   INITIALISE
+========================================================= */
+
+const initial = window.location.hash.replace("#", "");
+activate(panels[initial] ? initial : "search");
+
+/*
+ * When the page opens, load the current budget for Trip 1
+ * so the feature has useful content immediately.
+ */
+loadBudget();
+
 </script>
+
 </body>
 </html>
