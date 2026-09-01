@@ -1187,3 +1187,154 @@ pre {
     font-size: 0.8rem;
     color: var(--color-slate-500);
 }
+
+
+
+
+  /* ==========================================================================
+    TRAVEL MATE — feature-specific styles
+    student-3, Tanishpreet Kour
+  
+  
+  /* --- Trip card grid (Browse tab) ----------------------------------------- */
+  
+  .trip-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+  }
+  
+  .trip-card__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+  }
+  
+  .trip-card__destination {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--color-navy-900);
+  }
+  
+  .trip-card__dates {
+      font-size: 0.82rem;
+      color: var(--color-slate-500);
+      margin-top: 0.15rem;
+  }
+  
+  .trip-card__note {
+      font-size: 0.9rem;
+      color: var(--color-ink-900);
+      line-height: 1.45;
+      margin: 0.5rem 0 0.75rem;
+  }
+  
+  .trip-card__footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+  }
+  
+  /* --- Verified badge ------------------------------------------------------- */
+  
+  .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin-left: 0.35rem;
+      border-radius: 50%;
+      background: var(--color-blue-500);
+      color: var(--color-white);
+      font-size: 10px;
+      line-height: 1;
+      vertical-align: middle;
+  }
+  
+  .verified-badge::before {
+      content: "\2713"; /* check mark */
+  }
+  
+  
+  .pill-pending  { background: #fdf0d5; color: #7a5a12; }
+  .pill-accepted { background: #dcf5ea; color: #0d6b48; }
+  .pill-declined { background: #fbe0de; color: #8f231c; }
+  
+  /* --- AI compatibility score ------------------------------------------------ */
+  
+  .compat-score {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: var(--radius-pill);
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: var(--color-navy-900);
+      color: var(--color-white);
+  }
+  
+  .compat-score__num {
+      font-family: var(--font-display);
+  }
+  
+  .compat-reason {
+      display: block;
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--color-slate-500);
+      line-height: 1.4;
+  }
+  
+  /* --- Inbox request rows ---------------------------------------------------- */
+  
+  .request-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--color-slate-200);
+  }
+  
+  .request-row:last-child { border-bottom: none; }
+  
+  .request-row__meta {
+      font-size: 0.85rem;
+      color: var(--color-slate-500);
+  }
+  
+  .request-row__actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+  }
+  
+  /* --- Say Hi button, matches the landing page's dark pill style ------------ */
+  
+  .say-hi-btn {
+      background: var(--color-ink-900);
+      color: var(--color-white);
+      border-radius: var(--radius-pill);
+      padding: 0.4rem 1rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+  }
+  
+  .say-hi-btn:hover { transform: translateY(-1px); }
+  
+  .say-hi-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+  }
+  
+  @media (max-width: 640px) {
+      .trip-grid { grid-template-columns: 1fr; }
+  }
