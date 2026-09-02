@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS trip_posts (
     created_at     TEXT NOT NULL
 )
 """)
- 
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS connect_requests (
     request_id        INTEGER PRIMARY KEY,
@@ -43,10 +43,10 @@ CREATE TABLE IF NOT EXISTS connect_requests (
     FOREIGN KEY (to_post_id) REFERENCES trip_posts (post_id) ON DELETE CASCADE
 )
 """)
- 
+
 cursor.execute("DELETE FROM connect_requests")
 cursor.execute("DELETE FROM trip_posts")
- 
+
 trip_posts = [
     (1,  1,  "Bali, Indonesia",         "2026-10-12", "2026-10-19", "into hiking, budget traveller",     "Ubud rice terraces and volcano hikes, chill pace.",            "open",    "2026-08-20"),
     (2,  2,  "Kyoto, Japan",            "2026-11-03", "2026-11-10", "culture and food",                  "First time in Japan, temples and regional food.",             "open",    "2026-08-21"),
@@ -61,11 +61,11 @@ trip_posts = [
     (11, 11, "Hanoi, Vietnam",          "2026-10-01", "2026-10-08", "food, culture",                      "Old Quarter food tour and cooking class.",                    "open",    "2026-08-23"),
     (12, 12, "Amalfi Coast, Italy",     "2026-06-10", "2026-06-20", "road trip, budget traveller",        "Driving the coast, splitting hire car and fuel costs.",       "open",    "2026-08-12"),
 ]
- 
+
 cursor.executemany(
     """
     INSERT INTO trip_posts (post_id, traveller_id, destination, start_date,
-                             end_date, travel_style, note, status, created_at)
+                            end_date, travel_style, note, status, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
     trip_posts,
