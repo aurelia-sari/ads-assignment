@@ -55,7 +55,7 @@ def health():
  
 def validate_post(payload, require_all=True):
     if require_all:
-        missing = [f for f in POST_FIELDS if f != "status" and payload.get(f) in (None, "")]
+        missing = [f for f in POST_FIELDS if f not in ("status", "note") and payload.get(f) in (None, "")]
         if missing:
             return f"Missing fields: {', '.join(missing)}"
  
