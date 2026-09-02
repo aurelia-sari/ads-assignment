@@ -246,6 +246,10 @@ def main():
             check_student_4()
             print(f"\nstudent-{n} passed all checks.")
             return 0
+        if n == 5:
+            check_student_5()
+            print(f"\nstudent-{n} passed all checks.")
+            return 0
 
         for resource in RESOURCES.get(n, [DEFAULT_RESOURCE]):
             check_resource(db_base, *resource)
