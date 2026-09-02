@@ -190,6 +190,33 @@ def check_student_4():
 
     if result.returncode != 0:
         raise SmokeFailure("student-4 feature smoke test failed")
+    
+def check_student_5():
+    """Run the feature-specific smoke test for student-5.
+ 
+    Bookings & Budget spans five separate resources (budgets, flights,
+    hotels, trip selections, search history) with fundamentally different
+    shapes - flights and hotels are read-only search endpoints with no
+    create/update/delete, budgets are a per-trip singleton updated via
+    upsert (no delete makes sense), and only selections and search history
+    behave like DEFAULT_RESOURCE's conventional creatable/deletable record.
+    None of that fits a single generic CRUD-on-one-table test, so this
+    delegates to a dedicated test that exercises each resource on its own
+    terms instead.
+    """
+    test_file = (
+        Path(__file__).resolve().parent.parent
+        / "student-5"
+        / "tests"
+        / "smoke_test.py"
+    )
+ 
+    result = subprocess.run(
+        [sys.executable, str(test_file)]
+    )
+ 
+    if result.returncode != 0:
+        raise SmokeFailure("student-5 feature smoke test failed")
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
