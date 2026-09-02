@@ -97,7 +97,7 @@
 
                 <div>
                     <label for="destination">Destination</label>
-                    <input id="destination" name="destination" placeholder="e.g. Tokyo" required>
+                    <input id="destination" name="destination" placeholder="e.g. Melbourne" required>
                 </div>
 
                 <div>
@@ -257,30 +257,13 @@
             data retrieved through the Student 5 API.
         </p>
 
-        <!-- Natural language search -->
-        <div class="card" style="margin-top:1rem">
-            <h3 style="margin-top:0">AI travel search</h3>
-            <p class="muted">Describe your travel requirements naturally.</p>
-
-            <form onsubmit="parseAISearch(event)">
-                <div>
-                    <label for="ai-search-question">Travel request</label>
-                    <input id="ai-search-question"
-                           placeholder="e.g. Find me a cheap flight from Sydney to Tokyo for September 15 under $800"
-                           required>
-                </div>
-
-                <button type="submit">Understand my request</button>
-            </form>
-
-            <div id="ai-search-result" style="margin-top:1rem"></div>
-        </div>
-
         <!-- Chat -->
         <div class="chat-log" id="chat-log" style="margin-top:1.5rem">
             <div class="chat-log__empty" id="chat-empty">
                 No messages yet.
                 Try:
+                <strong>"Find me a cheap local flight"</strong>
+                or
                 <strong>"How much budget do I have left?"</strong>
             </div>
         </div>
@@ -312,24 +295,14 @@
 
 <script>
 
+
 /* =========================================================
    API BASE URL
-   ---------------------------------------------------------
-   FIX: every fetch() call used a *relative* path like
-   "/api/student-5/...". That only works if this page is
-   served from the same origin as a gateway/reverse-proxy that
-   forwards those paths to the Flask API. When this HTML is
-   opened directly (e.g. via VS Code Live Server on
-   http://localhost:5500), there is no such gateway, so those
-   relative paths resolve against port 5500 itself and 404.
-
-   Point this at wherever your student-5-api Flask process is
-   actually listening. Change it to an empty string ("") once
-   this page is served behind a real gateway that proxies
-   /api/student-5/* for you.
 ========================================================= */
 
-const API_BASE = "http://localhost:5105";
+const API_BASE = (window.location.port === "5500")
+    ? "http://localhost:5105"   // Live Server: hit Flask directly, bare routes
+    : "/api/student-5";         // nginx: relative, prefix stripped by the proxy
 
 
 const buttons = Array.from(document.querySelectorAll(".tab-btn"));
@@ -446,8 +419,8 @@ async function performSearch(event) {
 
     const endpoint =
         type === "flight"
-            ? `${API_BASE}/api/student-5/flights/search`
-            : `${API_BASE}/api/student-5/hotels/search`;
+            ? `${API_BASE}/flights/search`
+            : `${API_BASE}/hotels/search`;
 
     const results = document.getElementById("search-results");
     const status = document.getElementById("search-status");
@@ -467,7 +440,7 @@ async function performSearch(event) {
         renderResults(data.results || [], type, tripId);
 
         // Save search history
-        await fetch(`${API_BASE}/api/student-5/search-history`, {
+        await fetch(`${API_BASE}/search-history`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -641,7 +614,7 @@ async function addSelection(item, type, tripId) {
 
     try {
 
-        const response = await fetch(`${API_BASE}/api/student-5/selections`, {
+        const response = await fetch(`${API_BASE}/selections`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -684,7 +657,7 @@ async function loadSelections() {
 
     try {
 
-        const response = await fetch(`${API_BASE}/api/student-5/selections/${tripId}`);
+        const response = await fetch(`${API_BASE}/selections/${tripId}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -776,7 +749,7 @@ async function removeSelection(selectionId) {
 
     try {
 
-        const response = await fetch(`${API_BASE}/api/student-5/selections/${selectionId}`, {
+        const response = await fetch(`${API_BASE}/selections/${selectionId}`, {
             method: "DELETE"
         });
 
@@ -819,7 +792,7 @@ async function saveBudget(event) {
 
     try {
 
-        const response = await fetch(`${API_BASE}/api/student-5/budgets/${tripId}`, {
+        const response = await fetch(`${API_BASE}/budgets/${tripId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -862,7 +835,7 @@ async function loadBudget() {
 
     try {
 
-        const response = await fetch(`${API_BASE}/api/student-5/budgets/${tripId}`);
+        const response = await fetch(`${API_BASE}/budgets/${tripId}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -920,7 +893,7 @@ async function loadHistory() {
 
     try {
 
-        const response = await fetch(`${API_BASE}/api/student-5/search-history/${tripId}`);
+        const response = await fetch(`${API_BASE}/search-history/${tripId}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -981,50 +954,6 @@ async function loadHistory() {
 
 
 /* =========================================================
-   AI NATURAL LANGUAGE SEARCH
-========================================================= */
-
-async function parseAISearch(event) {
-
-    event.preventDefault();
-
-    const question = document.getElementById("ai-search-question").value.trim();
-    const container = document.getElementById("ai-search-result");
-
-    container.innerHTML = "<p class='muted'>AI is analysing your request...</p>";
-
-    const formData = new FormData();
-    formData.append("question", question);
-
-    try {
-
-        const response = await fetch(`${API_BASE}/api/student-5/ai/parse-search`, {
-            method: "POST",
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "AI search failed.");
-        }
-
-        container.innerHTML = `
-            <div class="notice">
-                <h3 style="margin-top:0">AI understood your request</h3>
-                <pre style="white-space:pre-wrap; margin-bottom:0;">${escapeHTML(data.parsed_request)}</pre>
-            </div>
-        `;
-
-    }
-    catch (error) {
-        container.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
-    }
-
-}
-
-
-/* =========================================================
    AI BUDGET ADVISOR
 ========================================================= */
 
@@ -1040,7 +969,7 @@ async function askBudgetAdvisor() {
 
     try {
 
-        const response = await fetch(`${API_BASE}/api/student-5/ai/budget-advisor`, {
+        const response = await fetch(`${API_BASE}/ai/budget-advisor`, {
             method: "POST",
             body: formData
         });
@@ -1106,7 +1035,7 @@ async function sendChat(event) {
 
     try {
 
-        const response = await fetch(`${API_BASE}/api/student-5/ai/chat`, {
+        const response = await fetch(`${API_BASE}/ai/chat`, {
             method: "POST",
             body: formData
         });
