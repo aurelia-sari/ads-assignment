@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 
 DB_BASE = "http://localhost:5205"
-API_BASE = "http://localhost:5105/api/student-5"
+API_BASE = "http://localhost:5105"
 
 
 class SmokeFailure(Exception):
@@ -90,25 +90,25 @@ def check_budget_upsert():
 
 
 def check_flight_and_hotel_search():
-    status, body = request("GET", f"{API_BASE}/flights/search?destination=Bangkok")
+    status, body = request("GET", f"{API_BASE}/flights/search?destination=Melbourne")
     expect(status == 200, "GET /flights/search returns 200")
     payload = json.loads(body)
     expect("results" in payload, "flight search response has a results field")
     expect(
         len(payload["results"]) > 0,
-        "flight search for Bangkok returns at least one result",
+        "flight search for Melbourne returns at least one result",
     )
     expect(
         all("recommendation_score" in row for row in payload["results"]),
         "every flight result carries a recommendation_score",
     )
 
-    status, body = request("GET", f"{API_BASE}/hotels/search?destination=Bangkok")
+    status, body = request("GET", f"{API_BASE}/hotels/search?destination=Melbourne")
     expect(status == 200, "GET /hotels/search returns 200")
     payload = json.loads(body)
     expect(
         len(payload["results"]) > 0,
-        "hotel search for Bangkok returns at least one result",
+        "hotel search for Melbourne returns at least one result",
     )
 
 
