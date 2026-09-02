@@ -1338,3 +1338,20 @@ pre {
   @media (max-width: 640px) {
       .trip-grid { grid-template-columns: 1fr; }
   }
+
+  /* --- Highlight your own posts ---------------------------------------------- */
+.card.own-post {
+  border-left: 4px solid var(--color-blue-500);
+  position: relative;
+}
+.card.own-post::before {
+  content: "Your post";
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-blue-500);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
