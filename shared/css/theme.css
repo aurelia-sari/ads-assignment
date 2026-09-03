@@ -1355,3 +1355,36 @@ pre {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+.card.own-post {
+  background: #fbf8f2; /* warm cream, distinct from the white default card */
+}
+
+/* --- Say Hi button: sage blue instead of dark ink, for visual contrast
+   against the mostly-navy palette used elsewhere in the app -------------- */
+.say-hi-btn {
+  background: #6f93a8; /* sage blue */
+  color: var(--color-white);
+  border-radius: var(--radius-pill);
+  padding: 0.4rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.say-hi-btn:hover {
+  background: #5c7d92; /* slightly deeper on hover for feedback */
+  transform: translateY(-1px);
+}
+
+.say-hi-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+.brand-highlight {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--color-blue-500);
+    font-size: 0.62em;
+    vertical-align: middle;
+    margin-left: 0.15rem;
+}

@@ -5,9 +5,9 @@ connect_requests, the latter only creatable/updatable/deletable in relation
 to an existing trip_post) plus an AI-mode match-suggest step, so it doesn't
 fit scripts/smoke_test.py's single generic CRUD-on-one-resource assumption.
 This mirrors the override pattern already used by students 2, 4, and 5.
- 
+
 Runnable locally:
- 
+
     python3 student-3/tests/smoke_test.py
 """
  
