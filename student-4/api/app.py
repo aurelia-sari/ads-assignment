@@ -151,13 +151,71 @@ def currency_subsection(info):
         f"{escape(info['exchange_tips'])}</p>"
     )
 
-def destination_detail(destination, currency):
+TRANSPORT_TYPE_LABELS = {
+    "flights": "Flights",
+    "metro": "Metro",
+    "train": "Train",
+    "taxi": "Taxi",
+    "rental": "Rental",
+}
+
+# Flights are the only transport mode this app can actually book (through
+# student-5, Bookings & Budget). Metro, train, taxi and rental stay
+# descriptive only.
+FLIGHT_BOOKING_URL = "/student-5/#search"
+
+def transportation_section(destination_id, items, active_type):
+    if not items:
+        return (
+            "<div id='transportation-section'>"
+            "<h4 style='margin:0.75rem 0 0.15rem 0'>Transportation</h4>"
+            "<p class='muted'>No transportation information yet.</p>"
+            "</div>"
+        )
+
+    active = active_type if any(item["type"] == active_type for item in items) else items[0]["type"]
+    active_item = next(item for item in items if item["type"] == active)
+
+    tabs = "".join(
+        (
+            f"<button type='button' hx-get='/api/student-4/guides/{destination_id}/transportation?type={item['type']}' "
+            "hx-target='#transportation-section' hx-swap='outerHTML' "
+            "style='padding:0.35rem 0.75rem; margin:0 0.35rem 0.35rem 0; border-radius:999px; "
+            "border:1px solid var(--color-slate-200); "
+            f"{'background:var(--color-navy-800); color:var(--color-white)' if item['type'] == active else 'background:transparent; color:var(--color-slate-500)'}'>"
+            f"{escape(TRANSPORT_TYPE_LABELS.get(item['type'], item['type'].title()))}</button>"
+        )
+        for item in items
+    )
+
+    book_button = ""
+    if active == "flights":
+        book_button = (
+            f"<a class='btn-sm' href='{FLIGHT_BOOKING_URL}' "
+            "style='display:inline-block; margin-top:0.6rem'>Book flights</a>"
+        )
+
+    return (
+        "<div id='transportation-section'>"
+        "<h4 style='margin:0.75rem 0 0.35rem 0'>Transportation</h4>"
+        f"<div>{tabs}</div>"
+        f"<p style='margin:0.35rem 0 0'>{escape(active_item['description'])} {escape(active_item['tips'])}</p>"
+        f"{book_button}"
+        "</div>"
+    )
+
+def destination_detail(destination, currency, transportation):
     back_link = (
         "<a href='#' hx-get='/api/student-4/guides' hx-target='#guides-results' hx-swap='innerHTML' "
         "style='display:inline-block; margin-bottom:0.75rem; font-weight:600'>&lt;- View all</a>"
     )
     heading = f"<h3 style='margin:0'>{escape(destination['city'])}, {escape(destination['country'])}</h3>"
-    return back_link + heading + currency_subsection(currency)
+    return (
+        back_link
+        + heading
+        + currency_subsection(currency)
+        + transportation_section(destination["id"], transportation, None)
+    )
 
 @app.get("/health")
 def health():
@@ -192,7 +250,24 @@ def guide_detail(destination_id):
 
     currency = currency_response.json() if currency_response.status_code == 200 else None
 
-    return destination_detail(destination_response.json(), currency), 200
+    try:
+        transport_response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/transportation", timeout=5)
+        transportation = transport_response.json() if transport_response.status_code == 200 else []
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    return destination_detail(destination_response.json(), currency, transportation), 200
+
+@app.get("/guides/<int:destination_id>/transportation")
+def guide_transportation(destination_id):
+    requested_type = request.args.get("type")
+    try:
+        response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/transportation", timeout=5)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    return transportation_section(destination_id, response.json(), requested_type), 200
 
 @app.get("/guides/<int:destination_id>/currency")
 def guide_currency(destination_id):

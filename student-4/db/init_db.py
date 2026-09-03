@@ -38,6 +38,17 @@ CREATE TABLE IF NOT EXISTS currency_infos (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS transportation_infos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    tips TEXT NOT NULL
+)
+""")
+
+cursor.execute("DELETE FROM transportation_infos")
 cursor.execute("DELETE FROM currency_infos")
 cursor.execute("DELETE FROM destinations")
 
@@ -82,9 +93,83 @@ cursor.executemany(
     currency_infos,
 )
 
+# Which transport modes each city actually has, so the frontend never has to
+# a mode and a booking button a city does not offer.
+TRANSPORT_TYPES_BY_CITY = {
+    "Sydney": ["flights", "metro", "train", "taxi", "rental"],
+    "Melbourne": ["flights", "metro", "train", "taxi", "rental"],
+    "Brisbane": ["flights", "metro", "train", "taxi", "rental"],
+    "Perth": ["flights", "metro", "train", "taxi", "rental"],
+    "Adelaide": ["flights", "metro", "train", "taxi", "rental"],
+    "Gold Coast": ["flights", "metro", "taxi", "rental"],
+    "Canberra": ["flights", "metro", "taxi", "rental"],
+    "Cairns": ["flights", "taxi", "rental"],
+    "Hobart": ["flights", "taxi", "rental"],
+    "Darwin": ["flights", "taxi", "rental"],
+    "Sunshine Coast": ["flights", "taxi", "rental"],
+    "Launceston": ["flights", "taxi", "rental"],
+    "Alice Springs": ["flights", "taxi", "rental"],
+}
+
+# Gold Coast and Canberra have light rail rather than a full metro network.
+LIGHT_RAIL_CITIES = {"Gold Coast", "Canberra"}
+
+def flights_copy(city):
+    return (
+        f"{city} is served by regular domestic flights connecting it to the major Australian airports.",
+        "Book early for the best fares and arrive at least 60 minutes before a domestic flight.",
+    )
+
+def metro_copy(city, light_rail):
+    network = "light rail line" if light_rail else "metro and suburban train network"
+    return (
+        f"{city} has a {network} connecting the city centre with the surrounding suburbs.",
+        "Buy a reloadable transit card at the airport or a station for the cheapest fares.",
+    )
+
+def train_copy(city):
+    return (
+        f"Regional and interstate trains connect {city} with nearby cities and towns.",
+        "Reserve seats ahead for long distance trips, especially on weekends and public holidays.",
+    )
+
+def taxi_copy(city):
+    return (
+        f"Taxis and rideshare services operate throughout {city} and are easy to find near the "
+        "airport and the city centre.",
+        "Rideshare apps often work out cheaper than a metered taxi for short trips.",
+    )
+
+def rental_copy(city):
+    return (
+        f"Rental cars are available at {city} airport and in the city centre for exploring at your own pace.",
+        "An international licence and a credit card are required for most rental car bookings.",
+    )
+
+transportation_infos = []
+for (country, city, region), destination_id in zip(destinations, destination_ids):
+    for transport_type in TRANSPORT_TYPES_BY_CITY[city]:
+        if transport_type == "flights":
+            description, tips = flights_copy(city)
+        elif transport_type == "metro":
+            description, tips = metro_copy(city, light_rail=city in LIGHT_RAIL_CITIES)
+        elif transport_type == "train":
+            description, tips = train_copy(city)
+        elif transport_type == "taxi":
+            description, tips = taxi_copy(city)
+        else:
+            description, tips = rental_copy(city)
+        transportation_infos.append((destination_id, transport_type, description, tips))
+
+cursor.executemany(
+    "INSERT INTO transportation_infos (destination_id, type, description, tips) VALUES (?, ?, ?, ?)",
+    transportation_infos,
+)
+
 conn.commit()
 conn.close()
 
 print("student-4-db initialised.")
 print(f"Tables: destinations ({len(destinations)} seed records), "
-      f"currency_infos ({len(currency_infos)} seed records).")
+      f"currency_infos ({len(currency_infos)} seed records), "
+      f"transportation_infos ({len(transportation_infos)} seed records).")

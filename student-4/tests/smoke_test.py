@@ -182,8 +182,48 @@ def run_checks():
     expect("View all" in response.text, "the detail view has a back-to-list link")
     expect("Currency" in response.text, "the detail view has a Currency subheading")
     expect("AUD" in response.text, "the detail view names the Australian Dollar code")
-    expect(";" not in response.text, "guide text does not use semicolons")
+    expect(
+        "Cards are accepted almost everywhere. Carry" in response.text,
+        "currency copy uses a period, not a semicolon, between sentences",
+    )
     expect("—" not in response.text, "guide text does not use an em dash")
+    expect("Transportation" in response.text, "the detail view has a Transportation subheading")
+    expect("Flights" in response.text, "the detail view lists a Flights transport tab")
+    expect(
+        "Book flights" in response.text,
+        "the default (flights) transport tab shows a booking button",
+    )
+    expect(
+        "/student-5/#search" in response.text,
+        "the flights booking button links to student-5's search",
+    )
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/transportation", params={"type": "metro"}
+    )
+    expect(status == 200, "GET /guides/<id>/transportation?type=metro returns 200")
+    expect("Metro" in response.text, "the metro tab is shown")
+    expect(
+        "Book flights" not in response.text,
+        "the metro tab does not show a flights booking button",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Alice Springs"})
+    expect(status == 200, "GET /guides?query=Alice Springs returns 200")
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Alice Springs row links to its guide detail endpoint")
+    alice_springs_id = match.group(1)
+
+    status, response = _call("GET", f"{API_BASE}/guides/{alice_springs_id}")
+    expect(status == 200, f"GET /guides/{alice_springs_id} returns 200")
+    expect(
+        "Metro" not in response.text,
+        "Alice Springs has no metro, so no Metro tab is shown",
+    )
+    expect(
+        "Train" not in response.text,
+        "Alice Springs has no train service, so no Train tab is shown",
+    )
 
     status, response = _call("GET", f"{API_BASE}/guides/999999999")
     expect(status == 404, "GET /guides/<unknown id> returns 404")

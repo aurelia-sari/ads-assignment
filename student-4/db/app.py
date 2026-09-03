@@ -82,5 +82,17 @@ def get_currency(destination_id):
 
     return jsonify(dict(row))
 
+@app.get("/destinations/<int:destination_id>/transportation")
+def get_transportation(destination_id):
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT type, description, tips FROM transportation_infos "
+        "WHERE destination_id = ? ORDER BY id",
+        (destination_id,),
+    ).fetchall()
+    conn.close()
+
+    return jsonify([dict(row) for row in rows])
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5204)
