@@ -9,7 +9,7 @@
     <script src="session.js"></script>
 </head>
 <body>
-<main class="app-shell">
+<main class="app-shell" id="app-shell" style="display:none">
     <header class="app-header card" style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
         <div>
             <h1>Account & Dashboard</h1>
@@ -26,7 +26,7 @@
     <section class="tab-panel is-active card" id="panel-accounts">
         <div id="accounts-panel"
              hx-get="/api/student-4/users"
-             hx-trigger="load"
+             hx-trigger="authenticated from:body"
              hx-swap="innerHTML"></div>
 
         <p class="muted" style="margin-top:1rem">
@@ -75,7 +75,16 @@ function activate(name) {
 
 buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
 
-NextStopSession.initSignOutButtons("signin.html");
+(async function () {
+    const user = await NextStopSession.verifySession();
+    if (!user) {
+        window.location.replace("signin.html");
+        return;
+    }
+    document.getElementById("app-shell").style.display = "";
+    NextStopSession.initSignOutButtons("signin.html");
+    document.body.dispatchEvent(new Event("authenticated"));
+})();
 </script>
 </body>
 </html>

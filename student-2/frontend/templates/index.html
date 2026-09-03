@@ -21,6 +21,7 @@
     <!-- HTMX -->
     <script src="/shared/js/htmx.min.js" defer></script>
     <script src="/student-4/session.js"></script>
+    <script src="/shared/js/auth-guard.js"></script>
 
     <style>
 
@@ -256,8 +257,12 @@
 
 <body>
 
-<main class="app-shell">
-
+<main class="app-shell" style="display:none">
+    <script>
+    (function () {
+        NextStopAuthGuard.guardPage({ mainSelector: "main.app-shell" });
+    })();
+    </script>
 
     <!-- =========================================================
          HEADER
