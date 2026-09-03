@@ -2,6 +2,9 @@ graph LR
     subgraph FE["student-4-frontend (nginx :8084)"]
         SIGNUP["signup.html<br/>name / email / password / T&amp;C"]
         VERIFY["verify-pending.html<br/>resend countdown"]
+        FORGOT["forgot-password.html<br/>request page"]
+        FPEND["forgot-password-pending.html<br/>resend countdown"]
+        RESET["reset-password.html<br/>new password / confirm"]
         IDX["index.html<br/>Guides tab / AI Assistant tab"]
     end
 
@@ -9,10 +12,14 @@ graph LR
         REG["POST /auth/register"]
         RESEND["POST /auth/resend"]
         VER["GET /auth/verify/&lt;token&gt;<br/>renders confirm/expired/invalid page"]
+        FORGOTAPI["POST /auth/forgot-password<br/>and /auth/forgot-password/resend"]
+        RESETVAL["GET /auth/reset-password/validate/&lt;token&gt;"]
+        RESETAPI["POST /auth/reset-password"]
         GUIDES["GET /guides?query=<br/>list/search fragment"]
         DETAIL["GET /guides/&lt;id&gt;<br/>detail fragment: Currency,<br/>Transportation, Visa, Weather, Safety"]
         SUBS["GET /guides/&lt;id&gt;/currency<br/>/transportation?type=<br/>/visa?nationality=<br/>/weather?month=<br/>/safety"]
         MAIL["send_verification_email()<br/>smtplib"]
+        RESETMAIL["send_reset_email()<br/>smtplib"]
         AICHAT["POST /ai/guide-chat<br/>agentic_loop: Plan, Act, Observe, Adapt"]
         AISESS["GET /ai/guide-chat/session/&lt;id&gt;<br/>DELETE same path<br/>GET /users/&lt;id&gt;/guide-chat-sessions"]
     end
@@ -46,6 +53,10 @@ graph LR
 
     SIGNUP -->|"fetch POST, JSON"| REG
     VERIFY -->|"fetch POST, JSON"| RESEND
+    FORGOT -->|"fetch POST, JSON"| FORGOTAPI
+    FPEND -->|"fetch POST, JSON"| FORGOTAPI
+    RESET -->|"fetch GET, JSON"| RESETVAL
+    RESET -->|"fetch POST, JSON"| RESETAPI
     IDX -->|"hx-get, form submit"| GUIDES
     IDX -->|"hx-get on row/tab click"| DETAIL
     DETAIL -->|"hx-get on tab click"| SUBS
@@ -56,6 +67,9 @@ graph LR
     REG -->|"HTTP JSON: create user,<br/>token + 5 min expiry"| SHARED
     RESEND -->|"HTTP JSON: rate-limit check<br/>(60s / 5 attempts / 10 min block)"| SHARED
     VER -->|"HTTP JSON: verify token"| SHARED
+    FORGOTAPI -->|"HTTP JSON: rate-limit check<br/>(60s / 5 attempts / 10 min block),<br/>generic response either way"| SHARED
+    RESETVAL -->|"HTTP JSON: check token, no side effect"| SHARED
+    RESETAPI -->|"HTTP JSON: consume token,<br/>update password_hash"| SHARED
     GUIDES -->|"HTTP JSON: search"| DB4
     DETAIL -->|"HTTP JSON: read"| DB4
     SUBS -->|"HTTP JSON: read"| DB4
@@ -71,7 +85,9 @@ graph LR
 
     REG --> MAIL
     RESEND --> MAIL
+    FORGOTAPI --> RESETMAIL
     MAIL -->|"SMTP"| MP
+    RESETMAIL -->|"SMTP"| MP
 
     SHARED --- USR
     SHARED --- LOG

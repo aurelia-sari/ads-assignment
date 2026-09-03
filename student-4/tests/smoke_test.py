@@ -1,11 +1,11 @@
 """
 Deterministic smoke test for student-4 (Account & Dashboard).
 
-Exercises the real sign-up, email verification and sign-in flow end to end
-through student-4-api, shared-api/shared-db (which own `users`/`access_logs`,
-see docs/technical-report.md 2.7 for why) and Mailpit (the local dev SMTP
-catcher), plus the Travel Guides destination search backed by student-4-db
-and the AI Assistant tab:
+Exercises the real sign-up, email verification, forgot/reset password and
+sign-in flow end to end through student-4-api, shared-api/shared-db (which
+own `users`/`access_logs`, see docs/technical-report.md 2.7 for why) and
+Mailpit (the local dev SMTP catcher), plus the Travel Guides destination
+search backed by student-4-db and the AI Assistant tab:
 
     docker compose up -d student-4-db student-4-api shared-api shared-db mailpit ai-mode
     python3 student-4/tests/smoke_test.py
@@ -16,8 +16,9 @@ account-delete endpoint to clean up after itself with.
 
 Checks that the landing page and the shared home page load the sign in
 guard (student-4/frontend/templates/index.html and shared/js/auth-guard.js),
-that the sign-up, sign-in and verify-pending pages stay reachable without
-a session, and that logout.html is actually served once user click sign out button.
+that the sign-up, sign-in, verify-pending, forgot-password,
+forgot-password-pending and reset-password pages stay reachable without a
+session, and that logout.html is actually served once user click sign out button.
 
 The AI Assistant checks split into two groups. The intent classification and
 redirect checks never call the model, so they always run. The checks that
@@ -117,6 +118,52 @@ def find_verification_link(email, attempts=10, delay=1.0):
     return None
 
 
+def request_reset(email):
+    return _call("POST", f"{API_BASE}/auth/forgot-password", json={"email": email})
+
+
+def resend_reset(email):
+    return _call("POST", f"{API_BASE}/auth/forgot-password/resend", json={"email": email})
+
+
+def validate_reset_token(token):
+    return _call("GET", f"{API_BASE}/auth/reset-password/validate/{token}")
+
+
+def confirm_reset(token, password, confirm_password=None):
+    return _call(
+        "POST",
+        f"{API_BASE}/auth/reset-password",
+        json={
+            "token": token,
+            "password": password,
+            "confirm_password": password if confirm_password is None else confirm_password,
+        },
+    )
+
+
+def find_reset_token(email, attempts=10, delay=1.0):
+    """Poll Mailpit for the reset email and pull the token out of its link,
+    the same way find_verification_link polls for the verification email."""
+    for _ in range(attempts):
+        status, response = _call("GET", f"{MAILPIT_BASE}/api/v1/messages")
+        if status == 200:
+            for message in response.json().get("messages", []):
+                if message["To"][0]["Address"] == email:
+                    status, detail = _call(
+                        "GET", f"{MAILPIT_BASE}/api/v1/message/{message['ID']}"
+                    )
+                    if status == 200:
+                        match = re.search(
+                            r"reset-password\.html\?token=([A-Za-z0-9_-]+)",
+                            detail.json()["Text"],
+                        )
+                        if match:
+                            return match.group(1)
+        time.sleep(delay)
+    return None
+
+
 def _get_page(url):
     try:
         return requests.get(url, timeout=5)
@@ -134,6 +181,72 @@ def ai_mode_reachable():
         return response.status_code == 200 and response.json().get("reachable") is True
     except requests.RequestException:
         return False
+
+
+def run_forgot_password_checks(email):
+    """Checks the forgot / reset password flow, mirroring the shape of the
+    email verification checks above: a generic response whether or not the
+    email is registered, a rate-limited resend, a single-use token, and a
+    server-validated new password.
+    """
+    status, response = request_reset("not-an-email")
+    expect(status == 400, "POST /auth/forgot-password with an invalid email returns 400")
+
+    unknown_email = unique_email("smoke-reset-unknown")
+    status, unknown_response = request_reset(unknown_email)
+    expect(status == 200, "POST /auth/forgot-password for an unregistered email returns 200")
+
+    status, known_response = request_reset(email)
+    expect(status == 200, "POST /auth/forgot-password for a registered email returns 200")
+    expect(
+        known_response.json() == unknown_response.json(),
+        "the response is identical whether or not the email is registered",
+    )
+
+    token = find_reset_token(email)
+    expect(token is not None, "reset email arrives in Mailpit with a link")
+
+    status, response = validate_reset_token(token)
+    expect(status == 200, "GET /auth/reset-password/validate/<token> returns 200 for a fresh token")
+    expect(response.json().get("email") == email, "the validate response names the right account")
+
+    status, response = validate_reset_token("not-a-real-token")
+    expect(status == 404, "GET /auth/reset-password/validate/<token> returns 404 for an unknown token")
+
+    status, response = confirm_reset(token, "N3wStr0ng!Pass", confirm_password="Different1!")
+    expect(status == 400, "POST /auth/reset-password with mismatched passwords returns 400")
+
+    status, response = confirm_reset(token, "weak")
+    expect(status == 400, "POST /auth/reset-password with a weak password returns 400")
+
+    status, response = confirm_reset(token, "N3wStr0ng!Pass")
+    expect(status == 200, "POST /auth/reset-password with a valid token and password returns 200")
+    expect(response.json().get("reset") is True, "reset response confirms the reset")
+
+    status, response = confirm_reset(token, "AnotherPass1!")
+    expect(status == 404, "reusing the same (now-spent) reset token returns 404")
+
+    status, response = login(email, PASSWORD)
+    expect(status == 401, "signing in with the old password after a reset returns 401")
+
+    status, response = login(email, "N3wStr0ng!Pass")
+    expect(status == 200, "signing in with the new password after a reset returns 200")
+    logout(response.json()["id"])
+
+    # Resend rate limit, on a second account
+    resend_email = unique_email("smoke-reset-resend")
+    status, _ = register(resend_email)
+    expect(status == 201, "second account for reset resend testing registers successfully")
+
+    status, _ = request_reset(resend_email)
+    expect(status == 200, "first reset request for the resend account returns 200")
+
+    status, response = resend_reset(resend_email)
+    expect(status == 429, "resending within 60s of the first request returns 429")
+    expect(
+        response.json().get("retry_after_seconds", 0) > 0,
+        "429 response names how long to wait",
+    )
 
 
 def ai_guide_chat(question, user_id=None, session_id=None, timeout=180):
@@ -284,7 +397,14 @@ def run_frontend_guard_checks():
         "landing page calls verifySession before showing its content",
     )
 
-    for page in ("signin.html", "signup.html", "verify-pending.html"):
+    for page in (
+        "signin.html",
+        "signup.html",
+        "verify-pending.html",
+        "forgot-password.html",
+        "forgot-password-pending.html",
+        "reset-password.html",
+    ):
         response = _get_page(f"{FRONTEND_BASE}/{page}")
         expect(response.status_code == 200, f"{page} is served without a session")
 
@@ -630,6 +750,10 @@ def run_checks():
         response.json().get("is_valid") is False,
         "an unknown user id is reported as not signed in, not an error",
     )
+
+    # Forgot / reset password, reusing the already-verified `email` account
+    # since its password is not needed again after this point.
+    run_forgot_password_checks(email)
 
     # AI Assistant, best effort on the model-grounded checks since ai-mode
     # is optional for this script, see the module docstring.
