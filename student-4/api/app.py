@@ -248,7 +248,47 @@ def visa_section(destination_id, items, active_nationality):
         "</div>"
     )
 
-def destination_detail(destination, currency, transportation, visa):
+def default_weather_month(items):
+    current_month = datetime.now().strftime("%B")
+    if any(item["month"] == current_month for item in items):
+        return current_month
+    return items[0]["month"]
+
+def weather_section(destination_id, items, active_month):
+    if not items:
+        return (
+            "<div id='weather-section'>"
+            "<h4 style='margin:0.75rem 0 0.15rem 0'>Weather</h4>"
+            "<p class='muted'>No weather information yet.</p>"
+            "</div>"
+        )
+
+    active = active_month if any(item["month"] == active_month for item in items) else default_weather_month(items)
+    active_item = next(item for item in items if item["month"] == active)
+
+    tabs = "".join(
+        (
+            f"<button type='button' hx-get='/api/student-4/guides/{destination_id}/weather?month={quote(item['month'])}' "
+            "hx-target='#weather-section' hx-swap='outerHTML' "
+            "style='padding:0.3rem 0.55rem; margin:0 0.3rem 0.3rem 0; border-radius:999px; "
+            "border:1px solid var(--color-slate-200); "
+            f"{'background:var(--color-navy-800); color:var(--color-white)' if item['month'] == active else 'background:transparent; color:var(--color-slate-500)'}'>"
+            f"{escape(item['month'][:3])}</button>"
+        )
+        for item in items
+    )
+
+    return (
+        "<div id='weather-section'>"
+        "<h4 style='margin:0.75rem 0 0.35rem 0'>Weather</h4>"
+        f"<div>{tabs}</div>"
+        f"<p style='margin:0.35rem 0 0'>Average temperature in {escape(active_item['month'])} is about "
+        f"{active_item['avg_temp']:g}°C, with around {active_item['rainfall']:g}mm of rainfall.</p>"
+        f"<p class='muted' style='margin:0.35rem 0 0'>{escape(active_item['best_visit_time'])}</p>"
+        "</div>"
+    )
+
+def destination_detail(destination, currency, transportation, visa, weather):
     back_link = (
         "<a href='#' hx-get='/api/student-4/guides' hx-target='#guides-results' hx-swap='innerHTML' "
         "style='display:inline-block; margin-bottom:0.75rem; font-weight:600'>&lt;- View all</a>"
@@ -260,6 +300,7 @@ def destination_detail(destination, currency, transportation, visa):
         + currency_subsection(currency)
         + transportation_section(destination["id"], transportation, None)
         + visa_section(destination["id"], visa, None)
+        + weather_section(destination["id"], weather, None)
     )
 
 @app.get("/health")
@@ -307,7 +348,13 @@ def guide_detail(destination_id):
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
 
-    return destination_detail(destination_response.json(), currency, transportation, visa), 200
+    try:
+        weather_response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/weather", timeout=5)
+        weather = weather_response.json() if weather_response.status_code == 200 else []
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    return destination_detail(destination_response.json(), currency, transportation, visa, weather), 200
 
 @app.get("/guides/<int:destination_id>/transportation")
 def guide_transportation(destination_id):
@@ -330,6 +377,17 @@ def guide_visa(destination_id):
         return error_fragment(DB_DOWN, exc), 503
 
     return visa_section(destination_id, response.json(), requested_nationality), 200
+
+@app.get("/guides/<int:destination_id>/weather")
+def guide_weather(destination_id):
+    requested_month = request.args.get("month")
+    try:
+        response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/weather", timeout=5)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    return weather_section(destination_id, response.json(), requested_month), 200
 
 @app.get("/guides/<int:destination_id>/currency")
 def guide_currency(destination_id):

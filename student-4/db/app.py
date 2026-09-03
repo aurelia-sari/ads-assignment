@@ -106,5 +106,17 @@ def get_visa(destination_id):
 
     return jsonify([dict(row) for row in rows])
 
+@app.get("/destinations/<int:destination_id>/weather")
+def get_weather(destination_id):
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT month, avg_temp, rainfall, best_visit_time FROM weather_infos "
+        "WHERE destination_id = ? ORDER BY id",
+        (destination_id,),
+    ).fetchall()
+    conn.close()
+
+    return jsonify([dict(row) for row in rows])
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5204)

@@ -235,6 +235,41 @@ def run_checks():
         "an unseeded nationality falls back to the placeholder, not an error",
     )
 
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}")
+    expect("Weather" in response.text, "the detail view has a Weather subheading")
+    expect("Jan" in response.text, "the detail view lists a January weather tab")
+    expect("°C" in response.text, "the default weather tab shows a temperature")
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/weather", params={"month": "July"}
+    )
+    expect(status == 200, "GET /guides/<id>/weather?month=July returns 200")
+    expect("July" in response.text, "the July tab is shown")
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/weather", params={"month": "Notamonth"}
+    )
+    expect(status == 200, "GET /guides/<id>/weather?month=<invalid> returns 200")
+    expect(
+        "Notamonth" not in response.text,
+        "an invalid month falls back to a real month, not an error",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Cairns"})
+    expect(status == 200, "GET /guides?query=Cairns returns 200")
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Cairns row links to its guide detail endpoint")
+    cairns_id = match.group(1)
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{cairns_id}/weather", params={"month": "January"}
+    )
+    expect(status == 200, f"GET /guides/{cairns_id}/weather?month=January returns 200")
+    expect(
+        "dry season" in response.text,
+        "Cairns's best time to visit note names the dry season",
+    )
+
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Alice Springs"})
     expect(status == 200, "GET /guides?query=Alice Springs returns 200")
     match = re.search(r"/guides/(\d+)", response.text)

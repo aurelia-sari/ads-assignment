@@ -58,6 +58,18 @@ CREATE TABLE IF NOT EXISTS visa_requirements (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS weather_infos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    month TEXT NOT NULL,
+    avg_temp REAL NOT NULL,
+    rainfall REAL NOT NULL,
+    best_visit_time TEXT NOT NULL
+)
+""")
+
+cursor.execute("DELETE FROM weather_infos")
 cursor.execute("DELETE FROM visa_requirements")
 cursor.execute("DELETE FROM transportation_infos")
 cursor.execute("DELETE FROM currency_infos")
@@ -242,6 +254,86 @@ cursor.executemany(
     visa_requirements,
 )
 
+MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+
+# Average temperature (Celsius) and rainfall (mm) per month, Southern
+# Hemisphere seasons, grouped by climate rather than repeated per city.
+WEATHER_PROFILES = {
+    "mild_temperate": (
+        [
+            (26, 100), (26, 110), (25, 130), (22, 120), (19, 130), (17, 130),
+            (16, 100), (17, 80), (19, 70), (21, 80), (23, 90), (25, 80),
+        ],
+        "September to November and March to May bring warm days without summer humidity.",
+    ),
+    "cool_temperate": (
+        [
+            (17, 45), (17, 40), (16, 50), (14, 55), (11, 55), (9, 55),
+            (8, 55), (9, 50), (11, 55), (13, 60), (14, 55), (16, 50),
+        ],
+        "December to February has the warmest and driest weather for outdoor activities.",
+    ),
+    "subtropical": (
+        [
+            (29, 140), (29, 150), (27, 120), (25, 80), (22, 70), (20, 60),
+            (19, 50), (20, 40), (23, 40), (25, 70), (27, 90), (28, 110),
+        ],
+        "April to October has warm days, lower humidity and less rain than summer.",
+    ),
+    "mediterranean": (
+        [
+            (30, 10), (30, 15), (28, 20), (24, 40), (21, 80), (18, 120),
+            (17, 120), (18, 90), (19, 60), (22, 40), (25, 20), (28, 15),
+        ],
+        "September to November and March to May bring warm days with little rain.",
+    ),
+    "tropical_wet_dry": (
+        [
+            (31, 400), (31, 380), (30, 320), (29, 150), (28, 60), (26, 30),
+            (26, 20), (27, 20), (28, 30), (30, 50), (31, 120), (31, 250),
+        ],
+        "May to October, the dry season, has sunny days and much less rain than summer.",
+    ),
+    "arid": (
+        [
+            (36, 40), (35, 45), (32, 30), (27, 15), (22, 15), (19, 15),
+            (19, 10), (22, 10), (27, 10), (31, 20), (33, 30), (35, 40),
+        ],
+        "May to September has mild days and cold nights, avoiding the extreme summer heat.",
+    ),
+}
+
+WEATHER_PROFILE_BY_CITY = {
+    "Sydney": "mild_temperate",
+    "Melbourne": "mild_temperate",
+    "Adelaide": "mild_temperate",
+    "Canberra": "cool_temperate",
+    "Hobart": "cool_temperate",
+    "Launceston": "cool_temperate",
+    "Brisbane": "subtropical",
+    "Gold Coast": "subtropical",
+    "Sunshine Coast": "subtropical",
+    "Perth": "mediterranean",
+    "Cairns": "tropical_wet_dry",
+    "Darwin": "tropical_wet_dry",
+    "Alice Springs": "arid",
+}
+
+weather_infos = []
+for (country, city, region), destination_id in zip(destinations, destination_ids):
+    monthly_figures, best_visit_time = WEATHER_PROFILES[WEATHER_PROFILE_BY_CITY[city]]
+    for month, (avg_temp, rainfall) in zip(MONTHS, monthly_figures):
+        weather_infos.append((destination_id, month, avg_temp, rainfall, best_visit_time))
+
+cursor.executemany(
+    "INSERT INTO weather_infos (destination_id, month, avg_temp, rainfall, best_visit_time) "
+    "VALUES (?, ?, ?, ?, ?)",
+    weather_infos,
+)
+
 conn.commit()
 conn.close()
 
@@ -249,4 +341,5 @@ print("student-4-db initialised.")
 print(f"Tables: destinations ({len(destinations)} seed records), "
       f"currency_infos ({len(currency_infos)} seed records), "
       f"transportation_infos ({len(transportation_infos)} seed records), "
-      f"visa_requirements ({len(visa_requirements)} seed records).")
+      f"visa_requirements ({len(visa_requirements)} seed records), "
+      f"weather_infos ({len(weather_infos)} seed records).")
