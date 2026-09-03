@@ -23,26 +23,29 @@
         <button class="tab-btn" data-tab="ai" type="button">AI Assistant</button>
     </nav>
 
-    <section class="tab-panel is-active card" id="panel-guides">
-        <form hx-get="/api/student-4/guides"
-              hx-target="#guides-results"
-              hx-swap="innerHTML"
-              hx-trigger="submit">
-            <div class="form-grid">
-                <div style="grid-column:1/-1">
-                    <label for="guides-query">City or country</label>
-                    <input id="guides-query" name="query" placeholder="Search for a city or country" autocomplete="off">
+    <section class="tab-panel is-active" id="panel-guides">
+        <div class="card">
+            <form hx-get="/api/student-4/guides"
+                  hx-target="#guides-results"
+                  hx-swap="innerHTML"
+                  hx-trigger="submit">
+                <div class="form-grid">
+                    <div style="grid-column:1/-1">
+                        <label for="guides-query">City or country</label>
+                        <input id="guides-query" name="query" placeholder="Search for a city or country" autocomplete="off">
+                    </div>
                 </div>
-            </div>
-            <button type="submit">Search</button>
-            <span class="spinner">searching...</span>
-        </form>
+                <button type="submit">Search</button>
+                <span class="spinner">searching...</span>
+            </form>
+        </div>
 
-        <div id="guides-results"
-             hx-get="/api/student-4/guides"
-             hx-trigger="authenticated from:body"
-             hx-swap="innerHTML"
-             style="margin-top:1rem"></div>
+        <div class="card">
+            <div id="guides-results"
+                 hx-get="/api/student-4/guides"
+                 hx-trigger="authenticated from:body"
+                 hx-swap="innerHTML"></div>
+        </div>
     </section>
 
     <section class="tab-panel card" id="panel-ai">
