@@ -250,6 +250,11 @@ def main():
             check_student_5()
             print(f"\nstudent-{n} passed all checks.")
             return 0
+        
+        if n == 3:
+            check_student_3()
+            print(f"\nstudent-{n} passed all checks.")
+            return 0
 
         for resource in RESOURCES.get(n, [DEFAULT_RESOURCE]):
             check_resource(db_base, *resource)
@@ -273,6 +278,26 @@ def main():
     print(f"\nstudent-{n} passed all checks.")
     return 0
 
+def check_student_3():
+    """Run the feature-specific smoke test for student-3.
 
+    Travel Mate has two resources (trip_posts, connect_requests) plus an
+    AI-mode match-suggest step, which doesn't fit the single generic
+    CRUD-on-one-resource shape DEFAULT_RESOURCE assumes.
+    """
+    test_file = (
+        Path(__file__).resolve().parent.parent
+        / "student-3"
+        / "tests"
+        / "smoke_test.py"
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(test_file)]
+    )
+
+    if result.returncode != 0:
+        raise SmokeFailure("student-3 feature smoke test failed")
+    
 if __name__ == "__main__":
     sys.exit(main())
