@@ -14,8 +14,14 @@
 <link rel="stylesheet" href="/shared/css/theme.css">
 <script src="/shared/js/htmx.min.js" defer></script>
 <script src="/student-4/session.js"></script>
+<script src="/shared/js/auth-guard.js"></script>
 </head>
-<body>
+<body style="display:none">
+<script>
+(function () {
+    NextStopAuthGuard.guardPage({ mainSelector: "body" });
+})();
+</script>
 
 <div class="navBox">
 
