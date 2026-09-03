@@ -12,15 +12,9 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-# FIX: "/app/data" was a hardcoded absolute path only valid inside the
-# Docker container (WORKDIR /app). Running this with `python3 app.py`
-# locally tried to create a folder at the filesystem root and crashed
-# with a PermissionError. Basing the path on the script's own location
-# instead works in both cases: inside Docker it still resolves to
-# "/app/data" (since the script lives at /app/app.py), and locally it
-# resolves to a "data" folder next to this file.
+# Path is relative to this script's own location so it works both inside
+# Docker (WORKDIR /app -> resolves to /app/data) and when run locally.
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-os.makedirs(DATA_DIR, exist_ok=True)
 DATABASE_NAME = os.path.join(DATA_DIR, "student5.db")
 
 BUDGET_FIELDS = ("total_budget", "flight_budget", "hotel_budget", "currency")
@@ -111,12 +105,7 @@ def create_budget():
 
 @app.put("/budgets/<int:trip_id>")
 def update_budget(trip_id):
-    """Upsert: updates the trip's budget if one exists, otherwise creates it.
-
-    The frontend always PUTs here to save a budget, including for trip IDs
-    that have never had a budget row before, so this needs to create as
-    well as update.
-    """
+    """Upsert: updates the trip's budget if one exists, otherwise creates it."""
     payload = request.get_json(silent=True) or {}
     timestamp = now_iso()
 
@@ -189,8 +178,12 @@ def search_flights():
         params.append(f"%{args['origin']}%")
 
     if args.get("start_date"):
-        clauses.append("departure_date = ?")
+        clauses.append("departure_date >= ?")
         params.append(args["start_date"])
+
+    if args.get("end_date"):
+        clauses.append("departure_date <= ?")
+        params.append(args["end_date"])
 
     if args.get("budget_aud"):
         try:
@@ -225,12 +218,15 @@ def search_hotels():
         clauses.append("LOWER(destination) LIKE LOWER(?)")
         params.append(f"%{args['destination']}%")
 
+    # Overlap, not exact match: a hotel whose availability window overlaps
+    # the requested stay counts as a match (check_out on/after the
+    # requested start, check_in on/before the requested end).
     if args.get("start_date"):
-        clauses.append("check_in = ?")
+        clauses.append("check_out >= ?")
         params.append(args["start_date"])
 
     if args.get("end_date"):
-        clauses.append("check_out = ?")
+        clauses.append("check_in <= ?")
         params.append(args["end_date"])
 
     if args.get("budget_aud"):
