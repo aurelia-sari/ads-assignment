@@ -7,6 +7,15 @@
     <link rel="stylesheet" href="/shared/css/theme.css">
     <script src="/shared/js/htmx.min.js"></script>
     <script src="session.js"></script>
+    <style>
+        a.forgot-password-text {
+            color: var(--color-blue-500);
+            font-weight: 600;
+        }
+        a.forgot-password-text:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body class="signup-body">
 
@@ -36,7 +45,7 @@
                     <button type="button" class="password-toggle" id="password-toggle">Show</button>
                 </div>
                 <p class="field-error" id="password-error">Enter your password.</p>
-                <span class="forgot-password-text">Forgot password?</span>
+                <a href="forgot-password.html" class="forgot-password-text" id="forgot-password-link">Forgot password?</a>
             </div>
 
             <button type="submit" class="btn btn--pill-dark signup-submit" id="submit-btn" disabled>Sign in</button>
@@ -65,6 +74,16 @@
     const passwordError = document.getElementById("password-error");
     const formStatus = document.getElementById("form-status");
     const submitButton = document.getElementById("submit-btn");
+    const forgotPasswordLink = document.getElementById("forgot-password-link");
+
+    forgotPasswordLink.addEventListener("click", () => {
+        const email = emailInput.value.trim();
+        if (email) {
+            sessionStorage.setItem("forgotPasswordEmail", email);
+        } else {
+            sessionStorage.removeItem("forgotPasswordEmail");
+        }
+    });
 
     function showFormStatus(kind, message) {
         formStatus.className = `notice notice-${kind}`;
