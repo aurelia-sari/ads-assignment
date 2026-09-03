@@ -12,3 +12,39 @@ graph LR
         U
         L
     end
+
+    D["DESTINATION<br/><i>a city a guide exists for</i>"]
+    C["CURRENCY INFO<br/><i>what money is used there</i>"]
+    T["TRANSPORTATION INFO<br/><i>how to get around, by mode</i>"]
+    V["VISA REQUIREMENT<br/><i>entry rules, by nationality</i>"]
+    W["WEATHER INFO<br/><i>climate, by month</i>"]
+    S["SAFETY INFO<br/><i>advisory level and local tips</i>"]
+
+    D -->|"priced in<br/>1 : 1"| C
+    D -->|"reachable by<br/>1 : many"| T
+    D -->|"entered under<br/>1 : many"| V
+    D -->|"experiences<br/>1 : many"| W
+    D -->|"rated for<br/>1 : 1"| S
+
+    subgraph Guides["owned by student-4-db, backs the Travel Guides page"]
+        D
+        C
+        T
+        V
+        W
+        S
+    end
+
+    SESS["GUIDE AI CHAT SESSION<br/><i>one chat, tied to a user and a destination</i>"]
+    MSG["GUIDE AI CHAT MESSAGE<br/><i>one turn of that chat</i>"]
+    RMAP["FEATURE REDIRECT MAP<br/><i>a keyword that belongs to another feature</i>"]
+
+    U -->|"opens<br/>1 : many"| SESS
+    D -->|"is asked about in<br/>1 : many"| SESS
+    SESS -->|"contains<br/>1 : many"| MSG
+
+    subgraph AI["owned by student-4-db, backs the AI Assistant tab"]
+        SESS
+        MSG
+        RMAP
+    end

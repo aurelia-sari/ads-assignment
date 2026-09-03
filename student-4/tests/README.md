@@ -25,12 +25,28 @@ docker compose up -d student-4-db student-4-api shared-api shared-db mailpit stu
 
 It exercises the real flow end to end:
 
+- **Travel Guides.** `GET /guides` lists the seeded Australian destinations
+  and supports searching by city or country, with a not-found placeholder
+  for an unmatched search. `GET /guides/<id>` returns the destination's
+  detail view (a back-to-list link, then a Currency, Transportation, Visa,
+  Weather and Safety subsection). `GET /guides/<id>/transportation?type=`,
+  `/visa?nationality=` and `/weather?month=` switch the active tab within
+  each subsection, confirming a city only shows the transport modes it
+  actually has (e.g. Alice Springs has no metro or train tab), that picking
+  a transport mode shows a booking button only for flights (the only mode
+  student-5 can actually book), that no visa nationality is selected by
+  default since it cannot be guessed, and that the weather tab defaults to
+  the current month. `GET /guides/<id>/safety` and the other per-destination
+  endpoints return a graceful not-found message, not an error, for an
+  unknown id.
 - **Seed data.** The `student1`-`student5` and `traveller6`-`traveller10`
   accounts from `shared/db/init_db.py` are present, `student1` can sign in,
   and `traveller6` is still pending verification. Confirms the seed is baked
   into the image rather than only existing on one machine's Docker volume.
 - **Sign-up.** Registration validation (missing T&C, weak password, invalid
-  email), duplicate-email rejection, and the accounts listing.
+  email) and duplicate-email rejection. Account listing is intentionally not
+  exposed through the website, only through the database directly, so there
+  is no accounts fragment to check here.
 - **Email verification.** By polling Mailpit's API for the actual email and
   extracting the link from it, full verification including single-use
   enforcement and the resend rate limit.
@@ -63,7 +79,7 @@ It exercises the real flow end to end:
   sign out.
 
 Each run registers freshly-randomised email addresses, so it is safe to
-re-run without leaving stray state behind; there is deliberately no
+re-run without leaving stray state behind. There is deliberately no
 account-delete endpoint to clean up with instead.
 
 **Not covered by the automated script** (would need a >60s sleep to clear the

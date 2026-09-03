@@ -4,9 +4,10 @@ Deterministic smoke test for student-4 (Account & Dashboard).
 Exercises the real sign-up, email verification and sign-in flow end to end
 through student-4-api, shared-api/shared-db (which own `users`/`access_logs`,
 see docs/technical-report.md 2.7 for why) and Mailpit (the local dev SMTP
-catcher):
+catcher), plus the Travel Guides destination search backed by student-4-db
+and the AI Assistant tab:
 
-    docker compose up -d student-4-db student-4-api shared-api shared-db mailpit
+    docker compose up -d student-4-db student-4-api shared-api shared-db mailpit ai-mode
     python3 student-4/tests/smoke_test.py
 
 Each run registers freshly-randomised emails, so re-running the script never
@@ -17,6 +18,13 @@ Checks that the landing page and the shared home page load the sign in
 guard (student-4/frontend/templates/index.html and shared/js/auth-guard.js),
 that the sign-up, sign-in and verify-pending pages stay reachable without
 a session, and that logout.html is actually served once user click sign out button.
+
+The AI Assistant checks split into two groups. The intent classification and
+redirect checks never call the model, so they always run. The checks that
+need a real answer from the model (grounded weather and transport questions,
+and the session history built from them) are skipped when ai-mode is not
+reachable, the same way run_frontend_guard_checks skips when the frontend
+containers are not running.
 """
 
 import os
@@ -31,6 +39,7 @@ API_BASE = os.getenv("STUDENT4_API_URL", "http://localhost:5104")
 MAILPIT_BASE = os.getenv("STUDENT4_MAILPIT_URL", "http://localhost:8025")
 FRONTEND_BASE = os.getenv("STUDENT4_FRONTEND_URL", "http://localhost:8084")
 SHARED_FRONTEND_BASE = os.getenv("SHARED_FRONTEND_URL", "http://localhost:8080")
+AI_MODE_BASE = os.getenv("AI_MODE_URL", "http://localhost:5300")
 
 PASSWORD = "Str0ng!Pass1"
 SEED_PASSWORD = "Password123!"
@@ -115,6 +124,148 @@ def _get_page(url):
         return None
 
 
+def ai_mode_reachable():
+    """ai-mode's own /health returns 200 as long as its Flask process is up,
+    even when the Ollama it wraps is not reachable. /model actually calls Ollama,
+    so that is the one that tells us whether a real answer is possible.
+    """
+    try:
+        response = requests.get(f"{AI_MODE_BASE}/model", timeout=10)
+        return response.status_code == 200 and response.json().get("reachable") is True
+    except requests.RequestException:
+        return False
+
+
+def ai_guide_chat(question, user_id=None, session_id=None, timeout=180):
+    payload = {"question": question}
+    if user_id is not None:
+        payload["user_id"] = user_id
+    if session_id is not None:
+        payload["session_id"] = session_id
+    return _call("POST", f"{API_BASE}/ai/guide-chat", json=payload, timeout=timeout)
+
+
+def run_ai_assistant_checks():
+    """Checks the Travel Guides AI Assistant, added alongside the guide
+    subsections. Plan and Adapt are pure classification, so the auth gate,
+    the redirects and the no city fallback are checked unconditionally.
+    Only the guide category answers, which need a real model call, are
+    skipped when ai-mode is not running.
+    """
+    status, response = ai_guide_chat("Is Sydney safe?")
+    expect(status == 401, "POST /ai/guide-chat without a user_id returns 401")
+    expect("error" in response.json(), "401 response names an error")
+
+    status, response = login("student1@example.com", SEED_PASSWORD)
+    expect(status == 200, "student1 signs in for the AI Assistant checks")
+    ai_user_id = response.json()["id"]
+
+    status, response = ai_guide_chat("", user_id=ai_user_id)
+    expect(status == 400, "POST /ai/guide-chat with an empty question returns 400")
+
+    status, response = ai_guide_chat("Can I book a hotel here?", user_id=ai_user_id)
+    expect(status == 200, "a redirect question returns 200 without a session or a city")
+    redirect = response.json()
+    expect(
+        redirect.get("intent") == "other:Bookings & Budget",
+        "booking a hotel classifies as another feature, not a guide category",
+    )
+    expect(
+        redirect.get("redirect_path") == "/student-5/#search",
+        "the hotel redirect points at student-5's search",
+    )
+    expect(redirect.get("session_id") is None, "a redirect with no prior session starts none")
+
+    status, response = ai_guide_chat(
+        "Can you recommend some good food in Sydney?", user_id=ai_user_id
+    )
+    expect(status == 200, "a food question returns 200")
+    expect(
+        response.json().get("intent") == "other:Attractions & Dining",
+        "a food question redirects to Attractions & Dining, not student-5",
+    )
+    expect(
+        response.json().get("redirect_path") == "/student-2/",
+        "the food redirect points at student-2",
+    )
+
+    status, response = ai_guide_chat("What is the capital of France?", user_id=ai_user_id)
+    expect(status == 200, "an unrelated question returns 200")
+    expect(
+        response.json().get("intent") == "unrelated",
+        "a question with no guide keyword and no redirect keyword is unrelated",
+    )
+
+    status, response = ai_guide_chat("What's the weather like?", user_id=ai_user_id)
+    expect(status == 200, "a guide category question with no city returns 200")
+    no_city = response.json()
+    expect(no_city.get("intent") == "weather", "the topic is still classified without a city")
+    expect(no_city.get("adapted") is True, "a missing city is an adapted response")
+    expect(no_city.get("session_id") is None, "no session is created when no city is named")
+
+    if not ai_mode_reachable():
+        print("  skip  ai-mode is not running, skipping the model-grounded AI Assistant checks")
+        return
+
+    status, response = ai_guide_chat(
+        "What is the weather like in Cairns in July?", user_id=ai_user_id
+    )
+    expect(status == 200, "a grounded weather question returns 200")
+    weather = response.json()
+    expect(weather.get("intent") == "weather", "the weather question classifies as weather")
+    session_id = weather.get("session_id")
+    expect(session_id is not None, "a resolved city starts a chat session")
+
+    status, response = ai_guide_chat(
+        "Can I get a rental car in Sydney?", user_id=ai_user_id
+    )
+    expect(status == 200, "a rental car question returns 200")
+    rental = response.json()
+    expect(rental.get("intent") == "transport", "asking about a rental car is a transport question")
+    expect(
+        "/student-5" not in rental.get("answer", ""),
+        "a rental car question answers from the guide, it does not redirect to student-5",
+    )
+
+    status, response = ai_guide_chat(
+        "What about the rainfall?", user_id=ai_user_id, session_id=session_id
+    )
+    expect(status == 200, "a follow up question in the same session returns 200")
+    followup = response.json()
+    expect(
+        followup.get("session_id") == session_id,
+        "a follow up with no new city continues the same session",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/ai/guide-chat/session/{session_id}")
+    expect(status == 200, f"GET /ai/guide-chat/session/{session_id} returns 200")
+    session_detail = response.json()
+    expect(session_detail.get("city") == "Cairns", "the session's city is Cairns")
+    expect(
+        len(session_detail.get("messages", [])) >= 4,
+        "the session has both questions and both answers recorded",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/users/{ai_user_id}/guide-chat-sessions")
+    expect(status == 200, f"GET /users/{ai_user_id}/guide-chat-sessions returns 200")
+    expect(
+        any(session["id"] == session_id for session in response.json()),
+        "the session appears in the user's chat session list",
+    )
+
+    status, response = _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{session_id}")
+    expect(status == 200, f"DELETE /ai/guide-chat/session/{session_id} returns 200")
+    expect(response.json().get("deleted") is True, "the delete response confirms deletion")
+
+    status, response = _call("GET", f"{API_BASE}/ai/guide-chat/session/{session_id}")
+    expect(status == 404, "the deleted session can no longer be fetched")
+
+    status, response = _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{session_id}")
+    expect(status == 404, "deleting an already deleted session returns 404, not an error")
+
+    logout(ai_user_id)
+
+
 def run_frontend_guard_checks():
     """Confirm the sign in gate is wired into the protected pages.
 
@@ -160,16 +311,189 @@ def run_checks():
     status, _ = _call("GET", f"{API_BASE}/health")
     expect(status == 200, "GET /health returns 200")
 
-    # Seed data baked into shared/db/init_db.py, checked here so a build
+    # Seed data baked into student-4-db's init_db.py, checked here so a build
     # missing it fails CI instead of only showing up on one machine.
-    status, response = _call("GET", f"{API_BASE}/users")
-    expect(status == 200, "GET /users returns 200")
-    for i in list(range(1, 6)) + list(range(6, 11)):
-        prefix = "student" if i < 6 else "traveller"
-        expect(
-            f"{prefix}{i}@example.com" in response.text,
-            f"seeded {prefix}{i} account is present",
-        )
+    status, response = _call("GET", f"{API_BASE}/guides")
+    expect(status == 200, "GET /guides returns 200")
+    for city in ("Sydney", "Melbourne", "Perth", "Hobart"):
+        expect(city in response.text, f"seeded destination {city} is present")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Sydney"})
+    expect(status == 200, "GET /guides?query=Sydney returns 200")
+    expect("Sydney" in response.text, "searching by city returns a match")
+    expect("Melbourne" not in response.text, "searching by city excludes other cities")
+
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Sydney row links to its guide detail endpoint")
+    sydney_id = match.group(1)
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}")
+    expect(status == 200, f"GET /guides/{sydney_id} returns 200")
+    expect("Sydney" in response.text, "the detail view names the city")
+    expect("View all" in response.text, "the detail view has a back-to-list link")
+    expect("Currency" in response.text, "the detail view has a Currency subheading")
+    expect("AUD" in response.text, "the detail view names the Australian Dollar code")
+    expect(
+        "Cards are accepted almost everywhere. Carry" in response.text,
+        "currency copy uses a period, not a semicolon, between sentences",
+    )
+    expect("—" not in response.text, "guide text does not use an em dash")
+    expect("Transportation" in response.text, "the detail view has a Transportation subheading")
+    expect("Flights" in response.text, "the detail view lists a Flights transport tab")
+    expect(
+        "Book flights" in response.text,
+        "the default (flights) transport tab shows a booking button",
+    )
+    expect(
+        "/student-5/#search" in response.text,
+        "the flights booking button links to student-5's search",
+    )
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/transportation", params={"type": "metro"}
+    )
+    expect(status == 200, "GET /guides/<id>/transportation?type=metro returns 200")
+    expect("Metro" in response.text, "the metro tab is shown")
+    expect(
+        "Book flights" not in response.text,
+        "the metro tab does not show a flights booking button",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}")
+    expect("Visa" in response.text, "the detail view has a Visa subheading")
+    expect("New Zealand" in response.text, "the detail view lists a New Zealand visa tab")
+    expect(
+        "Select your nationality" in response.text,
+        "no nationality is picked by default, so a placeholder is shown instead of a guess",
+    )
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/visa", params={"nationality": "New Zealand"}
+    )
+    expect(status == 200, "GET /guides/<id>/visa?nationality=New Zealand returns 200")
+    expect("Visa on arrival" in response.text, "New Zealand's requirement type is shown")
+    expect(
+        "Select your nationality" not in response.text,
+        "picking a nationality replaces the placeholder with its requirement",
+    )
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/visa", params={"nationality": "Atlantis"}
+    )
+    expect(status == 200, "GET /guides/<id>/visa?nationality=<unknown> returns 200")
+    expect(
+        "Select your nationality" in response.text,
+        "an unseeded nationality falls back to the placeholder, not an error",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}")
+    expect("Weather" in response.text, "the detail view has a Weather subheading")
+    expect("Jan" in response.text, "the detail view lists a January weather tab")
+    expect("°C" in response.text, "the default weather tab shows a temperature")
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/weather", params={"month": "July"}
+    )
+    expect(status == 200, "GET /guides/<id>/weather?month=July returns 200")
+    expect("July" in response.text, "the July tab is shown")
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/weather", params={"month": "Notamonth"}
+    )
+    expect(status == 200, "GET /guides/<id>/weather?month=<invalid> returns 200")
+    expect(
+        "Notamonth" not in response.text,
+        "an invalid month falls back to a real month, not an error",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Cairns"})
+    expect(status == 200, "GET /guides?query=Cairns returns 200")
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Cairns row links to its guide detail endpoint")
+    cairns_id = match.group(1)
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{cairns_id}/weather", params={"month": "January"}
+    )
+    expect(status == 200, f"GET /guides/{cairns_id}/weather?month=January returns 200")
+    expect(
+        "dry season" in response.text,
+        "Cairns's best time to visit note names the dry season",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}")
+    expect("Safety" in response.text, "the detail view has a Safety subheading")
+    expect(
+        "Exercise normal safety precautions" in response.text,
+        "the detail view shows Australia's safety level",
+    )
+    expect(
+        "surf conditions and rips" in response.text,
+        "the detail view shows Sydney's own safety tips",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}/safety")
+    expect(status == 200, f"GET /guides/{sydney_id}/safety returns 200")
+    expect("Safety" in response.text, "the safety fragment has a Safety subheading")
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{cairns_id}/safety"
+    )
+    expect(status == 200, f"GET /guides/{cairns_id}/safety returns 200")
+    expect(
+        "stinger season" in response.text,
+        "Cairns has its own safety tips, not Sydney's",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/999999999/safety")
+    expect(status == 200, "GET /guides/<unknown id>/safety still returns 200")
+    expect(
+        "No safety information" in response.text,
+        "an unknown destination id shows a not-found message, not an error",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Alice Springs"})
+    expect(status == 200, "GET /guides?query=Alice Springs returns 200")
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Alice Springs row links to its guide detail endpoint")
+    alice_springs_id = match.group(1)
+
+    status, response = _call("GET", f"{API_BASE}/guides/{alice_springs_id}")
+    expect(status == 200, f"GET /guides/{alice_springs_id} returns 200")
+    expect(
+        "Metro" not in response.text,
+        "Alice Springs has no metro, so no Metro tab is shown",
+    )
+    expect(
+        "Train" not in response.text,
+        "Alice Springs has no train service, so no Train tab is shown",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/999999999")
+    expect(status == 404, "GET /guides/<unknown id> returns 404")
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}/currency")
+    expect(status == 200, f"GET /guides/{sydney_id}/currency returns 200")
+    expect("Currency" in response.text, "currency fragment has a Currency subheading")
+    expect("AUD" in response.text, "currency fragment names the Australian Dollar code")
+
+    status, response = _call("GET", f"{API_BASE}/guides/999999999/currency")
+    expect(status == 200, "GET /guides/<unknown id>/currency still returns 200")
+    expect(
+        "No currency information" in response.text,
+        "an unknown destination id shows a not-found message, not an error",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Australia"})
+    expect(status == 200, "GET /guides?query=Australia returns 200")
+    expect("Sydney" in response.text, "searching by country returns its cities")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Nowhereville"})
+    expect(status == 200, "GET /guides?query=Nowhereville returns 200")
+    expect(
+        "No cities or countries match" in response.text,
+        "an unmatched search shows the not-found placeholder",
+    )
 
     status, response = login("student1@example.com", SEED_PASSWORD)
     expect(status == 200, "seeded student1 can sign in")
@@ -207,11 +531,6 @@ def run_checks():
 
     status, response = register(email)
     expect(status == 409, "registering the same email again returns 409")
-
-    # Accounts listing
-    status, response = _call("GET", f"{API_BASE}/users")
-    expect(status == 200, "GET /users returns 200")
-    expect(email in response.text, "the new account appears in the accounts fragment")
 
     # Email verification
     link = find_verification_link(email)
@@ -311,6 +630,10 @@ def run_checks():
         response.json().get("is_valid") is False,
         "an unknown user id is reported as not signed in, not an error",
     )
+
+    # AI Assistant, best effort on the model-grounded checks since ai-mode
+    # is optional for this script, see the module docstring.
+    run_ai_assistant_checks()
 
     # Frontend sign in gate, best effort since the frontend containers are
     # optional for this script, see the module docstring.

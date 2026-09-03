@@ -156,7 +156,7 @@ verifiable from the commit history and CI runs.
 | student-1 | `trips`, `itinerary_days` | 12, 15 |
 | student-2 | `places`, `favourites`, `recommendations` | 15, 10, 10 |
 | student-3 | `records` (placeholder) | 12 |
-| student-4 | *(no domain tables - `users`/`access_logs` moved to shared-db, see 2.7)* | - |
+| student-4 | `destinations`, `currency_infos`, `transportation_infos`, `visa_requirements`, `weather_infos`, `safety_infos` | 13, 13, 51, 104, 156, 13 |
 | student-5 | `records` (placeholder) | 12 |
 | shared | `travellers`, `users`, `access_logs` | 12, 10, 10 |
 
@@ -164,7 +164,9 @@ Students 3 and 5 currently hold the generated scaffold rather than their real
 schema. The record counts satisfy the minimum, but the tables are placeholders,
 which is recorded as known issue 1. student-4 replaced its scaffold with a real
 sign-up/verification flow, but `users` and `access_logs` were deliberately moved
-into shared-db rather than kept in student-4-db - see 2.7 for why.
+into shared-db rather than kept in student-4-db. student-4-db owns the Travel Guides
+schema (destinations, currency, transportation, visa, weather and safety), all
+seeded from the Australian cities used as flight and hotel destinations in student-5.
 
 ### 2.3 Overall project plan (Group)
 
@@ -280,6 +282,9 @@ Functional:
 | F4.11 | Record every successful sign-in | A `POST /access-logs` row is written (`user_id`, `sign_in_at`, `in_session = 1`) before `/auth/login` responds |
 | F4.12 | Sign out, closing the session other features can see | `POST /auth/logout` and `GET /auth/status/<id>` in student-4-api close and expose the session (see ADR-001 Decision 6) |
 | F4.13 | Require a valid session before the dashboard or any other feature page renders | Visiting the landing page or a feature page without a session redirects to the sign in page instead of showing content. A valid session shows the page normally |
+| F4.14 | Answer a Travel Guides question about currency, transportation, visa, weather or safety, naming the city inside the question itself | `POST /ai/guide-chat` resolves the destination from the question text, grounds its answer only in that destination's real data, and never calls the model at all when the data is missing |
+| F4.15 | Redirect a question that belongs to another feature, instead of guessing at an answer this feature does not own | A question matching a `feature_redirect_map` keyword (book a flight, food, travel mate and so on) returns a clickable link to that feature instead of a guide answer |
+| F4.16 | Keep a chat history per user, resumable and deletable | `GET /users/<id>/guide-chat-sessions` lists past chats, `GET /ai/guide-chat/session/<id>` returns one in full, `DELETE` on the same path removes it |
 
 Non-functional:
 
@@ -292,6 +297,7 @@ Non-functional:
 | N4.5 | Cross-cutting identity data is not duplicated per feature | `users`/`access_logs` live once in shared-db, resolved by every feature over HTTP (see 2.7) |
 | N4.6 | A failed sign-in never reveals whether an email is registered | `/users/authenticate` returns the identical 401 body for "no such user" and "wrong password", and hashes a dummy value on the former so response timing does not leak it either; the `email_not_verified` code is only ever returned once the password has already been confirmed correct |
 | N4.7 | The session gate applies to the whole integrated application, not only this feature's own pages | `shared/js/auth-guard.js` is loaded by the shared home page and by all five feature pages. Each one hides its content until `NextStopSession.verifySession()` confirms a session |
+| N4.8 | The assistant never answers with an invented fact | The Observe step (`agentic_loop/core/validator.py`) checks the model's answer restates a fact that was actually retrieved, retrying once with a stricter prompt, then falling back to a disclaimer or a clarifying question instead of a guess |
 
 *students 2, 3, 5: add your subsections here.*
 
@@ -454,6 +460,11 @@ integration time.
 | 13 | Sign-in smoke tests | Extended `student-4/tests/smoke_test.py`: generic-error parity, unverified block, no-duplicate-email-within-cooldown, successful login | 31 Aug |
 | 14 | Session gate for the dashboard and the whole app | `index.html` and `signin.html` now check the session first. `index.html` redirects to `signin.html` without one, `signin.html` redirects to the landing page if one already exists. The same guard (new `shared/js/auth-guard.js`) was used to the shared home page and the other four feature pages, so only sign up, sign in and verify pending stay reachable without a session. Frontend checks added to `student-4/tests/smoke_test.py` | 3 Sep |
 | 15 | Logout confirmation page | `logout.html`: reuses the shared `verify-card` styling, "You've been logged out" with a button back to `signin.html`. `session.js`'s `signOut()` sets a one-time `sessionStorage` flag before redirecting so the page only renders after an actual sign-out and otherwise bounces straight to `signin.html`. Direct navigation can't reach it. `index.html`'s sign-out button and `shared/index.html`'s sign-out link both redirect there now instead of `signin.html`/`/`. Checks added to `student-4/tests/smoke_test.py` | 3 Sep |
+| 16 | Travel Guides destinations and subsections | `student-4-db` gained `destinations`, `currency_infos`, `transportation_infos`, `visa_requirements`, `weather_infos` and `safety_infos`, each rendered as its own subsection in `destination_detail()`. Not logged as its own row when it was built, added here for completeness | 3 to 4 Sep |
+| 17 | AI Assistant, plan act observe adapt loop | New `services/`, `agentic_loop/{collectors,core,pipelines}/`, `routes/` and `views/` modules in student-4-api, following student-2's agentic_loop convention rather than a new one. Plan classifies the question, Act retrieves the matching guide table and asks the model through AI-Mode's `/recommend`, Observe checks the answer restates a real retrieved fact, Adapt falls back to a disclaimer, a redirect or a clarifying question | 4 Sep |
+| 18 | Guide chat sessions and redirect map | Three new student-4-db tables, `guide_ai_chat_sessions`, `guide_ai_chat_messages` and `feature_redirect_map`, plus the four routes under `/ai/guide-chat` | 4 Sep |
+| 19 | Redirect links are clickable | `views/ai_formatter.py` renders `redirect_path` as a real anchor instead of plain text ending in a path, and Plan now runs before a destination is resolved, so a redirect question with no city named still reaches the redirect logic instead of being blocked by a which city prompt | 4 Sep |
+| 21 | AI Assistant smoke tests | Extended `student-4/tests/smoke_test.py`: the auth gate, the redirect and food redirect checks, the no city fallback, and, when ai-mode is reachable, a grounded weather question, a follow up in the same session, and the full session history, list and delete lifecycle | 4 Sep |
 
 **Design decisions worth defending.**
 
@@ -493,10 +504,23 @@ integration time.
    used to enumerate which emails are registered. Only once a password is
    confirmed *correct* does the response reveal `email_not_verified`, so a
    guess can never be used to probe account state.
+7. *Plan runs before a destination is resolved, not after.* Resolving a
+   destination unconditionally, before classifying the question, blocked
+   redirect and unrelated questions with a which city prompt they never
+   needed. `orchestrator.run()` takes a `resolve_destination` callable and
+   only calls it once Plan has already decided the question is a guide
+   category one.
+8. *Missing data never reaches the model at all.* When the matched guide
+    table has no row for a destination, `run_guide_chat()` returns without
+    calling AI-Mode. A disclaimer and a link back to the guide page is
+    always correct, an invented answer never is.
 
 **Deferred to Release 1.**
 
 - Profile fields and the dashboard itself - Release 0 only covers identity
+- The exchange rate and live weather API integrations named in the original
+  Travel Guides CRUD plan. The AI Assistant grounds only in the seeded
+  currency and weather tables, not a live rate or forecast
 - Swap Mailpit for Resend, isolated to `send_verification_email()` in
   `student-4-api`, by design
 
@@ -1016,6 +1040,149 @@ empty and fills as people sign in and out.
    at this scale; would need to move to a keyed table if rate limiting ever
    needs to apply per-IP as well as per-account.
 
+**Travel Guides and the AI Assistant.** `DESTINATION` and the tables below it
+are also owned by student-4-db, alongside `USER` and `ACCESS_LOG` above. Not
+documented here when the Travel Guides tables were built, added now
+alongside the AI Assistant tables that build on them.
+
+**Conceptual model**
+
+Source: `docs/diagrams/student-4-conceptual.mmd`
+
+```mermaid
+graph LR
+    D["DESTINATION"]
+    C["CURRENCY INFO"]
+    T["TRANSPORTATION INFO"]
+    V["VISA REQUIREMENT"]
+    W["WEATHER INFO"]
+    S["SAFETY INFO"]
+    SESS["GUIDE AI CHAT SESSION"]
+    MSG["GUIDE AI CHAT MESSAGE"]
+    RMAP["FEATURE REDIRECT MAP"]
+
+    D -->|"priced in, 1:1"| C
+    D -->|"reachable by, 1:many"| T
+    D -->|"entered under, 1:many"| V
+    D -->|"experiences, 1:many"| W
+    D -->|"rated for, 1:1"| S
+    D -->|"is asked about in, 1:many"| SESS
+    SESS -->|"contains, 1:many"| MSG
+```
+
+`FEATURE_REDIRECT_MAP` has no relationship to `DESTINATION`, a redirect
+keyword applies to any question, not to one destination.
+
+**Entity-relationship diagram**
+
+Source: `docs/diagrams/student-4-erd.mmd`
+
+| Table | Owns | Notes |
+|-------|------|-------|
+| `destinations` | Every city a guide exists for | 13 seed rows, every one an Australian city |
+| `currency_infos` | Currency code, name and exchange tips per destination | One row per destination |
+| `transportation_infos` | Transport mode, description and tips per destination | One row per (destination, type). Not every destination has every type |
+| `visa_requirements` | Visa requirement per destination, per nationality | Seeded identically for every destination, entry rules depend on nationality, not the city landed in |
+| `weather_infos` | Average temperature and rainfall per destination, per month | 12 rows per destination |
+| `safety_infos` | Safety level and local tips per destination | One row per destination, tips genuinely vary by city |
+| `feature_redirect_map` | A keyword that belongs to another feature | 16 seed rows, reset and reseeded on every `init_db.py` run, since it is seed config, not traveller data |
+| `guide_ai_chat_sessions` | One chat, with the user who opened it and the destination it is currently about | Never wiped on reinit, holds real conversations |
+| `guide_ai_chat_messages` | One turn of a chat, role, content and the intent it classified as | Never wiped on reinit |
+
+**Physical model**
+
+```sql
+CREATE TABLE destinations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    country TEXT NOT NULL,
+    city TEXT NOT NULL,
+    region TEXT NOT NULL
+);
+
+CREATE TABLE currency_infos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    currency_code TEXT NOT NULL,
+    currency_name TEXT NOT NULL,
+    exchange_tips TEXT NOT NULL
+);
+
+CREATE TABLE transportation_infos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    tips TEXT NOT NULL
+);
+
+CREATE TABLE visa_requirements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    nationality TEXT NOT NULL,
+    requirement_type TEXT NOT NULL,
+    notes TEXT NOT NULL
+);
+
+CREATE TABLE weather_infos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    month TEXT NOT NULL,
+    avg_temp REAL NOT NULL,
+    rainfall REAL NOT NULL,
+    best_visit_time TEXT NOT NULL
+);
+
+CREATE TABLE safety_infos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    safety_level TEXT NOT NULL,
+    tips TEXT NOT NULL
+);
+
+CREATE TABLE feature_redirect_map (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    keyword TEXT NOT NULL,
+    feature_name TEXT NOT NULL,
+    redirect_path_template TEXT NOT NULL
+);
+
+CREATE TABLE guide_ai_chat_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE guide_ai_chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES guide_ai_chat_sessions(id),
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    intent_category TEXT,
+    created_at TEXT NOT NULL
+);
+```
+
+Seeded with 13 destinations, 13 currency rows, 51 transportation rows, 104
+visa rows, 156 weather rows, 13 safety rows and 16 redirect map rows. The two
+chat tables start empty and fill as travellers use the AI Assistant tab.
+
+**Known limitations of the physical model**
+
+1. **`guide_ai_chat_sessions.user_id` is a cross-service reference, not an
+   enforceable foreign key.** It points at shared-db's `users` table, the
+   same kind of reference student-1's `trips.traveller_id` has to
+   `travellers`, for the same reason, a user's id is cross-cutting data
+   student-4-db does not own.
+2. **A session's `destination_id` names only the most recently discussed
+   city, not every city a chat has covered.** A traveller who asks about
+   several cities in one chat sees the Past Chats list label follow whichever
+   city they asked about last, not a history of all of them.
+3. **`feature_redirect_map` keyword matching is a plain substring check,**
+   not a real natural language classifier. A question phrased unusually
+   enough to miss every keyword falls through to the guide category
+   keywords or to unrelated, rather than to the feature it actually meant.
+
 ## 3. Repository structure
 
 The repository follows the structure required by specification 7.1.
@@ -1156,6 +1323,7 @@ uses).
 | `review/adapt_prompt.txt` | ADAPT step |
 | `review/*_review_prompt.txt` | One per review target |
 | `student-2/api/prompts/implementation/recommendation_system.txt` | Student 2 recommendation grounding rules: recommend only from the supplied candidate place records and return natural traveller-facing recommendations |
+| `student-4/api/prompts/implementation/guide_chat_system.txt` | Student 4 Travel Guides grounding rules: answer only from the destination data given for that turn, never invent a figure, code or requirement, and never use an em dash or a semicolon in the answer |
 
 **Student 2 context management.** Attractions & Dining does not ask the LLM to
 search or interpret the entire database directly. The recommendation pipeline
@@ -1174,6 +1342,27 @@ Context management: `routes/ai_chat.py` builds a plain-text summary of the
 traveller's live trips and itinerary days and passes it as context, so the model
 answers about trips that exist. When the database is unreachable the chatbot
 answers without grounding rather than failing outright.
+
+**Student 4 context management.** Travel Guides splits Plan, Act, Observe and
+Adapt across four small modules (`agentic_loop/core/classifier.py`,
+`agentic_loop/pipelines/guide_chat_pipeline.py`, `agentic_loop/core/validator.py`
+and `agentic_loop/core/orchestrator.py`) instead of asking the model to do any
+of that work itself. Plan classifies the question into a guide category, a
+redirect to another feature, or unrelated, using keyword matching, not the
+model. Act then fetches only that one guide table's rows for the resolved
+destination through `services/database_api.py` and passes them as context,
+the model never sees the whole database. When that table has no row for the
+destination, the model is never called at all, so a gap in the seed data can
+never become an invented answer.
+
+Observe (`validator.py`) checks the model's answer contains at least one
+literal fact drawn from what was actually fetched, a currency code, a
+temperature figure, a visa requirement type, or a distinctive word from a
+safety or visa note, the same shape as Student 2's candidate name check.
+Weather's fact list covers every seeded month, not only the current one,
+since a question about a different month is still answered from context
+that lists all twelve. A failed check retries once with a stricter prompt
+before Adapt gives up and asks a clarifying question instead of guessing.
 
 Three prompt iterations are documented in full in **appendix A**, each with the
 observed failure, the change made and the measured result:
@@ -1329,17 +1518,72 @@ student-1 passed all checks.
 $ python3 scripts/smoke_test.py 4
 Smoke test: student-4 sign-up, email verification & sign-in
   ok  GET /health returns 200
-  ok  GET /users returns 200
-  ok  seeded student1 account is present
-  ok  seeded student2 account is present
-  ok  seeded student3 account is present
-  ok  seeded student4 account is present
-  ok  seeded student5 account is present
-  ok  seeded traveller6 account is present
-  ok  seeded traveller7 account is present
-  ok  seeded traveller8 account is present
-  ok  seeded traveller9 account is present
-  ok  seeded traveller10 account is present
+  ok  GET /guides returns 200
+  ok  seeded destination Sydney is present
+  ok  seeded destination Melbourne is present
+  ok  seeded destination Perth is present
+  ok  seeded destination Hobart is present
+  ok  GET /guides?query=Sydney returns 200
+  ok  searching by city returns a match
+  ok  searching by city excludes other cities
+  ok  the Sydney row links to its guide detail endpoint
+  ok  GET /guides/1 returns 200
+  ok  the detail view names the city
+  ok  the detail view has a back-to-list link
+  ok  the detail view has a Currency subheading
+  ok  the detail view names the Australian Dollar code
+  ok  currency copy uses a period, not a semicolon, between sentences
+  ok  guide text does not use an em dash
+  ok  the detail view has a Transportation subheading
+  ok  the detail view lists a Flights transport tab
+  ok  the default (flights) transport tab shows a booking button
+  ok  the flights booking button links to student-5's search
+  ok  GET /guides/<id>/transportation?type=metro returns 200
+  ok  the metro tab is shown
+  ok  the metro tab does not show a flights booking button
+  ok  the detail view has a Visa subheading
+  ok  the detail view lists a New Zealand visa tab
+  ok  no nationality is picked by default, so a placeholder is shown instead of a guess
+  ok  GET /guides/<id>/visa?nationality=New Zealand returns 200
+  ok  New Zealand's requirement type is shown
+  ok  picking a nationality replaces the placeholder with its requirement
+  ok  GET /guides/<id>/visa?nationality=<unknown> returns 200
+  ok  an unseeded nationality falls back to the placeholder, not an error
+  ok  the detail view has a Weather subheading
+  ok  the detail view lists a January weather tab
+  ok  the default weather tab shows a temperature
+  ok  GET /guides/<id>/weather?month=July returns 200
+  ok  the July tab is shown
+  ok  GET /guides/<id>/weather?month=<invalid> returns 200
+  ok  an invalid month falls back to a real month, not an error
+  ok  GET /guides?query=Cairns returns 200
+  ok  the Cairns row links to its guide detail endpoint
+  ok  GET /guides/7/weather?month=January returns 200
+  ok  Cairns's best time to visit note names the dry season
+  ok  the detail view has a Safety subheading
+  ok  the detail view shows Australia's safety level
+  ok  the detail view shows Sydney's own safety tips
+  ok  GET /guides/1/safety returns 200
+  ok  the safety fragment has a Safety subheading
+  ok  GET /guides/7/safety returns 200
+  ok  Cairns has its own safety tips, not Sydney's
+  ok  GET /guides/<unknown id>/safety still returns 200
+  ok  an unknown destination id shows a not-found message, not an error
+  ok  GET /guides?query=Alice Springs returns 200
+  ok  the Alice Springs row links to its guide detail endpoint
+  ok  GET /guides/13 returns 200
+  ok  Alice Springs has no metro, so no Metro tab is shown
+  ok  Alice Springs has no train service, so no Train tab is shown
+  ok  GET /guides/<unknown id> returns 404
+  ok  GET /guides/1/currency returns 200
+  ok  currency fragment has a Currency subheading
+  ok  currency fragment names the Australian Dollar code
+  ok  GET /guides/<unknown id>/currency still returns 200
+  ok  an unknown destination id shows a not-found message, not an error
+  ok  GET /guides?query=Australia returns 200
+  ok  searching by country returns its cities
+  ok  GET /guides?query=Nowhereville returns 200
+  ok  an unmatched search shows the not-found placeholder
   ok  seeded student1 can sign in
   ok  seeded traveller6 is pending verification
   ok  POST /auth/register without terms_accepted returns 400
@@ -1351,8 +1595,6 @@ Smoke test: student-4 sign-up, email verification & sign-in
   ok  created account starts unverified
   ok  the response never leaks the token or the password hash
   ok  registering the same email again returns 409
-  ok  GET /users returns 200
-  ok  the new account appears in the accounts fragment
   ok  verification email arrives in Mailpit with a link
   ok  visiting the verification link returns 200
   ok  the link confirms verification
@@ -1384,20 +1626,51 @@ Smoke test: student-4 sign-up, email verification & sign-in
   ok  logging out again with no open session returns 404
   ok  GET /auth/status/<id> for an unknown id still returns 200
   ok  an unknown user id is reported as not signed in, not an error
+  ok  POST /ai/guide-chat without a user_id returns 401
+  ok  401 response names an error
+  ok  student1 signs in for the AI Assistant checks
+  ok  POST /ai/guide-chat with an empty question returns 400
+  ok  a redirect question returns 200 without a session or a city
+  ok  booking a hotel classifies as another feature, not a guide category
+  ok  the hotel redirect points at student-5's search
+  ok  a redirect with no prior session starts none
+  ok  a food question returns 200
+  ok  a food question redirects to Attractions & Dining, not student-5
+  ok  the food redirect points at student-2
+  ok  an unrelated question returns 200
+  ok  a question with no guide keyword and no redirect keyword is unrelated
+  ok  a guide category question with no city returns 200
+  ok  the topic is still classified without a city
+  ok  a missing city is an adapted response
+  ok  no session is created when no city is named
+  ok  a grounded weather question returns 200
+  ok  the weather question classifies as weather
+  ok  a resolved city starts a chat session
+  ok  a rental car question returns 200
+  ok  asking about a rental car is a transport question
+  ok  a rental car question answers from the guide, it does not redirect to student-5
+  ok  a follow up question in the same session returns 200
+  ok  a follow up with no new city continues the same session
+  ok  GET /ai/guide-chat/session/2 returns 200
+  ok  the session's city is Cairns
+  ok  the session has both questions and both answers recorded
+  ok  GET /users/1/guide-chat-sessions returns 200
+  ok  the session appears in the user's chat session list
+  ok  DELETE /ai/guide-chat/session/2 returns 200
+  ok  the delete response confirms deletion
+  ok  the deleted session can no longer be fetched
+  ok  deleting an already deleted session returns 404, not an error
   ok  student-4 landing page (index.html) is served
   ok  landing page calls verifySession before showing its content
   ok  signin.html is served without a session
   ok  signup.html is served without a session
   ok  verify-pending.html is served without a session
+  ok  logout.html is served (not just index.html's fallback)
+  ok  logout.html gates its content behind the one-time sign-out flag
   ok  shared home page is served
   ok  shared home page loads the shared session guard
 
 student-4 sign-up, email verification & sign-in passed all checks.
-Smoke test: student-4
-  ok  database service is healthy
-  ok  backend/API service is healthy
-
-student-4 passed all checks.
 ```
 
 ### 8.2 Screenshots of the integrated application
@@ -1415,6 +1688,7 @@ student-4 passed all checks.
 | 10 | `docker compose ps` | All containers up |
 | 11 | Agentic loop running in the terminal | Plan - Act - Observe - Adapt |
 | 12 | GitHub Actions, five green workflows | CI evidence, alongside the logs already in `docs/evidence/` |
+| 13 | student-4 AI Assistant tab, a grounded weather answer and a redirect to another feature | Destination resolved from the question text, redirect link clickable |
 
 Take these from the integrated application at `http://localhost:8080`, not from
 a feature's own port - the specification assesses features as part of the
@@ -1434,6 +1708,8 @@ integrated application.
 | 5 | Cross-feature referential integrity is advisory - SQLite cannot enforce a reference across service boundaries | A trip can point at a deleted traveller | Display degrades to `#<id>`; a reconciliation check is a Release 1 candidate |
 | 6 | No automated tests beyond the smoke test | Limited regression cover | pytest is a Release 2 requirement |
 | 7 | The agentic loop's ACT evidence is accurate, but `llama3.2:latest` (3B) still miscounts it and occasionally names files that do not exist | Review findings need a human check before being acted on | Tightened grounding prompts (Appendix A.1) removed the worst of it; a larger review model on a 16 GB machine is the real fix |
+| 8 | Student 4's AI Assistant, `qwen2.5:0.5b`, sometimes pads a grounded answer with plausible but ungrounded extras, for example adding wearing a mask to a safety answer that never mentioned it, while the same answer also restates enough real facts to pass the Observe check | An answer can be mostly grounded with a small invented detail mixed in | The Observe check catches missing grounding, not partial embellishment. A stricter check (every clause must trace to context, not just one fact) is a Release 1 candidate |
+| 9 | Student 4's AI Assistant classifies each question on its own, a bare follow up naming only a new city, with no topic word, is classified unrelated rather than continuing the previous topic | "What about Perth" after a weather question does not answer about Perth's weather | Carrying the previous message's intent forward when the new one names a city but no topic is a Release 1 candidate |
 
 ---
 
