@@ -125,9 +125,13 @@ def _get_page(url):
 
 
 def ai_mode_reachable():
+    """ai-mode's own /health returns 200 as long as its Flask process is up,
+    even when the Ollama it wraps is not reachable. /model actually calls Ollama,
+    so that is the one that tells us whether a real answer is possible.
+    """
     try:
-        response = requests.get(f"{AI_MODE_BASE}/health", timeout=5)
-        return response.status_code == 200
+        response = requests.get(f"{AI_MODE_BASE}/model", timeout=10)
+        return response.status_code == 200 and response.json().get("reachable") is True
     except requests.RequestException:
         return False
 
