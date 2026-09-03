@@ -82,7 +82,7 @@ buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)
         return;
     }
     document.getElementById("app-shell").style.display = "";
-    NextStopSession.initSignOutButtons("signin.html");
+    NextStopSession.initSignOutButtons("logout.html");
     document.body.dispatchEvent(new Event("authenticated"));
 })();
 </script>

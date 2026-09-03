@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Signed Out - NextStop</title>
+    <link rel="stylesheet" href="/shared/css/theme.css">
+</head>
+<body class="verify-body">
+
+<main class="verify-card" id="logout-card" style="display:none">
+    <div class="verify-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
+        </svg>
+    </div>
+
+    <h1 class="verify-title">You've been logged out</h1>
+    <p class="verify-subtitle">Your session has ended. Sign in again to access your trips and itineraries.</p>
+
+    <a href="signin.html" class="btn btn--pill-dark verify-resend" style="text-decoration:none">Back to sign in</a>
+</main>
+
+<script>
+(function () {
+    if (sessionStorage.getItem("justLoggedOut") !== "1") {
+        window.location.replace("signin.html");
+        return;
+    }
+    sessionStorage.removeItem("justLoggedOut");
+    document.getElementById("logout-card").style.display = "";
+})();
+</script>
+</body>
+</html>
