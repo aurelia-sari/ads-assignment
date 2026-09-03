@@ -172,6 +172,34 @@ def run_checks():
     expect("Sydney" in response.text, "searching by city returns a match")
     expect("Melbourne" not in response.text, "searching by city excludes other cities")
 
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Sydney row links to its guide detail endpoint")
+    sydney_id = match.group(1)
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}")
+    expect(status == 200, f"GET /guides/{sydney_id} returns 200")
+    expect("Sydney" in response.text, "the detail view names the city")
+    expect("View all" in response.text, "the detail view has a back-to-list link")
+    expect("Currency" in response.text, "the detail view has a Currency subheading")
+    expect("AUD" in response.text, "the detail view names the Australian Dollar code")
+    expect(";" not in response.text, "guide text does not use semicolons")
+    expect("—" not in response.text, "guide text does not use an em dash")
+
+    status, response = _call("GET", f"{API_BASE}/guides/999999999")
+    expect(status == 404, "GET /guides/<unknown id> returns 404")
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}/currency")
+    expect(status == 200, f"GET /guides/{sydney_id}/currency returns 200")
+    expect("Currency" in response.text, "currency fragment has a Currency subheading")
+    expect("AUD" in response.text, "currency fragment names the Australian Dollar code")
+
+    status, response = _call("GET", f"{API_BASE}/guides/999999999/currency")
+    expect(status == 200, "GET /guides/<unknown id>/currency still returns 200")
+    expect(
+        "No currency information" in response.text,
+        "an unknown destination id shows a not-found message, not an error",
+    )
+
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Australia"})
     expect(status == 200, "GET /guides?query=Australia returns 200")
     expect("Sydney" in response.text, "searching by country returns its cities")

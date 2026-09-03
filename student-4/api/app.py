@@ -124,11 +124,13 @@ def validate_password(value):
     )
 
 def destination_row(destination):
+    detail_url = f"/api/student-4/guides/{destination['id']}"
     return (
-        "<tr>"
-        f"<td>{escape(destination['city'])}</td>"
-        f"<td>{escape(destination['country'])}</td>"
-        "</tr>"
+        "<div style='padding:0.75rem 0; border-bottom:1px solid var(--color-slate-200)'>"
+        f"<a href='#' hx-get='{detail_url}' hx-target='#guides-results' hx-swap='innerHTML' "
+        "style='font-size:1rem; font-weight:600; color:var(--color-navy-900)'>"
+        f"{escape(destination['city'])}, {escape(destination['country'])}</a>"
+        "</div>"
     )
 
 def destinations_table(destinations, query):
@@ -137,11 +139,25 @@ def destinations_table(destinations, query):
         return f"<p class='muted'>{escape(message)}</p>"
 
     rows = "".join(destination_row(d) for d in destinations)
+    return f"<div>{rows}</div>"
+
+def currency_subsection(info):
+    if info is None:
+        return "<h4 style='margin:0.75rem 0 0.15rem 0'>Currency</h4><p class='muted'>No currency information yet.</p>"
+
     return (
-        "<div class='table-wrap'><table>"
-        "<thead><tr><th>City</th><th>Country</th></tr></thead>"
-        f"<tbody>{rows}</tbody></table></div>"
+        "<h4 style='margin:0.75rem 0 0.15rem 0'>Currency</h4>"
+        f"<p style='margin:0'>{escape(info['currency_code'])}, the {escape(info['currency_name'])}. "
+        f"{escape(info['exchange_tips'])}</p>"
     )
+
+def destination_detail(destination, currency):
+    back_link = (
+        "<a href='#' hx-get='/api/student-4/guides' hx-target='#guides-results' hx-swap='innerHTML' "
+        "style='display:inline-block; margin-bottom:0.75rem; font-weight:600'>&lt;- View all</a>"
+    )
+    heading = f"<h3 style='margin:0'>{escape(destination['city'])}, {escape(destination['country'])}</h3>"
+    return back_link + heading + currency_subsection(currency)
 
 @app.get("/health")
 def health():
@@ -156,6 +172,41 @@ def list_guides():
         return destinations_table(response.json(), query), 200
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
+
+@app.get("/guides/<int:destination_id>")
+def guide_detail(destination_id):
+    try:
+        destination_response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}", timeout=5)
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    if destination_response.status_code == 404:
+        return error_fragment("This destination could not be found."), 404
+    if destination_response.status_code != 200:
+        return error_fragment(DB_DOWN), 503
+
+    try:
+        currency_response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/currency", timeout=5)
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    currency = currency_response.json() if currency_response.status_code == 200 else None
+
+    return destination_detail(destination_response.json(), currency), 200
+
+@app.get("/guides/<int:destination_id>/currency")
+def guide_currency(destination_id):
+    try:
+        response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/currency", timeout=5)
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    if response.status_code == 404:
+        return currency_subsection(None), 200
+    if response.status_code != 200:
+        return error_fragment(DB_DOWN), 503
+
+    return currency_subsection(response.json()), 200
 
 @app.post("/auth/register")
 def register():

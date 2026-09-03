@@ -28,6 +28,17 @@ CREATE TABLE IF NOT EXISTS destinations (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS currency_infos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    currency_code TEXT NOT NULL,
+    currency_name TEXT NOT NULL,
+    exchange_tips TEXT NOT NULL
+)
+""")
+
+cursor.execute("DELETE FROM currency_infos")
 cursor.execute("DELETE FROM destinations")
 
 destinations = [
@@ -51,8 +62,29 @@ cursor.executemany(
     destinations,
 )
 
+# Every seeded destination is in Australia, so they all share one currency.
+destination_ids = [row[0] for row in cursor.execute("SELECT id FROM destinations")]
+
+currency_infos = [
+    (
+        destination_id,
+        "AUD",
+        "Australian Dollar",
+        "Cards are accepted almost everywhere. Carry a little cash for small "
+        "regional towns and markets. One AUD equals 100 cents.",
+    )
+    for destination_id in destination_ids
+]
+
+cursor.executemany(
+    "INSERT INTO currency_infos (destination_id, currency_code, currency_name, exchange_tips) "
+    "VALUES (?, ?, ?, ?)",
+    currency_infos,
+)
+
 conn.commit()
 conn.close()
 
 print("student-4-db initialised.")
-print(f"Tables: destinations ({len(destinations)} seed records).")
+print(f"Tables: destinations ({len(destinations)} seed records), "
+      f"currency_infos ({len(currency_infos)} seed records).")

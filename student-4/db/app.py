@@ -53,5 +53,34 @@ def list_destinations():
 
     return jsonify([dict(row) for row in rows])
 
+@app.get("/destinations/<int:destination_id>")
+def get_destination(destination_id):
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT id, country, city, region FROM destinations WHERE id = ?",
+        (destination_id,),
+    ).fetchone()
+    conn.close()
+
+    if row is None:
+        return jsonify({"error": "Destination not found."}), 404
+
+    return jsonify(dict(row))
+
+@app.get("/destinations/<int:destination_id>/currency")
+def get_currency(destination_id):
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT currency_code, currency_name, exchange_tips "
+        "FROM currency_infos WHERE destination_id = ?",
+        (destination_id,),
+    ).fetchone()
+    conn.close()
+
+    if row is None:
+        return jsonify({"error": "No currency information for this destination."}), 404
+
+    return jsonify(dict(row))
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5204)
