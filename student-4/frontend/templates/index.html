@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Account & Dashboard - NextStop</title>
+    <title>Travel Guides - NextStop</title>
     <link rel="stylesheet" href="/shared/css/theme.css">
     <script src="/shared/js/htmx.min.js"></script>
     <script src="session.js"></script>
@@ -12,27 +12,37 @@
 <main class="app-shell" id="app-shell" style="display:none">
     <header class="app-header card" style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
         <div>
-            <h1>Account & Dashboard</h1>
+            <h1>Travel Guides</h1>
             <p>Student 4 &middot; Aurelia Sari &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
         </div>
         <button type="button" class="btn-sm btn-secondary" data-signout>Sign out</button>
     </header>
 
     <nav class="tab-nav">
-        <button class="tab-btn is-active" data-tab="accounts" type="button">Accounts</button>
-        <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
+        <button class="tab-btn is-active" data-tab="guides" type="button">Guides</button>
+        <button class="tab-btn" data-tab="ai" type="button">AI Assistant</button>
     </nav>
 
-    <section class="tab-panel is-active card" id="panel-accounts">
-        <div id="accounts-panel"
-             hx-get="/api/student-4/users"
-             hx-trigger="authenticated from:body"
-             hx-swap="innerHTML"></div>
+    <section class="tab-panel is-active card" id="panel-guides">
+        <form hx-get="/api/student-4/guides"
+              hx-target="#guides-results"
+              hx-swap="innerHTML"
+              hx-trigger="submit">
+            <div class="form-grid">
+                <div style="grid-column:1/-1">
+                    <label for="guides-query">City or country</label>
+                    <input id="guides-query" name="query" placeholder="Search for a city or country" autocomplete="off">
+                </div>
+            </div>
+            <button type="submit">Search</button>
+            <span class="spinner">searching...</span>
+        </form>
 
-        <p class="muted" style="margin-top:1rem">
-            New accounts are created from the <a href="signup.html">sign-up page</a>,
-            not here.
-        </p>
+        <div id="guides-results"
+             hx-get="/api/student-4/guides"
+             hx-trigger="authenticated from:body"
+             hx-swap="innerHTML"
+             style="margin-top:1rem"></div>
     </section>
 
     <section class="tab-panel card" id="panel-ai">
@@ -62,7 +72,7 @@
 <script>
 const buttons = Array.from(document.querySelectorAll(".tab-btn"));
 const panels = {
-    accounts: document.getElementById("panel-accounts"),
+    guides: document.getElementById("panel-guides"),
     ai: document.getElementById("panel-ai"),
 };
 

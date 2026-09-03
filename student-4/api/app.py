@@ -123,47 +123,39 @@ def validate_password(value):
         and re.search(r"[^A-Za-z0-9]", value) is not None
     )
 
-def user_row(record):
+def destination_row(destination):
     return (
         "<tr>"
-        f"<td>{record['id']}</td>"
-        f"<td>{escape(record['name'])}</td>"
-        f"<td>{escape(record['email'])}</td>"
-        "<td>"
-        + (
-            "<span class='pill pill-booked'>Verified</span>"
-            if record["is_validated"]
-            else "<span class='pill pill-planned'>Pending</span>"
-        )
-        + "</td>"
-        f"<td>{escape(record['created_at'])}</td>"
+        f"<td>{escape(destination['city'])}</td>"
+        f"<td>{escape(destination['country'])}</td>"
         "</tr>"
     )
 
-def users_table(users):
-    if not users:
-        return "<p class='muted'>No accounts yet.</p>"
+def destinations_table(destinations, query):
+    if not destinations:
+        message = f"No cities or countries match \"{query}\"." if query else "No destinations available."
+        return f"<p class='muted'>{escape(message)}</p>"
 
-    rows = "".join(user_row(u) for u in users)
+    rows = "".join(destination_row(d) for d in destinations)
     return (
         "<div class='table-wrap'><table>"
-        "<thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Status</th><th>Joined</th></tr></thead>"
+        "<thead><tr><th>City</th><th>Country</th></tr></thead>"
         f"<tbody>{rows}</tbody></table></div>"
-        f"<p class='muted'>{len(users)} account(s).</p>"
     )
 
 @app.get("/health")
 def health():
     return jsonify({"service": "student-4-api", "status": "running"})
 
-@app.get("/users")
-def list_users():
+@app.get("/guides")
+def list_guides():
+    query = (request.args.get("query") or "").strip()
     try:
-        response = requests.get(f"{SHARED_API_URL}/users", timeout=5)
+        response = requests.get(f"{DB_SERVICE_URL}/destinations", params={"query": query}, timeout=5)
         response.raise_for_status()
-        return users_table(response.json()), 200
+        return destinations_table(response.json(), query), 200
     except requests.RequestException as exc:
-        return error_fragment(SHARED_DOWN, exc), 503
+        return error_fragment(DB_DOWN, exc), 503
 
 @app.post("/auth/register")
 def register():

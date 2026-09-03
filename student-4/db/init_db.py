@@ -1,11 +1,11 @@
 """Create the Account & Dashboard database (student-4, Aurelia Sari).
 
-No domain tables yet: user accounts and access logs now live in shared-db
-(see shared/db/init_db.py) since a user's id and sign-in state are
-shared data every feature may need. This file creates the (currently empty)
-student4.db so the service has a database file to open, ready for
-whatever Account & Dashboard-specific data (e.g. saved
-preferences, dashboard widgets) comes next.
+User accounts and access logs live in shared-db (see shared/db/init_db.py)
+since a user's id and sign-in state are shared data every feature may need.
+
+This database owns the Travel Guides destinations: the cities a guide can be
+looked up for. The seed list mirrors the Australian cities already used as
+flight and hotel destinations in student-5 (Bookings & Budget).
 """
 
 import os
@@ -17,6 +17,42 @@ DATABASE_NAME = os.path.join(DATA_DIR, "student4.db")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 conn = sqlite3.connect(DATABASE_NAME)
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS destinations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    country TEXT NOT NULL,
+    city TEXT NOT NULL,
+    region TEXT NOT NULL
+)
+""")
+
+cursor.execute("DELETE FROM destinations")
+
+destinations = [
+    ("Australia", "Sydney", "New South Wales"),
+    ("Australia", "Melbourne", "Victoria"),
+    ("Australia", "Brisbane", "Queensland"),
+    ("Australia", "Perth", "Western Australia"),
+    ("Australia", "Adelaide", "South Australia"),
+    ("Australia", "Gold Coast", "Queensland"),
+    ("Australia", "Cairns", "Queensland"),
+    ("Australia", "Canberra", "Australian Capital Territory"),
+    ("Australia", "Hobart", "Tasmania"),
+    ("Australia", "Darwin", "Northern Territory"),
+    ("Australia", "Sunshine Coast", "Queensland"),
+    ("Australia", "Launceston", "Tasmania"),
+    ("Australia", "Alice Springs", "Northern Territory"),
+]
+
+cursor.executemany(
+    "INSERT INTO destinations (country, city, region) VALUES (?, ?, ?)",
+    destinations,
+)
+
+conn.commit()
 conn.close()
 
-print("student-4-db initialised (no domain tables yet).")
+print("student-4-db initialised.")
+print(f"Tables: destinations ({len(destinations)} seed records).")

@@ -4,7 +4,7 @@ Deterministic smoke test for student-4 (Account & Dashboard).
 Exercises the real sign-up, email verification and sign-in flow end to end
 through student-4-api, shared-api/shared-db (which own `users`/`access_logs`,
 see docs/technical-report.md 2.7 for why) and Mailpit (the local dev SMTP
-catcher):
+catcher), plus the Travel Guides destination search backed by student-4-db:
 
     docker compose up -d student-4-db student-4-api shared-api shared-db mailpit
     python3 student-4/tests/smoke_test.py
@@ -160,16 +160,28 @@ def run_checks():
     status, _ = _call("GET", f"{API_BASE}/health")
     expect(status == 200, "GET /health returns 200")
 
-    # Seed data baked into shared/db/init_db.py, checked here so a build
+    # Seed data baked into student-4-db's init_db.py, checked here so a build
     # missing it fails CI instead of only showing up on one machine.
-    status, response = _call("GET", f"{API_BASE}/users")
-    expect(status == 200, "GET /users returns 200")
-    for i in list(range(1, 6)) + list(range(6, 11)):
-        prefix = "student" if i < 6 else "traveller"
-        expect(
-            f"{prefix}{i}@example.com" in response.text,
-            f"seeded {prefix}{i} account is present",
-        )
+    status, response = _call("GET", f"{API_BASE}/guides")
+    expect(status == 200, "GET /guides returns 200")
+    for city in ("Sydney", "Melbourne", "Perth", "Hobart"):
+        expect(city in response.text, f"seeded destination {city} is present")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Sydney"})
+    expect(status == 200, "GET /guides?query=Sydney returns 200")
+    expect("Sydney" in response.text, "searching by city returns a match")
+    expect("Melbourne" not in response.text, "searching by city excludes other cities")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Australia"})
+    expect(status == 200, "GET /guides?query=Australia returns 200")
+    expect("Sydney" in response.text, "searching by country returns its cities")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Nowhereville"})
+    expect(status == 200, "GET /guides?query=Nowhereville returns 200")
+    expect(
+        "No cities or countries match" in response.text,
+        "an unmatched search shows the not-found placeholder",
+    )
 
     status, response = login("student1@example.com", SEED_PASSWORD)
     expect(status == 200, "seeded student1 can sign in")
@@ -207,11 +219,6 @@ def run_checks():
 
     status, response = register(email)
     expect(status == 409, "registering the same email again returns 409")
-
-    # Accounts listing
-    status, response = _call("GET", f"{API_BASE}/users")
-    expect(status == 200, "GET /users returns 200")
-    expect(email in response.text, "the new account appears in the accounts fragment")
 
     # Email verification
     link = find_verification_link(email)
