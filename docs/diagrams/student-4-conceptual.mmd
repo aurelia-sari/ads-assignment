@@ -34,3 +34,17 @@ graph LR
         W
         S
     end
+
+    SESS["GUIDE AI CHAT SESSION<br/><i>one chat, tied to a user and a destination</i>"]
+    MSG["GUIDE AI CHAT MESSAGE<br/><i>one turn of that chat</i>"]
+    RMAP["FEATURE REDIRECT MAP<br/><i>a keyword that belongs to another feature</i>"]
+
+    U -->|"opens<br/>1 : many"| SESS
+    D -->|"is asked about in<br/>1 : many"| SESS
+    SESS -->|"contains<br/>1 : many"| MSG
+
+    subgraph AI["owned by student-4-db, backs the AI Assistant tab"]
+        SESS
+        MSG
+        RMAP
+    end

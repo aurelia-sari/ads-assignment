@@ -10,6 +10,11 @@
 %% They back the Travel Guides page: every destination is an Australian city
 %% (seeded from the same cities used as flight and hotel destinations in
 %% student-5), and each info table holds one guide subsection.
+%%
+%% GUIDE_AI_CHAT_SESSION, GUIDE_AI_CHAT_MESSAGE and FEATURE_REDIRECT_MAP back
+%% the AI Assistant tab. USER_ID on the session is a cross-service reference
+%% to shared-db's USER, the same kind of reference student-1's TRIP has to
+%% TRAVELLER, not an enforceable SQLite foreign key.
 
 erDiagram
     USER ||--o{ ACCESS_LOG : "signs in as"
@@ -87,4 +92,30 @@ erDiagram
         INTEGER destination_id  FK "NOT NULL, references DESTINATION"
         TEXT    safety_level       "NOT NULL"
         TEXT    tips               "NOT NULL"
+    }
+
+    DESTINATION       ||--o{ GUIDE_AI_CHAT_SESSION : "is asked about in"
+    GUIDE_AI_CHAT_SESSION ||--o{ GUIDE_AI_CHAT_MESSAGE : "contains"
+
+    GUIDE_AI_CHAT_SESSION {
+        INTEGER id              PK
+        INTEGER user_id             "NOT NULL, cross-service reference to shared-db USER"
+        INTEGER destination_id  FK "NOT NULL, references DESTINATION, updated as the chat names new cities"
+        TEXT    created_at          "NOT NULL, ISO 8601"
+    }
+
+    GUIDE_AI_CHAT_MESSAGE {
+        INTEGER id              PK
+        INTEGER session_id      FK "NOT NULL, references GUIDE_AI_CHAT_SESSION"
+        TEXT    role                "NOT NULL, user or assistant"
+        TEXT    content             "NOT NULL"
+        TEXT    intent_category     "nullable, currency, transport, visa, weather, safety, unrelated or other:<feature>"
+        TEXT    created_at          "NOT NULL, ISO 8601"
+    }
+
+    FEATURE_REDIRECT_MAP {
+        INTEGER id                      PK
+        TEXT    keyword                     "NOT NULL, matched against the question text"
+        TEXT    feature_name                "NOT NULL, e.g. Bookings & Budget"
+        TEXT    redirect_path_template      "NOT NULL, e.g. /student-5/#search"
     }
