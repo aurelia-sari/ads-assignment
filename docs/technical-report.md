@@ -156,7 +156,7 @@ verifiable from the commit history and CI runs.
 | student-1 | `trips`, `itinerary_days` | 12, 15 |
 | student-2 | `places`, `favourites`, `recommendations` | 15, 10, 10 |
 | student-3 | `records` (placeholder) | 12 |
-| student-4 | *(no domain tables - `users`/`access_logs` moved to shared-db, see 2.7)* | - |
+| student-4 | `destinations`, `currency_infos`, `transportation_infos`, `visa_requirements`, `weather_infos`, `safety_infos` | 13, 13, 51, 104, 156, 13 |
 | student-5 | `records` (placeholder) | 12 |
 | shared | `travellers`, `users`, `access_logs` | 12, 10, 10 |
 
@@ -164,7 +164,9 @@ Students 3 and 5 currently hold the generated scaffold rather than their real
 schema. The record counts satisfy the minimum, but the tables are placeholders,
 which is recorded as known issue 1. student-4 replaced its scaffold with a real
 sign-up/verification flow, but `users` and `access_logs` were deliberately moved
-into shared-db rather than kept in student-4-db - see 2.7 for why.
+into shared-db rather than kept in student-4-db. student-4-db owns the Travel Guides
+schema (destinations, currency, transportation, visa, weather and safety), all
+seeded from the Australian cities used as flight and hotel destinations in student-5.
 
 ### 2.3 Overall project plan (Group)
 
@@ -1329,17 +1331,72 @@ student-1 passed all checks.
 $ python3 scripts/smoke_test.py 4
 Smoke test: student-4 sign-up, email verification & sign-in
   ok  GET /health returns 200
-  ok  GET /users returns 200
-  ok  seeded student1 account is present
-  ok  seeded student2 account is present
-  ok  seeded student3 account is present
-  ok  seeded student4 account is present
-  ok  seeded student5 account is present
-  ok  seeded traveller6 account is present
-  ok  seeded traveller7 account is present
-  ok  seeded traveller8 account is present
-  ok  seeded traveller9 account is present
-  ok  seeded traveller10 account is present
+  ok  GET /guides returns 200
+  ok  seeded destination Sydney is present
+  ok  seeded destination Melbourne is present
+  ok  seeded destination Perth is present
+  ok  seeded destination Hobart is present
+  ok  GET /guides?query=Sydney returns 200
+  ok  searching by city returns a match
+  ok  searching by city excludes other cities
+  ok  the Sydney row links to its guide detail endpoint
+  ok  GET /guides/1 returns 200
+  ok  the detail view names the city
+  ok  the detail view has a back-to-list link
+  ok  the detail view has a Currency subheading
+  ok  the detail view names the Australian Dollar code
+  ok  currency copy uses a period, not a semicolon, between sentences
+  ok  guide text does not use an em dash
+  ok  the detail view has a Transportation subheading
+  ok  the detail view lists a Flights transport tab
+  ok  the default (flights) transport tab shows a booking button
+  ok  the flights booking button links to student-5's search
+  ok  GET /guides/<id>/transportation?type=metro returns 200
+  ok  the metro tab is shown
+  ok  the metro tab does not show a flights booking button
+  ok  the detail view has a Visa subheading
+  ok  the detail view lists a New Zealand visa tab
+  ok  no nationality is picked by default, so a placeholder is shown instead of a guess
+  ok  GET /guides/<id>/visa?nationality=New Zealand returns 200
+  ok  New Zealand's requirement type is shown
+  ok  picking a nationality replaces the placeholder with its requirement
+  ok  GET /guides/<id>/visa?nationality=<unknown> returns 200
+  ok  an unseeded nationality falls back to the placeholder, not an error
+  ok  the detail view has a Weather subheading
+  ok  the detail view lists a January weather tab
+  ok  the default weather tab shows a temperature
+  ok  GET /guides/<id>/weather?month=July returns 200
+  ok  the July tab is shown
+  ok  GET /guides/<id>/weather?month=<invalid> returns 200
+  ok  an invalid month falls back to a real month, not an error
+  ok  GET /guides?query=Cairns returns 200
+  ok  the Cairns row links to its guide detail endpoint
+  ok  GET /guides/7/weather?month=January returns 200
+  ok  Cairns's best time to visit note names the dry season
+  ok  the detail view has a Safety subheading
+  ok  the detail view shows Australia's safety level
+  ok  the detail view shows Sydney's own safety tips
+  ok  GET /guides/1/safety returns 200
+  ok  the safety fragment has a Safety subheading
+  ok  GET /guides/7/safety returns 200
+  ok  Cairns has its own safety tips, not Sydney's
+  ok  GET /guides/<unknown id>/safety still returns 200
+  ok  an unknown destination id shows a not-found message, not an error
+  ok  GET /guides?query=Alice Springs returns 200
+  ok  the Alice Springs row links to its guide detail endpoint
+  ok  GET /guides/13 returns 200
+  ok  Alice Springs has no metro, so no Metro tab is shown
+  ok  Alice Springs has no train service, so no Train tab is shown
+  ok  GET /guides/<unknown id> returns 404
+  ok  GET /guides/1/currency returns 200
+  ok  currency fragment has a Currency subheading
+  ok  currency fragment names the Australian Dollar code
+  ok  GET /guides/<unknown id>/currency still returns 200
+  ok  an unknown destination id shows a not-found message, not an error
+  ok  GET /guides?query=Australia returns 200
+  ok  searching by country returns its cities
+  ok  GET /guides?query=Nowhereville returns 200
+  ok  an unmatched search shows the not-found placeholder
   ok  seeded student1 can sign in
   ok  seeded traveller6 is pending verification
   ok  POST /auth/register without terms_accepted returns 400
@@ -1351,8 +1408,6 @@ Smoke test: student-4 sign-up, email verification & sign-in
   ok  created account starts unverified
   ok  the response never leaks the token or the password hash
   ok  registering the same email again returns 409
-  ok  GET /users returns 200
-  ok  the new account appears in the accounts fragment
   ok  verification email arrives in Mailpit with a link
   ok  visiting the verification link returns 200
   ok  the link confirms verification
@@ -1389,15 +1444,12 @@ Smoke test: student-4 sign-up, email verification & sign-in
   ok  signin.html is served without a session
   ok  signup.html is served without a session
   ok  verify-pending.html is served without a session
+  ok  logout.html is served (not just index.html's fallback)
+  ok  logout.html gates its content behind the one-time sign-out flag
   ok  shared home page is served
   ok  shared home page loads the shared session guard
 
 student-4 sign-up, email verification & sign-in passed all checks.
-Smoke test: student-4
-  ok  database service is healthy
-  ok  backend/API service is healthy
-
-student-4 passed all checks.
 ```
 
 ### 8.2 Screenshots of the integrated application
