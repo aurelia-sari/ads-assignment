@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Travel Mate - NextStop</title>
 <link rel="stylesheet" href="/shared/css/theme.css">
+<link rel="stylesheet" href="/static/style.css">
 <script src="/shared/js/htmx.min.js"></script>
 </head>
 <body>
@@ -14,7 +15,7 @@
         <h1>Find Your Travel Mate</h1>
         <p>Student 3 &middot; Tanishpreet Kour</p>
     </header>
-    
+ 
     <nav class="tab-nav">
         <button class="tab-btn is-active" data-tab="browse" type="button">Browse</button>
         <button class="tab-btn" data-tab="post" type="button">Post a Trip</button>
@@ -22,106 +23,114 @@
         <button class="tab-btn" data-tab="mine" type="button">My Posts</button>
         <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
     </nav>
-    
+ 
     <!-- ============================================================
         BROWSE — feed of other travellers' trip posts
         ============================================================ -->
     <section class="tab-panel is-active card" id="panel-browse">
         <div class="chat-head">
-        <h3 style="margin:0">Browse trips</h3>
+            <h3 style="margin:0">Browse trips</h3>
         </div>
-    
-        <form class="form-grid"
+ 
+        <form id="browse-filter-form" class="form-grid"
             hx-get="/api/student-3/trips"
             hx-target="#browse-list"
             hx-swap="innerHTML"
-            hx-trigger="submit, load">
-        <div>
-            <label>Destination</label>
-            <input type="text" name="destination" placeholder="e.g. Bali">
-        </div>
-        <div>
-            <label>Start date</label>
-            <input type="date" name="start">
-        </div>
-        <div>
-            <label>End date</label>
-            <input type="date" name="end">
-        </div>
-        <div style="display:flex; align-items:flex-end">
-            <button type="submit">Filter</button>
-        </div>
+            hx-trigger="submit, load, tripPosted from:body">
+            <div>
+                <label>Destination</label>
+                <input type="text" name="destination" placeholder="e.g. Bali">
+            </div>
+            <div>
+                <label>Start date</label>
+                <input type="date" name="start">
+            </div>
+            <div>
+                <label>End date</label>
+                <input type="date" name="end">
+            </div>
+            <div style="display:flex; align-items:flex-end; gap:0.75rem">
+                <button type="submit">Filter</button>
+                <button type="button" class="btn-sm"
+                    hx-post="/api/student-3/trips/ai-score"
+                    hx-include="#browse-filter-form"
+                    hx-target="#browse-list"
+                    hx-swap="innerHTML">
+                    Get AI Matches
+                </button>
+            </div>
         </form>
-    
+        <span class="spinner">scoring...</span>
+ 
         <div id="browse-list">
-        <p class="muted">Loading trips...</p>
+            <p class="muted">Loading trips...</p>
         </div>
     </section>
-    
+ 
     <!-- ============================================================
         POST A TRIP — create a new trip_posts row
         ============================================================ -->
     <section class="tab-panel card" id="panel-post">
         <h3 style="margin-top:0">Post a trip</h3>
         <p class="muted">Looking for a travel companion? Post your trip so others can say hi.</p>
-    
+ 
         <form hx-post="/api/student-3/trips"
             hx-target="#post-result"
             hx-swap="innerHTML"
             hx-on::after-request="this.reset()">
-        <div class="form-grid">
-            <div>
-            <label>Destination</label>
-            <input name="destination" required placeholder="e.g. Tokyo, Japan">
+            <div class="form-grid">
+                <div>
+                    <label>Destination</label>
+                    <input name="destination" required placeholder="e.g. Tokyo, Japan">
+                </div>
+                <div>
+                    <label>Start date</label>
+                    <input type="date" name="start_date" required>
+                </div>
+                <div>
+                    <label>End date</label>
+                    <input type="date" name="end_date" required>
+                </div>
+                <div>
+                    <label>Travel style</label>
+                    <input name="travel_style" required placeholder="e.g. budget traveller, into hiking">
+                </div>
+                <div style="grid-column:1/-1">
+                    <label>Short bio / notes</label>
+                    <textarea name="note" rows="3" placeholder="Tell potential travel mates about yourself and this trip"></textarea>
+                </div>
             </div>
-            <div>
-            <label>Start date</label>
-            <input type="date" name="start_date" required>
-            </div>
-            <div>
-            <label>End date</label>
-            <input type="date" name="end_date" required>
-            </div>
-            <div>
-            <label>Travel style</label>
-            <input name="travel_style" required placeholder="e.g. budget traveller, into hiking">
-            </div>
-            <div style="grid-column:1/-1">
-            <label>Short bio / notes</label>
-            <textarea name="note" rows="3" placeholder="Tell potential travel mates about yourself and this trip"></textarea>
-            </div>
-        </div>
-        <button type="submit">Post trip</button>
-        <span class="spinner">posting...</span>
+            <button type="submit">Post trip</button>
+            <span class="spinner">posting...</span>
         </form>
-    
+ 
         <div id="post-result" style="margin-top:1rem"></div>
     </section>
-    
+ 
     <!-- ============================================================
         INBOX — incoming / outgoing connect_requests
         ============================================================ -->
     <section class="tab-panel card" id="panel-inbox">
         <div class="tab-nav" style="border-bottom:none; margin-bottom:1rem">
-        <button class="tab-btn is-active" data-subtab="incoming" type="button">Incoming</button>
-        <button class="tab-btn" data-subtab="outgoing" type="button">Outgoing</button>
+            <button class="tab-btn is-active" data-subtab="incoming" type="button">Incoming</button>
+            <button class="tab-btn" data-subtab="outgoing" type="button">Outgoing</button>
         </div>
-    
+ 
         <div class="tab-panel is-active" id="subpanel-incoming"
             hx-get="/api/student-3/connect/incoming"
             hx-trigger="load"
             hx-swap="innerHTML">
-        <p class="muted">Loading incoming requests...</p>
+            <p class="muted">Loading incoming requests...</p>
         </div>
-    
+ 
         <div class="tab-panel" id="subpanel-outgoing"
             hx-get="/api/student-3/connect/outgoing"
             hx-trigger="load"
             hx-swap="innerHTML">
-        <p class="muted">Loading outgoing requests...</p>
+            <p class="muted">Loading outgoing requests...</p>
         </div>
     </section>
-    
+ 
     <!-- ============================================================
         MY POSTS — edit / delete own trip_posts
         ============================================================ -->
@@ -131,60 +140,60 @@
             hx-get="/api/student-3/trips/mine"
             hx-trigger="load"
             hx-swap="innerHTML">
-        <p class="muted">Loading your posts...</p>
+            <p class="muted">Loading your posts...</p>
         </div>
     </section>
-    
+ 
     <!-- ============================================================
         AI MODE — travel-mate compatibility chat
         ============================================================ -->
     <section class="tab-panel card" id="panel-ai">
         <h3 style="margin-top:0">Travel Mate AI</h3>
         <p class="muted">Runs locally through AI-Mode and Ollama. Compares your trip post against other travellers and explains the match.</p>
-    
+ 
         <div class="chat-log" id="chat-log">
-        <p class="chat-log__empty">Post a trip first, then ask the AI to suggest compatible travel mates.</p>
+            <p class="chat-log__empty">Post a trip first, then ask the AI to suggest compatible travel mates.</p>
         </div>
-    
+ 
         <form hx-post="/api/student-3/ai/match-suggest"
             hx-target="#chat-log"
             hx-swap="beforeend"
             hx-on::after-request="this.reset()">
-        <div class="form-grid">
-            <div style="grid-column:1/-1">
-            <label class="sr-only-label" for="ai-question">Ask about matches</label>
-            <input id="ai-question" name="question" required
-                    placeholder="e.g. Find me hiking buddies for my Bali trip">
+            <div class="form-grid">
+                <div style="grid-column:1/-1">
+                    <label class="sr-only-label" for="ai-question">Ask about matches</label>
+                    <input id="ai-question" name="question" required
+                        placeholder="e.g. Find me hiking buddies for my Bali trip">
+                </div>
             </div>
-        </div>
-        <button type="submit">Ask</button>
-        <span class="spinner">thinking...</span>
+            <button type="submit">Ask</button>
+            <span class="spinner">thinking...</span>
         </form>
     </section>
-    </main>
-    
-    <!-- ============================================================
-        TEMPLATE: single trip card (for reference — the backend should
-        return HTML fragments in this shape from /api/student-3/trips)
-        ============================================================ -->
-    <template id="trip-card-template">
+</main>
+ 
+<!-- ============================================================
+    TEMPLATE: single trip card (for reference — the backend should
+    return HTML fragments in this shape from /api/student-3/trips)
+    ============================================================ -->
+<template id="trip-card-template">
     <div class="card">
         <div class="chat-head">
-        <div>
-            <strong data-field="destination"></strong>
-            <div class="muted" data-field="dates"></div>
-        </div>
-        <span class="pill pill-planned" data-field="travel_style"></span>
+            <div>
+                <strong data-field="destination"></strong>
+                <div class="muted" data-field="dates"></div>
+            </div>
+            <span class="pill pill-planned" data-field="travel_style"></span>
         </div>
         <p data-field="note"></p>
         <p class="owner">
-        AI compatibility: <span class="pill pill-booked" data-field="compat_score">--</span>
+            AI compatibility: <span class="pill pill-booked" data-field="compat_score">--</span>
         </p>
         <button class="btn-sm" data-action="say-hi">Say Hi</button>
     </div>
-    </template>
-    
-    <script>
+</template>
+ 
+<script>
     // Top-level tabs
     const buttons = Array.from(document.querySelectorAll(".tab-nav > .tab-btn"));
     const panels = {
@@ -194,18 +203,18 @@
         mine: document.getElementById("panel-mine"),
         ai: document.getElementById("panel-ai"),
     };
-    
+ 
     function activate(name) {
         buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
         Object.entries(panels).forEach(([key, panel]) =>
-        panel.classList.toggle("is-active", key === name)
+            panel.classList.toggle("is-active", key === name)
         );
     }
-    
+ 
     buttons.forEach((b) => {
         if (b.dataset.tab) b.addEventListener("click", () => activate(b.dataset.tab));
     });
-    
+ 
     // Inbox sub-tabs (incoming / outgoing)
     const subButtons = Array.from(document.querySelectorAll("#panel-inbox .tab-btn[data-subtab]"));
     const subPanels = {
@@ -214,12 +223,12 @@
     };
     subButtons.forEach((b) => {
         b.addEventListener("click", () => {
-        subButtons.forEach((x) => x.classList.toggle("is-active", x === b));
-        Object.entries(subPanels).forEach(([key, panel]) =>
-            panel.classList.toggle("is-active", key === b.dataset.subtab)
-        );
+            subButtons.forEach((x) => x.classList.toggle("is-active", x === b));
+            Object.entries(subPanels).forEach(([key, panel]) =>
+                panel.classList.toggle("is-active", key === b.dataset.subtab)
+            );
         });
     });
-    </script>
-    </body>
-    </html>
+</script>
+</body>
+</html>
