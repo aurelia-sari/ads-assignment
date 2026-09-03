@@ -25,12 +25,14 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash
 
+from routes.ai_chat import ai_chat_bp
+
 app = Flask(__name__)
 CORS(app)
+app.register_blueprint(ai_chat_bp)
 
 DB_SERVICE_URL = os.getenv("DB_SERVICE_URL", "http://student-4-db:5204")
 SHARED_API_URL = os.getenv("SHARED_API_URL", "http://shared-api:5000")
-AI_MODE_URL = os.getenv("AI_MODE_URL", "http://ai-mode:5300")
 
 MAILPIT_HOST = os.getenv("MAILPIT_HOST", "mailpit")
 MAILPIT_PORT = int(os.getenv("MAILPIT_PORT", "1025"))
@@ -619,30 +621,6 @@ def verify(token):
         "Email verified", "You can now log in to your account.", "ok", 200,
         cta_href="/student-4/signin.html", cta_label="Sign in",
     )
-
-@app.post("/ai/chat")
-def ai_chat():
-    """AI-Mode integration. Flow: Frontend -> Backend/API -> AI-Mode -> Ollama -> LLM."""
-    question = request.form.get("question", "").strip()
-
-    if not question:
-        return error_fragment("Ask a question first."), 400
-    try:
-        response = requests.post(
-            f"{AI_MODE_URL}/chat",
-            json={"question": question, "context": ""},
-            timeout=180,
-        )
-        response.raise_for_status()
-        answer = response.json()["answer"]
-        return (
-            "<div class='chat-msg user'><div class='who'>You</div>"
-            f"<div class='bubble'>{escape(question)}</div></div>"
-            "<div class='chat-msg bot'><div class='who'>NextStop AI</div>"
-            f"<div class='bubble'>{escape(answer)}</div></div>"
-        ), 200
-    except requests.RequestException as exc:
-        return error_fragment("Could not reach the AI-Mode service.", exc), 503
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5104)

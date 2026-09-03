@@ -78,6 +78,38 @@ CREATE TABLE IF NOT EXISTS safety_infos (
 )
 """)
 
+# These hold real conversations, so unlike the guide tables above they are
+# never wiped on reinit, only created if missing.
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS guide_ai_chat_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    created_at TEXT NOT NULL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS guide_ai_chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES guide_ai_chat_sessions(id),
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    intent_category TEXT,
+    created_at TEXT NOT NULL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS feature_redirect_map (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    keyword TEXT NOT NULL,
+    feature_name TEXT NOT NULL,
+    redirect_path_template TEXT NOT NULL
+)
+""")
+
+cursor.execute("DELETE FROM feature_redirect_map")
 cursor.execute("DELETE FROM safety_infos")
 cursor.execute("DELETE FROM weather_infos")
 cursor.execute("DELETE FROM visa_requirements")
@@ -388,6 +420,33 @@ cursor.executemany(
     safety_infos,
 )
 
+# Keywords the AI assistant uses to redirect a question about another
+# feature instead of trying to answer it from guide data it does not own.
+feature_redirect_map = [
+    ("itinerary", "Trips & Itinerary", "/student-1/"),
+    ("day plan", "Trips & Itinerary", "/student-1/"),
+    ("plan my trip", "Trips & Itinerary", "/student-1/"),
+    ("restaurant", "Attractions & Dining", "/student-2/"),
+    ("attraction", "Attractions & Dining", "/student-2/"),
+    ("sightseeing", "Attractions & Dining", "/student-2/"),
+    ("things to do", "Attractions & Dining", "/student-2/"),
+    ("food", "Attractions & Dining", "/student-2/"),
+    ("travel mate", "Travel Mate", "/student-3/"),
+    ("travel buddy", "Travel Mate", "/student-3/"),
+    ("travel companion", "Travel Mate", "/student-3/"),
+    ("book a flight", "Bookings & Budget", "/student-5/#search"),
+    ("book flight", "Bookings & Budget", "/student-5/#search"),
+    ("book a hotel", "Bookings & Budget", "/student-5/#search"),
+    ("hotel", "Bookings & Budget", "/student-5/#search"),
+    ("budget", "Bookings & Budget", "/student-5/#search"),
+]
+
+cursor.executemany(
+    "INSERT INTO feature_redirect_map (keyword, feature_name, redirect_path_template) "
+    "VALUES (?, ?, ?)",
+    feature_redirect_map,
+)
+
 conn.commit()
 conn.close()
 
@@ -397,4 +456,6 @@ print(f"Tables: destinations ({len(destinations)} seed records), "
       f"transportation_infos ({len(transportation_infos)} seed records), "
       f"visa_requirements ({len(visa_requirements)} seed records), "
       f"weather_infos ({len(weather_infos)} seed records), "
-      f"safety_infos ({len(safety_infos)} seed records).")
+      f"safety_infos ({len(safety_infos)} seed records), "
+      f"feature_redirect_map ({len(feature_redirect_map)} seed records). "
+      "guide_ai_chat_sessions/guide_ai_chat_messages created empty.")
