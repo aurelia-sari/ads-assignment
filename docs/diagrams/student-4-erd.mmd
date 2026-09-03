@@ -30,6 +30,11 @@ erDiagram
         TEXT    last_verification_sent_at       "resend 60s gate"
         INTEGER verification_resend_count       "NOT NULL, default 0, max 5"
         TEXT    verification_blocked_until      "10 minute cooldown, then resets"
+        TEXT    reset_token                     "single-use, cleared once spent"
+        TEXT    reset_expires_at                "5 minute TTL"
+        TEXT    last_reset_sent_at              "resend 60s gate"
+        INTEGER reset_resend_count              "NOT NULL, default 0, max 5"
+        TEXT    reset_blocked_until             "10 minute cooldown, then resets"
         TEXT    created_at                      "NOT NULL, ISO 8601"
     }
 

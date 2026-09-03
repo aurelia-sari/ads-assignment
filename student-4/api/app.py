@@ -43,6 +43,7 @@ DB_DOWN = "Could not reach the Account & Dashboard database service."
 SHARED_DOWN = "Could not reach the shared access service."
 
 VERIFY_TOKEN_TTL_MINUTES = 5
+RESET_TOKEN_TTL_MINUTES = 5
 
 LOCAL_PART_RE = re.compile(r"^(?!\.)(?!.*\.\.)[A-Za-z0-9._+-]+(?<!\.)$")
 DOMAIN_RE = re.compile(r"^(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}$")
@@ -98,6 +99,30 @@ def send_verification_email(name, email, token):
     )
     message = MIMEText(body)
     message["Subject"] = "Verify your NextStop account"
+    message["From"] = MAIL_FROM
+    message["To"] = email
+
+    with smtplib.SMTP(MAILPIT_HOST, MAILPIT_PORT, timeout=5) as smtp:
+        smtp.send_message(message)
+
+def new_reset_token():
+    token = secrets.token_urlsafe(32)
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_TTL_MINUTES)
+    ).isoformat(timespec="seconds")
+    return token, expires_at
+
+def send_reset_email(email, token):
+    reset_url = f"{PUBLIC_BASE_URL}/student-4/reset-password.html?token={quote(token)}"
+    body = (
+        "Hi,\n\n"
+        "We received a request to reset your NextStop password. Click the link below to choose a new one.\n\n"
+        f"{reset_url}\n\n"
+        f"This link can only be used once and expires in {RESET_TOKEN_TTL_MINUTES} minutes.\n"
+        "If you didn't request this, you can safely ignore this email."
+    )
+    message = MIMEText(body)
+    message["Subject"] = "Reset your NextStop password"
     message["From"] = MAIL_FROM
     message["To"] = email
 
@@ -621,6 +646,105 @@ def verify(token):
         "Email verified", "You can now log in to your account.", "ok", 200,
         cta_href="/student-4/signin.html", cta_label="Sign in",
     )
+
+RESET_REQUESTED_MESSAGE = (
+    f"If that email is registered with us, we've sent a password reset link. "
+    f"The link can only be used once and expires in {RESET_TOKEN_TTL_MINUTES} minutes."
+)
+
+def issue_reset_email(email):
+    # A 404 (no such account) is folded into the same generic response as
+    # success below, so the caller can never tell the two apart.
+    reset_token, reset_expires_at = new_reset_token()
+
+    try:
+        response = requests.post(
+            f"{SHARED_API_URL}/users/reset-password/request",
+            json={
+                "email": email,
+                "reset_token": reset_token,
+                "reset_expires_at": reset_expires_at,
+            },
+            timeout=5,
+        )
+        data = response.json()
+    except requests.RequestException as exc:
+        return jsonify({"error": SHARED_DOWN, "detail": str(exc)[:300]}), 503
+
+    if response.status_code == 404:
+        return jsonify({"requested": True, "message": RESET_REQUESTED_MESSAGE}), 200
+    if response.status_code == 429:
+        return jsonify(data), 429
+    if response.status_code != 200:
+        return jsonify({"error": SHARED_DOWN}), 503
+
+    try:
+        send_reset_email(email, reset_token)
+    except OSError as exc:
+        return jsonify({"error": "Could not send the email. Please try again."}), 503
+
+    return jsonify({"requested": True, "message": RESET_REQUESTED_MESSAGE}), 200
+
+@app.post("/auth/forgot-password")
+def forgot_password():
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+
+    if not validate_email(email):
+        return jsonify({"error": "Enter a valid email address."}), 400
+
+    return issue_reset_email(email)
+
+@app.post("/auth/forgot-password/resend")
+def forgot_password_resend():
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+
+    if not validate_email(email):
+        return jsonify({"error": "Enter a valid email address."}), 400
+
+    return issue_reset_email(email)
+
+@app.get("/auth/reset-password/validate/<token>")
+def reset_password_validate(token):
+    try:
+        response = requests.get(
+            f"{SHARED_API_URL}/users/reset-password/validate/{token}", timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": SHARED_DOWN, "detail": str(exc)[:300]}), 503
+
+@app.post("/auth/reset-password")
+def reset_password():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token") or ""
+    password = payload.get("password") or ""
+    confirm_password = payload.get("confirm_password") or ""
+
+    if not token:
+        return jsonify({"error": "Missing reset token."}), 400
+    if password != confirm_password:
+        return jsonify({"error": "Passwords do not match."}), 400
+    if not validate_password(password):
+        return jsonify({"error": "Password must be 8-64 characters and include an "
+                                  "uppercase letter, a lowercase letter, a number "
+                                  "and a special character."}), 400
+
+    try:
+        response = requests.post(
+            f"{SHARED_API_URL}/users/reset-password/confirm",
+            json={"token": token, "password_hash": generate_password_hash(password)},
+            timeout=5,
+        )
+        data = response.json()
+    except requests.RequestException as exc:
+        return jsonify({"error": SHARED_DOWN, "detail": str(exc)[:300]}), 503
+
+    if response.status_code != 200:
+        return jsonify(data), response.status_code
+
+    return jsonify({"reset": True}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5104)

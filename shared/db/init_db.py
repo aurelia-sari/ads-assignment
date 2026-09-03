@@ -69,6 +69,11 @@ CREATE TABLE IF NOT EXISTS users (
     last_verification_sent_at   TEXT,
     verification_resend_count   INTEGER NOT NULL DEFAULT 0,
     verification_blocked_until  TEXT,
+    reset_token                 TEXT,
+    reset_expires_at            TEXT,
+    last_reset_sent_at          TEXT,
+    reset_resend_count          INTEGER NOT NULL DEFAULT 0,
+    reset_blocked_until         TEXT,
     created_at                  TEXT NOT NULL
 )
 """)

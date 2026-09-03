@@ -285,6 +285,9 @@ Functional:
 | F4.14 | Answer a Travel Guides question about currency, transportation, visa, weather or safety, naming the city inside the question itself | `POST /ai/guide-chat` resolves the destination from the question text, grounds its answer only in that destination's real data, and never calls the model at all when the data is missing |
 | F4.15 | Redirect a question that belongs to another feature, instead of guessing at an answer this feature does not own | A question matching a `feature_redirect_map` keyword (book a flight, food, travel mate and so on) returns a clickable link to that feature instead of a guide answer |
 | F4.16 | Keep a chat history per user, resumable and deletable | `GET /users/<id>/guide-chat-sessions` lists past chats, `GET /ai/guide-chat/session/<id>` returns one in full, `DELETE` on the same path removes it |
+| F4.17 | Let a user request a password reset link by email | `POST /auth/forgot-password` returns 200 with a generic message whether or not the email is registered, and Mailpit receives a reset email only when it is |
+| F4.18 | Expire a reset link after 5 minutes and allow only one use | Expired token returns 410, a reused token returns 404, matching F4.6 for verification |
+| F4.19 | Let the user set a new password from the reset link, server-validated | `POST /auth/reset-password` checks the password against the same strength rule as F4.3, checks the confirmation matches, then updates `password_hash` and clears the token |
 
 Non-functional:
 
@@ -298,6 +301,7 @@ Non-functional:
 | N4.6 | A failed sign-in never reveals whether an email is registered | `/users/authenticate` returns the identical 401 body for "no such user" and "wrong password", and hashes a dummy value on the former so response timing does not leak it either; the `email_not_verified` code is only ever returned once the password has already been confirmed correct |
 | N4.7 | The session gate applies to the whole integrated application, not only this feature's own pages | `shared/js/auth-guard.js` is loaded by the shared home page and by all five feature pages. Each one hides its content until `NextStopSession.verifySession()` confirms a session |
 | N4.8 | The assistant never answers with an invented fact | The Observe step (`agentic_loop/core/validator.py`) checks the model's answer restates a fact that was actually retrieved, retrying once with a stricter prompt, then falling back to a disclaimer or a clarifying question instead of a guess |
+| N4.9 | A password reset request never reveals whether an email is registered | `POST /auth/forgot-password` returns the identical body for a registered and an unregistered email, folding a 404 from shared-api into the same generic response as a real send |
 
 *students 2, 3, 5: add your subsections here.*
 
@@ -465,6 +469,8 @@ integration time.
 | 18 | Guide chat sessions and redirect map | Three new student-4-db tables, `guide_ai_chat_sessions`, `guide_ai_chat_messages` and `feature_redirect_map`, plus the four routes under `/ai/guide-chat` | 4 Sep |
 | 19 | Redirect links are clickable | `views/ai_formatter.py` renders `redirect_path` as a real anchor instead of plain text ending in a path, and Plan now runs before a destination is resolved, so a redirect question with no city named still reaches the redirect logic instead of being blocked by a which city prompt | 4 Sep |
 | 21 | AI Assistant smoke tests | Extended `student-4/tests/smoke_test.py`: the auth gate, the redirect and food redirect checks, the no city fallback, and, when ai-mode is reachable, a grounded weather question, a follow up in the same session, and the full session history, list and delete lifecycle | 4 Sep |
+| 22 | Forgot / reset password | New `reset_token`/`reset_expires_at`/`last_reset_sent_at`/`reset_resend_count`/`reset_blocked_until` columns on shared-db's `users` table, alongside the equivalent verification columns. `POST /auth/forgot-password` and `/auth/forgot-password/resend` in student-4-api generate the token and email it, folding an unregistered email into the same generic response as a real send so the flow cannot be used to check which emails have accounts. `GET /auth/reset-password/validate/<token>` and `POST /auth/reset-password` in student-4-api check and consume the token. New pages `forgot-password.html`, `forgot-password-pending.html` and `reset-password.html`, and the "Forgot password?" link on `signin.html` now links to the first one | 4 Sep |
+| 23 | Forgot / reset password smoke tests | Extended `student-4/tests/smoke_test.py`: generic-response parity for a registered and unregistered email, resend rate limit, single-use enforcement, mismatched-confirmation and weak-password rejection, and a real password change confirmed by signing in with the old then the new password | 4 Sep |
 
 **Design decisions worth defending.**
 
@@ -942,6 +948,11 @@ erDiagram
         TEXT    last_verification_sent_at       "resend 60s gate"
         INTEGER verification_resend_count       "NOT NULL, default 0, max 5"
         TEXT    verification_blocked_until      "10 minute cooldown, then resets"
+        TEXT    reset_token                     "single-use, cleared once spent"
+        TEXT    reset_expires_at                "5 minute TTL"
+        TEXT    last_reset_sent_at              "resend 60s gate"
+        INTEGER reset_resend_count              "NOT NULL, default 0, max 5"
+        TEXT    reset_blocked_until             "10 minute cooldown, then resets"
         TEXT    created_at                      "NOT NULL, ISO 8601"
     }
 
@@ -970,6 +981,11 @@ erDiagram
 | last_verification_sent_at | timestamp | | nullable |
 | verification_resend_count | integer | | NOT NULL, default 0, resets after a block |
 | verification_blocked_until | timestamp | | nullable |
+| reset_token | string | | nullable, single-use |
+| reset_expires_at | timestamp | | nullable, 5 minutes from issue |
+| last_reset_sent_at | timestamp | | nullable |
+| reset_resend_count | integer | | NOT NULL, default 0, resets after a block |
+| reset_blocked_until | timestamp | | nullable |
 | created_at | timestamp | | NOT NULL |
 
 **ACCESS_LOG**
@@ -985,8 +1001,8 @@ erDiagram
 **Normalisation.** Both relations are in third normal form: every attribute is
 atomic (1NF), each uses a single-attribute surrogate key so no partial
 dependency is possible (2NF), and no non-key attribute determines another -
-`verification_resend_count` does not derive `is_validated`, `sign_in_at` does
-not derive `user_id` (3NF).
+`verification_resend_count` does not derive `is_validated`, `reset_resend_count`
+does not derive `password_hash`, `sign_in_at` does not derive `user_id` (3NF).
 
 **Physical model**
 
@@ -1002,6 +1018,11 @@ CREATE TABLE users (
     last_verification_sent_at   TEXT,
     verification_resend_count   INTEGER NOT NULL DEFAULT 0,
     verification_blocked_until  TEXT,
+    reset_token                 TEXT,
+    reset_expires_at            TEXT,
+    last_reset_sent_at          TEXT,
+    reset_resend_count          INTEGER NOT NULL DEFAULT 0,
+    reset_blocked_until         TEXT,
     created_at                  TEXT NOT NULL
 );
 

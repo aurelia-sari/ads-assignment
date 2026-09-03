@@ -50,6 +50,14 @@ It exercises the real flow end to end:
 - **Email verification.** By polling Mailpit's API for the actual email and
   extracting the link from it, full verification including single-use
   enforcement and the resend rate limit.
+- **Forgot / reset password.** `POST /auth/forgot-password` returns the same
+  response whether or not the email is registered, so the flow cannot be used
+  to probe which emails have accounts. By using Mailpit for the actual
+  reset email and extracting the token from its link, confirms the token
+  validates, a mismatched confirmation and a weak password are rejected,
+  a valid reset actually changes the password (old password then fails,
+  new password then succeeds), the token is single-use, and the resend
+  rate limit matches email verification's.
 - **Sign-in.** `POST /auth/login` returns the same generic "Invalid email or
   password." for both a wrong password and an email with no account (no
   account enumeration), returns 403 with `error_code: "email_not_verified"`
@@ -65,8 +73,9 @@ It exercises the real flow end to end:
   documented in `docs/ADR-001-service-boundaries.md`, Decision 6.
 - **Sign in gate on the frontend pages.** The landing page
   (`student-4/frontend/templates/index.html`) is confirmed to call
-  `verifySession` before it shows its content, and the sign up, sign in and
-  verify pending pages are confirmed to stay reachable without a session.
+  `verifySession` before it shows its content, and the sign up, sign in,
+  verify pending, forgot password, forgot password pending and reset
+  password pages are confirmed to stay reachable without a session.
   The shared home page (`shared/index.html`, served on port 8080) is
   confirmed to load `shared/js/auth-guard.js`, the same guard the other four
   feature pages load. This step needs a real browser to check the actual
@@ -90,5 +99,5 @@ unverified account, then Mailpit's API confirms a new message arrives with
 the verification link.
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted
-unit testing (project specification, section 7.3). Unit tests for this feature
+unit testing. Unit tests for this feature
 belong in this directory.

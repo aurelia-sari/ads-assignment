@@ -36,6 +36,10 @@ RESEND_MIN_INTERVAL_SECONDS = 60
 RESEND_MAX_ATTEMPTS = 5
 RESEND_BLOCK_SECONDS = 600
 
+RESET_MIN_INTERVAL_SECONDS = 60
+RESET_MAX_ATTEMPTS = 5
+RESET_BLOCK_SECONDS = 600
+
 def now_utc():
     return datetime.now(timezone.utc)
 
@@ -124,6 +128,7 @@ def user_public(row):
     data = dict(row)
     data.pop("password_hash", None)
     data.pop("verification_token", None)
+    data.pop("reset_token", None)
     return data
 
 @app.get("/users")
@@ -404,6 +409,140 @@ def resend_verification():
     conn.close()
 
     return jsonify({"resent": True, "resend_count": resend_count + 1})
+
+@app.post("/users/reset-password/request")
+def request_password_reset():
+    # Same rate limit shape as /users/verification/resend: 60s apart, 5 per
+    # window, then a 10 minute cooldown before the window resets.
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get("email") or "").strip()
+    token = payload.get("reset_token")
+    expires_at = payload.get("reset_expires_at")
+
+    if not email or not token or not expires_at:
+        return jsonify({"error": "Missing fields"}), 400
+
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+    if row is None:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    now = now_utc()
+    blocked_until = parse_ts(row["reset_blocked_until"])
+
+    if blocked_until and now < blocked_until:
+        conn.close()
+        remaining = int((blocked_until - now).total_seconds())
+        return jsonify({
+            "error": "Too many attempts. Please wait before trying again.",
+            "retry_after_seconds": remaining,
+        }), 429
+
+    resend_count = row["reset_resend_count"] or 0
+    if blocked_until and now >= blocked_until:
+        resend_count = 0
+
+    last_sent = parse_ts(row["last_reset_sent_at"])
+    if last_sent:
+        elapsed = (now - last_sent).total_seconds()
+        if elapsed < RESET_MIN_INTERVAL_SECONDS:
+            conn.close()
+            remaining = int(RESET_MIN_INTERVAL_SECONDS - elapsed) + 1
+            return jsonify({
+                "error": "Please wait before requesting another email.",
+                "retry_after_seconds": remaining,
+            }), 429
+
+    if resend_count >= RESET_MAX_ATTEMPTS:
+        new_blocked_until = now + timedelta(seconds=RESET_BLOCK_SECONDS)
+        conn.execute(
+            "UPDATE users SET reset_resend_count = 0, reset_blocked_until = ? WHERE id = ?",
+            (new_blocked_until.isoformat(timespec="seconds"), row["id"]),
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({
+            "error": "Too many attempts. Please wait before trying again.",
+            "retry_after_seconds": RESET_BLOCK_SECONDS,
+        }), 429
+
+    conn.execute(
+        """
+        UPDATE users
+        SET reset_token = ?,
+            reset_expires_at = ?,
+            last_reset_sent_at = ?,
+            reset_resend_count = ?,
+            reset_blocked_until = NULL
+        WHERE id = ?
+        """,
+        (token, expires_at, now.isoformat(timespec="seconds"), resend_count + 1, row["id"]),
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({"sent": True, "resend_count": resend_count + 1})
+
+@app.get("/users/reset-password/validate/<token>")
+def validate_password_reset(token):
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM users WHERE reset_token = ?", (token,)).fetchone()
+
+    if row is None:
+        conn.close()
+        return jsonify({"error": "Invalid or already-used reset link"}), 404
+
+    expires_at = parse_ts(row["reset_expires_at"])
+    if expires_at and now_utc() > expires_at:
+        conn.execute("UPDATE users SET reset_token = NULL WHERE id = ?", (row["id"],))
+        conn.commit()
+        conn.close()
+        return jsonify({"error": "This reset link has expired"}), 410
+
+    conn.close()
+    return jsonify({"valid": True, "email": row["email"]})
+
+@app.post("/users/reset-password/confirm")
+def confirm_password_reset():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
+    password_hash = payload.get("password_hash")
+
+    if not token or not password_hash:
+        return jsonify({"error": "Missing fields"}), 400
+
+    conn = get_db_connection()
+    row = conn.execute("SELECT * FROM users WHERE reset_token = ?", (token,)).fetchone()
+
+    if row is None:
+        conn.close()
+        return jsonify({"error": "Invalid or already-used reset link"}), 404
+
+    expires_at = parse_ts(row["reset_expires_at"])
+    if expires_at and now_utc() > expires_at:
+        conn.execute("UPDATE users SET reset_token = NULL WHERE id = ?", (row["id"],))
+        conn.commit()
+        conn.close()
+        return jsonify({"error": "This reset link has expired"}), 410
+
+    conn.execute(
+        """
+        UPDATE users
+        SET password_hash = ?,
+            reset_token = NULL,
+            reset_expires_at = NULL,
+            reset_resend_count = 0,
+            reset_blocked_until = NULL
+        WHERE id = ?
+        """,
+        (password_hash, row["id"]),
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({"reset": True})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5200)
