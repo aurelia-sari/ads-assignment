@@ -66,6 +66,7 @@
             }
         }
 
+        sessionStorage.setItem("justLoggedOut", "1");
         window.location.href = redirectTo || "signin.html";
     }
 

@@ -453,6 +453,7 @@ integration time.
 | 12 | Unverified-account handling | `/auth/login` returns `email_not_verified` and redirects to the existing verify-pending page rather than a bare inline error; also triggers a real resend (reusing 6's rate limit) so that page's "check your email" copy is backed by an actual email | 31 Aug |
 | 13 | Sign-in smoke tests | Extended `student-4/tests/smoke_test.py`: generic-error parity, unverified block, no-duplicate-email-within-cooldown, successful login | 31 Aug |
 | 14 | Session gate for the dashboard and the whole app | `index.html` and `signin.html` now check the session first. `index.html` redirects to `signin.html` without one, `signin.html` redirects to the landing page if one already exists. The same guard (new `shared/js/auth-guard.js`) was used to the shared home page and the other four feature pages, so only sign up, sign in and verify pending stay reachable without a session. Frontend checks added to `student-4/tests/smoke_test.py` | 3 Sep |
+| 15 | Logout confirmation page | `logout.html`: reuses the shared `verify-card` styling, "You've been logged out" with a button back to `signin.html`. `session.js`'s `signOut()` sets a one-time `sessionStorage` flag before redirecting so the page only renders after an actual sign-out and otherwise bounces straight to `signin.html`. Direct navigation can't reach it. `index.html`'s sign-out button and `shared/index.html`'s sign-out link both redirect there now instead of `signin.html`/`/`. Checks added to `student-4/tests/smoke_test.py` | 3 Sep |
 
 **Design decisions worth defending.**
 
@@ -1532,6 +1533,7 @@ git shortlog -sn --all
 | 31 Aug | This section, plus `docs/diagrams/student-4-architecture.mmd`, `student-4-conceptual.mmd` and `student-4-erd.mmd` |
 | 31 Aug | `student-4/tests/smoke_test.py`, a real end-to-end CI check replacing the generic `records`-shaped one this feature no longer matched (fixed R4-6 / `scripts/smoke_test.py 4` failing with `FAIL: GET /records returns 200`) |
 | 3 Sep | Session gate: `index.html` and `signin.html` redirect based on session state, new `shared/js/auth-guard.js` rolled out to `shared/index.html` and to student-1, student-2, student-3 and student-5's `index.html`, so the landing page and every feature page require a session while sign up, sign in and verify pending stay public. Frontend checks added to `student-4/tests/smoke_test.py` |
+| 3 Sep | Logout confirmation page (`logout.html`), reached only via an actual sign-out (one-time `sessionStorage` flag) and wired up from both `index.html`'s sign-out button and `shared/index.html`'s sign-out link. Checks added to `student-4/tests/smoke_test.py` |
 
 ### 10.3 Attendance checkpoints
 
