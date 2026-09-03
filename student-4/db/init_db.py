@@ -69,6 +69,16 @@ CREATE TABLE IF NOT EXISTS weather_infos (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS safety_infos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    safety_level TEXT NOT NULL,
+    tips TEXT NOT NULL
+)
+""")
+
+cursor.execute("DELETE FROM safety_infos")
 cursor.execute("DELETE FROM weather_infos")
 cursor.execute("DELETE FROM visa_requirements")
 cursor.execute("DELETE FROM transportation_infos")
@@ -334,6 +344,50 @@ cursor.executemany(
     weather_infos,
 )
 
+# Use Australia's official government travel advisory for the whole country
+# one safety level, so only the tips vary, by what actually differs city to
+# city (surf, wildlife, heat, weather).
+SAFETY_LEVEL = "Exercise normal safety precautions"
+
+SAFETY_TIPS_BY_CITY = {
+    "Sydney": "Take care of surf conditions and rips at ocean beaches. Watch your "
+              "belongings in busy tourist areas.",
+    "Melbourne": "The weather can change quickly, so carry a jacket even in summer. "
+                 "Stay aware of your belongings on trams and in busy laneways.",
+    "Brisbane": "Summer storms can be sudden and severe. Use sun protection, since UV "
+                "levels are high for most of the year.",
+    "Perth": "Summer heat can be intense, so stay hydrated and use sun protection. "
+             "Ocean currents can be strong at unpatrolled beaches.",
+    "Adelaide": "Summer heatwaves can be extreme, so stay hydrated and avoid the "
+                "midday sun. Take care crossing tram tracks in the city centre.",
+    "Gold Coast": "Swim between the flags at patrolled beaches, since surf conditions "
+                  "can be strong. Use sun protection year round.",
+    "Cairns": "Do not swim in the ocean during stinger season without a protective "
+              "suit. Only swim in patrolled, netted areas.",
+    "Canberra": "Winters can be cold with occasional frost, so pack warm clothing. "
+                "Watch for wildlife on roads at dawn and dusk.",
+    "Hobart": "Weather can turn cold and wet quickly, even in summer, so pack layers. "
+              "Take care on unmarked bushwalking trails.",
+    "Darwin": "Do not swim in rivers, waterholes or the ocean without checking for "
+              "crocodile warnings. The wet season brings heavy storms.",
+    "Sunshine Coast": "Swim between the flags at patrolled beaches, since surf "
+                       "conditions can be strong. Use sun protection year round.",
+    "Launceston": "Weather can turn cold and wet quickly, even in summer, so pack "
+                  "layers. Take care on unmarked bushwalking trails.",
+    "Alice Springs": "Carry plenty of water and tell someone your plans before remote "
+                      "bushwalks. Summer heat can be extreme, so avoid the midday sun.",
+}
+
+safety_infos = [
+    (destination_id, SAFETY_LEVEL, SAFETY_TIPS_BY_CITY[city])
+    for (country, city, region), destination_id in zip(destinations, destination_ids)
+]
+
+cursor.executemany(
+    "INSERT INTO safety_infos (destination_id, safety_level, tips) VALUES (?, ?, ?)",
+    safety_infos,
+)
+
 conn.commit()
 conn.close()
 
@@ -342,4 +396,5 @@ print(f"Tables: destinations ({len(destinations)} seed records), "
       f"currency_infos ({len(currency_infos)} seed records), "
       f"transportation_infos ({len(transportation_infos)} seed records), "
       f"visa_requirements ({len(visa_requirements)} seed records), "
-      f"weather_infos ({len(weather_infos)} seed records).")
+      f"weather_infos ({len(weather_infos)} seed records), "
+      f"safety_infos ({len(safety_infos)} seed records).")

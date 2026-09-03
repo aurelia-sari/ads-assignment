@@ -144,10 +144,10 @@ def destinations_table(destinations, query):
 
 def currency_subsection(info):
     if info is None:
-        return "<h4 style='margin:0.75rem 0 0.15rem 0'>Currency</h4><p class='muted'>No currency information yet.</p>"
+        return "<h4 style='margin:1.75rem 0 0.15rem 0'>Currency</h4><p class='muted'>No currency information yet.</p>"
 
     return (
-        "<h4 style='margin:0.75rem 0 0.15rem 0'>Currency</h4>"
+        "<h4 style='margin:1.75rem 0 0.15rem 0'>Currency</h4>"
         f"<p style='margin:0'>{escape(info['currency_code'])}, the {escape(info['currency_name'])}. "
         f"{escape(info['exchange_tips'])}</p>"
     )
@@ -169,7 +169,7 @@ def transportation_section(destination_id, items, active_type):
     if not items:
         return (
             "<div id='transportation-section'>"
-            "<h4 style='margin:0.75rem 0 0.15rem 0'>Transportation</h4>"
+            "<h4 style='margin:1.75rem 0 0.15rem 0'>Transportation</h4>"
             "<p class='muted'>No transportation information yet.</p>"
             "</div>"
         )
@@ -198,7 +198,7 @@ def transportation_section(destination_id, items, active_type):
 
     return (
         "<div id='transportation-section'>"
-        "<h4 style='margin:0.75rem 0 0.35rem 0'>Transportation</h4>"
+        "<h4 style='margin:1.75rem 0 0.35rem 0'>Transportation</h4>"
         f"<div>{tabs}</div>"
         f"<p style='margin:0.35rem 0 0'>{escape(active_item['description'])} {escape(active_item['tips'])}</p>"
         f"{book_button}"
@@ -209,7 +209,7 @@ def visa_section(destination_id, items, active_nationality):
     if not items:
         return (
             "<div id='visa-section'>"
-            "<h4 style='margin:0.75rem 0 0.15rem 0'>Visa</h4>"
+            "<h4 style='margin:1.75rem 0 0.15rem 0'>Visa</h4>"
             "<p class='muted'>No visa information yet.</p>"
             "</div>"
         )
@@ -242,7 +242,7 @@ def visa_section(destination_id, items, active_nationality):
 
     return (
         "<div id='visa-section'>"
-        "<h4 style='margin:0.75rem 0 0.35rem 0'>Visa</h4>"
+        "<h4 style='margin:1.75rem 0 0.35rem 0'>Visa</h4>"
         f"<div>{tabs}</div>"
         f"{body}"
         "</div>"
@@ -258,7 +258,7 @@ def weather_section(destination_id, items, active_month):
     if not items:
         return (
             "<div id='weather-section'>"
-            "<h4 style='margin:0.75rem 0 0.15rem 0'>Weather</h4>"
+            "<h4 style='margin:1.75rem 0 0.15rem 0'>Weather</h4>"
             "<p class='muted'>No weather information yet.</p>"
             "</div>"
         )
@@ -280,7 +280,7 @@ def weather_section(destination_id, items, active_month):
 
     return (
         "<div id='weather-section'>"
-        "<h4 style='margin:0.75rem 0 0.35rem 0'>Weather</h4>"
+        "<h4 style='margin:1.75rem 0 0.35rem 0'>Weather</h4>"
         f"<div>{tabs}</div>"
         f"<p style='margin:0.35rem 0 0'>Average temperature in {escape(active_item['month'])} is about "
         f"{active_item['avg_temp']:g}°C, with around {active_item['rainfall']:g}mm of rainfall.</p>"
@@ -288,7 +288,16 @@ def weather_section(destination_id, items, active_month):
         "</div>"
     )
 
-def destination_detail(destination, currency, transportation, visa, weather):
+def safety_subsection(info):
+    if info is None:
+        return "<h4 style='margin:1.75rem 0 0.15rem 0'>Safety</h4><p class='muted'>No safety information yet.</p>"
+
+    return (
+        "<h4 style='margin:1.75rem 0 0.15rem 0'>Safety</h4>"
+        f"<p style='margin:0'><strong>{escape(info['safety_level'])}.</strong> {escape(info['tips'])}</p>"
+    )
+
+def destination_detail(destination, currency, transportation, visa, weather, safety):
     back_link = (
         "<a href='#' hx-get='/api/student-4/guides' hx-target='#guides-results' hx-swap='innerHTML' "
         "style='display:inline-block; margin-bottom:0.75rem; font-weight:600'>&lt;- View all</a>"
@@ -301,6 +310,7 @@ def destination_detail(destination, currency, transportation, visa, weather):
         + transportation_section(destination["id"], transportation, None)
         + visa_section(destination["id"], visa, None)
         + weather_section(destination["id"], weather, None)
+        + safety_subsection(safety)
     )
 
 @app.get("/health")
@@ -354,7 +364,14 @@ def guide_detail(destination_id):
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
 
-    return destination_detail(destination_response.json(), currency, transportation, visa, weather), 200
+    try:
+        safety_response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/safety", timeout=5)
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    safety = safety_response.json() if safety_response.status_code == 200 else None
+
+    return destination_detail(destination_response.json(), currency, transportation, visa, weather, safety), 200
 
 @app.get("/guides/<int:destination_id>/transportation")
 def guide_transportation(destination_id):
@@ -402,6 +419,20 @@ def guide_currency(destination_id):
         return error_fragment(DB_DOWN), 503
 
     return currency_subsection(response.json()), 200
+
+@app.get("/guides/<int:destination_id>/safety")
+def guide_safety(destination_id):
+    try:
+        response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/safety", timeout=5)
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    if response.status_code == 404:
+        return safety_subsection(None), 200
+    if response.status_code != 200:
+        return error_fragment(DB_DOWN), 503
+
+    return safety_subsection(response.json()), 200
 
 @app.post("/auth/register")
 def register():

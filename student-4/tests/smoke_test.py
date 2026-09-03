@@ -270,6 +270,37 @@ def run_checks():
         "Cairns's best time to visit note names the dry season",
     )
 
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}")
+    expect("Safety" in response.text, "the detail view has a Safety subheading")
+    expect(
+        "Exercise normal safety precautions" in response.text,
+        "the detail view shows Australia's safety level",
+    )
+    expect(
+        "surf conditions and rips" in response.text,
+        "the detail view shows Sydney's own safety tips",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}/safety")
+    expect(status == 200, f"GET /guides/{sydney_id}/safety returns 200")
+    expect("Safety" in response.text, "the safety fragment has a Safety subheading")
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{cairns_id}/safety"
+    )
+    expect(status == 200, f"GET /guides/{cairns_id}/safety returns 200")
+    expect(
+        "stinger season" in response.text,
+        "Cairns has its own safety tips, not Sydney's",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/999999999/safety")
+    expect(status == 200, "GET /guides/<unknown id>/safety still returns 200")
+    expect(
+        "No safety information" in response.text,
+        "an unknown destination id shows a not-found message, not an error",
+    )
+
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Alice Springs"})
     expect(status == 200, "GET /guides?query=Alice Springs returns 200")
     match = re.search(r"/guides/(\d+)", response.text)

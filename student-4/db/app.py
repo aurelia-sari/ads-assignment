@@ -118,5 +118,19 @@ def get_weather(destination_id):
 
     return jsonify([dict(row) for row in rows])
 
+@app.get("/destinations/<int:destination_id>/safety")
+def get_safety(destination_id):
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT safety_level, tips FROM safety_infos WHERE destination_id = ?",
+        (destination_id,),
+    ).fetchone()
+    conn.close()
+
+    if row is None:
+        return jsonify({"error": "No safety information for this destination."}), 404
+
+    return jsonify(dict(row))
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5204)
