@@ -94,5 +94,17 @@ def get_transportation(destination_id):
 
     return jsonify([dict(row) for row in rows])
 
+@app.get("/destinations/<int:destination_id>/visa")
+def get_visa(destination_id):
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT nationality, requirement_type, notes FROM visa_requirements "
+        "WHERE destination_id = ? ORDER BY nationality",
+        (destination_id,),
+    ).fetchall()
+    conn.close()
+
+    return jsonify([dict(row) for row in rows])
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5204)

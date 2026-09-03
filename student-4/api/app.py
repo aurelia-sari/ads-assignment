@@ -18,6 +18,7 @@ import smtplib
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from html import escape
+from urllib.parse import quote
 
 import requests
 from flask import Flask, jsonify, request
@@ -204,7 +205,50 @@ def transportation_section(destination_id, items, active_type):
         "</div>"
     )
 
-def destination_detail(destination, currency, transportation):
+def visa_section(destination_id, items, active_nationality):
+    if not items:
+        return (
+            "<div id='visa-section'>"
+            "<h4 style='margin:0.75rem 0 0.15rem 0'>Visa</h4>"
+            "<p class='muted'>No visa information yet.</p>"
+            "</div>"
+        )
+
+    active = active_nationality if any(item["nationality"] == active_nationality for item in items) else None
+
+    tabs = "".join(
+        (
+            f"<button type='button' hx-get='/api/student-4/guides/{destination_id}/visa?nationality={quote(item['nationality'])}' "
+            "hx-target='#visa-section' hx-swap='outerHTML' "
+            "style='padding:0.35rem 0.75rem; margin:0 0.35rem 0.35rem 0; border-radius:999px; "
+            "border:1px solid var(--color-slate-200); "
+            f"{'background:var(--color-navy-800); color:var(--color-white)' if item['nationality'] == active else 'background:transparent; color:var(--color-slate-500)'}'>"
+            f"{escape(item['nationality'])}</button>"
+        )
+        for item in items
+    )
+
+    if active is None:
+        body = (
+            "<p class='muted' style='margin:0.35rem 0 0'>"
+            "Select your nationality to see visa requirements for this destination.</p>"
+        )
+    else:
+        active_item = next(item for item in items if item["nationality"] == active)
+        body = (
+            f"<p style='margin:0.35rem 0 0'><strong>{escape(active_item['requirement_type'])}.</strong> "
+            f"{escape(active_item['notes'])}</p>"
+        )
+
+    return (
+        "<div id='visa-section'>"
+        "<h4 style='margin:0.75rem 0 0.35rem 0'>Visa</h4>"
+        f"<div>{tabs}</div>"
+        f"{body}"
+        "</div>"
+    )
+
+def destination_detail(destination, currency, transportation, visa):
     back_link = (
         "<a href='#' hx-get='/api/student-4/guides' hx-target='#guides-results' hx-swap='innerHTML' "
         "style='display:inline-block; margin-bottom:0.75rem; font-weight:600'>&lt;- View all</a>"
@@ -215,6 +259,7 @@ def destination_detail(destination, currency, transportation):
         + heading
         + currency_subsection(currency)
         + transportation_section(destination["id"], transportation, None)
+        + visa_section(destination["id"], visa, None)
     )
 
 @app.get("/health")
@@ -256,7 +301,13 @@ def guide_detail(destination_id):
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
 
-    return destination_detail(destination_response.json(), currency, transportation), 200
+    try:
+        visa_response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/visa", timeout=5)
+        visa = visa_response.json() if visa_response.status_code == 200 else []
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    return destination_detail(destination_response.json(), currency, transportation, visa), 200
 
 @app.get("/guides/<int:destination_id>/transportation")
 def guide_transportation(destination_id):
@@ -268,6 +319,17 @@ def guide_transportation(destination_id):
         return error_fragment(DB_DOWN, exc), 503
 
     return transportation_section(destination_id, response.json(), requested_type), 200
+
+@app.get("/guides/<int:destination_id>/visa")
+def guide_visa(destination_id):
+    requested_nationality = request.args.get("nationality")
+    try:
+        response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/visa", timeout=5)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return error_fragment(DB_DOWN, exc), 503
+
+    return visa_section(destination_id, response.json(), requested_nationality), 200
 
 @app.get("/guides/<int:destination_id>/currency")
 def guide_currency(destination_id):

@@ -48,6 +48,17 @@ CREATE TABLE IF NOT EXISTS transportation_infos (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS visa_requirements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    destination_id INTEGER NOT NULL REFERENCES destinations(id),
+    nationality TEXT NOT NULL,
+    requirement_type TEXT NOT NULL,
+    notes TEXT NOT NULL
+)
+""")
+
+cursor.execute("DELETE FROM visa_requirements")
 cursor.execute("DELETE FROM transportation_infos")
 cursor.execute("DELETE FROM currency_infos")
 cursor.execute("DELETE FROM destinations")
@@ -116,7 +127,7 @@ LIGHT_RAIL_CITIES = {"Gold Coast", "Canberra"}
 
 def flights_copy(city):
     return (
-        f"{city} is served by regular domestic flights connecting it to the major Australian airports.",
+        f"Regular domestic flights connect {city} to the major Australian airports.",
         "Book early for the best fares and arrive at least 60 minutes before a domestic flight.",
     )
 
@@ -166,10 +177,76 @@ cursor.executemany(
     transportation_infos,
 )
 
+# Visa rules are set by Australia's immigration system, not by which city a
+# traveller lands in, so every destination shares the same set of
+# nationalities and requirements.
+VISA_INFO_BY_NATIONALITY = [
+    (
+        "Australia",
+        "Not required",
+        "Australian citizens do not need a visa to enter their own country.",
+    ),
+    (
+        "New Zealand",
+        "Visa on arrival",
+        "New Zealand passport holders are granted a Special Category Visa on arrival, "
+        "allowing a stay of up to three months.",
+    ),
+    (
+        "United Kingdom",
+        "Electronic visa (eVisitor)",
+        "Apply online for a free eVisitor visa before you travel. It usually allows "
+        "stays of up to three months per visit.",
+    ),
+    (
+        "Germany",
+        "Electronic visa (eVisitor)",
+        "Apply online for a free eVisitor visa before you travel. It usually allows "
+        "stays of up to three months per visit.",
+    ),
+    (
+        "United States",
+        "Electronic travel authority (ETA)",
+        "Apply through the official app for an ETA before you travel. There is a "
+        "small service fee and it usually allows stays of up to three months per visit.",
+    ),
+    (
+        "Singapore",
+        "Electronic travel authority (ETA)",
+        "Apply through the official app for an ETA before you travel. There is a "
+        "small service fee and it usually allows stays of up to three months per visit.",
+    ),
+    (
+        "China",
+        "Visa required in advance",
+        "Apply for a visitor visa before you travel. Processing can take several "
+        "weeks, so apply well ahead of your trip.",
+    ),
+    (
+        "Indonesia",
+        "Visa required in advance",
+        "Apply for a visitor visa before you travel. Processing can take several "
+        "weeks, so apply well ahead of your trip.",
+    ),
+]
+
+visa_requirements = [
+    (destination_id, nationality, requirement_type, notes)
+    for destination_id in destination_ids
+    for nationality, requirement_type, notes in VISA_INFO_BY_NATIONALITY
+]
+
+cursor.executemany(
+    "INSERT INTO visa_requirements (destination_id, nationality, requirement_type, notes) "
+    "VALUES (?, ?, ?, ?)",
+    visa_requirements,
+)
+
 conn.commit()
 conn.close()
 
 print("student-4-db initialised.")
 print(f"Tables: destinations ({len(destinations)} seed records), "
       f"currency_infos ({len(currency_infos)} seed records), "
-      f"transportation_infos ({len(transportation_infos)} seed records).")
+      f"transportation_infos ({len(transportation_infos)} seed records), "
+      f"visa_requirements ({len(visa_requirements)} seed records).")

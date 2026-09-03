@@ -208,6 +208,33 @@ def run_checks():
         "the metro tab does not show a flights booking button",
     )
 
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}")
+    expect("Visa" in response.text, "the detail view has a Visa subheading")
+    expect("New Zealand" in response.text, "the detail view lists a New Zealand visa tab")
+    expect(
+        "Select your nationality" in response.text,
+        "no nationality is picked by default, so a placeholder is shown instead of a guess",
+    )
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/visa", params={"nationality": "New Zealand"}
+    )
+    expect(status == 200, "GET /guides/<id>/visa?nationality=New Zealand returns 200")
+    expect("Visa on arrival" in response.text, "New Zealand's requirement type is shown")
+    expect(
+        "Select your nationality" not in response.text,
+        "picking a nationality replaces the placeholder with its requirement",
+    )
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/visa", params={"nationality": "Atlantis"}
+    )
+    expect(status == 200, "GET /guides/<id>/visa?nationality=<unknown> returns 200")
+    expect(
+        "Select your nationality" in response.text,
+        "an unseeded nationality falls back to the placeholder, not an error",
+    )
+
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Alice Springs"})
     expect(status == 200, "GET /guides?query=Alice Springs returns 200")
     match = re.search(r"/guides/(\d+)", response.text)
