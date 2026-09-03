@@ -57,6 +57,10 @@ It exercises the real flow end to end:
   redirect, so it is a static check on the served HTML rather than a click
   through test, and it skips itself with a printed note when
   student-4-frontend or shared-frontend are not running.
+- **Logout page is served.** `logout.html` is fetched directly and
+  checked for its one-time `justLoggedOut` sessionStorage gate,
+  fails the smoke test instead of only showing up when someone clicks
+  sign out.
 
 Each run registers freshly-randomised email addresses, so it is safe to
 re-run without leaving stray state behind; there is deliberately no

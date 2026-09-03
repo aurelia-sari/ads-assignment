@@ -10,13 +10,13 @@ catcher):
     python3 student-4/tests/smoke_test.py
 
 Each run registers freshly-randomised emails, so re-running the script never
-collides with a previous run's accounts - there is deliberately no
-account-delete endpoint to clean up after itself with (see 2.6, R4-6).
+collides with a previous run's accounts, there is deliberately no
+account-delete endpoint to clean up after itself with.
 
 Checks that the landing page and the shared home page load the sign in
 guard (student-4/frontend/templates/index.html and shared/js/auth-guard.js),
-and that the sign-up, sign-in and verify-pending pages stay reachable without
-a session.
+that the sign-up, sign-in and verify-pending pages stay reachable without
+a session, and that logout.html is actually served once user click sign out button.
 """
 
 import os
@@ -136,6 +136,13 @@ def run_frontend_guard_checks():
     for page in ("signin.html", "signup.html", "verify-pending.html"):
         response = _get_page(f"{FRONTEND_BASE}/{page}")
         expect(response.status_code == 200, f"{page} is served without a session")
+
+    logout_page = _get_page(f"{FRONTEND_BASE}/logout.html")
+    expect(logout_page.status_code == 200, "logout.html is served (not just index.html's fallback)")
+    expect(
+        "justLoggedOut" in logout_page.text,
+        "logout.html gates its content behind the one-time sign-out flag",
+    )
 
     shared_home = _get_page(f"{SHARED_FRONTEND_BASE}/")
     if shared_home is None:
