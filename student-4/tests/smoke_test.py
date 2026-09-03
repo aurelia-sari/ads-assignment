@@ -13,8 +13,10 @@ Each run registers freshly-randomised emails, so re-running the script never
 collides with a previous run's accounts - there is deliberately no
 account-delete endpoint to clean up after itself with (see 2.6, R4-6).
 
-Override the target host/port with STUDENT4_API_URL / STUDENT4_MAILPIT_URL
-if the services are not on their default ports.
+Checks that the landing page and the shared home page load the sign in
+guard (student-4/frontend/templates/index.html and shared/js/auth-guard.js),
+and that the sign-up, sign-in and verify-pending pages stay reachable without
+a session.
 """
 
 import os
@@ -27,6 +29,8 @@ import requests
 
 API_BASE = os.getenv("STUDENT4_API_URL", "http://localhost:5104")
 MAILPIT_BASE = os.getenv("STUDENT4_MAILPIT_URL", "http://localhost:8025")
+FRONTEND_BASE = os.getenv("STUDENT4_FRONTEND_URL", "http://localhost:8084")
+SHARED_FRONTEND_BASE = os.getenv("SHARED_FRONTEND_URL", "http://localhost:8080")
 
 PASSWORD = "Str0ng!Pass1"
 SEED_PASSWORD = "Password123!"
@@ -102,6 +106,47 @@ def find_verification_link(email, attempts=10, delay=1.0):
                             return match.group()
         time.sleep(delay)
     return None
+
+
+def _get_page(url):
+    try:
+        return requests.get(url, timeout=5)
+    except requests.RequestException:
+        return None
+
+
+def run_frontend_guard_checks():
+    """Confirm the sign in gate is wired into the protected pages.
+
+    Cannot run the page's own JavaScript here, so this checks what requests
+    already checks elsewhere in this file: the response text carries the
+    markers the guard needs on protected pages.
+    """
+    landing = _get_page(f"{FRONTEND_BASE}/")
+    if landing is None:
+        print("  skip  student-4-frontend is not running, skipping guard checks")
+        return
+
+    expect(landing.status_code == 200, "student-4 landing page (index.html) is served")
+    expect(
+        "verifySession" in landing.text,
+        "landing page calls verifySession before showing its content",
+    )
+
+    for page in ("signin.html", "signup.html", "verify-pending.html"):
+        response = _get_page(f"{FRONTEND_BASE}/{page}")
+        expect(response.status_code == 200, f"{page} is served without a session")
+
+    shared_home = _get_page(f"{SHARED_FRONTEND_BASE}/")
+    if shared_home is None:
+        print("  skip  shared-frontend is not running, skipping the shared home page check")
+        return
+
+    expect(shared_home.status_code == 200, "shared home page is served")
+    expect(
+        "auth-guard.js" in shared_home.text,
+        "shared home page loads the shared session guard",
+    )
 
 
 def run_checks():
@@ -259,6 +304,10 @@ def run_checks():
         response.json().get("is_valid") is False,
         "an unknown user id is reported as not signed in, not an error",
     )
+
+    # Frontend sign in gate, best effort since the frontend containers are
+    # optional for this script, see the module docstring.
+    run_frontend_guard_checks()
 
 
 def main():

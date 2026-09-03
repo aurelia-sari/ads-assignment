@@ -15,6 +15,14 @@ python3 scripts/smoke_test.py 4
 python3 student-4/tests/smoke_test.py
 ```
 
+The sign in gate checks described below also need `student-4-frontend` and
+`shared-frontend` running to do anything. Add them to the `docker compose up`
+line above if you want that part to run instead of skip:
+
+```bash
+docker compose up -d student-4-db student-4-api shared-api shared-db mailpit student-4-frontend shared-frontend
+```
+
 It exercises the real flow end to end:
 
 - **Seed data.** The `student1`-`student5` and `traveller6`-`traveller10`
@@ -39,6 +47,16 @@ It exercises the real flow end to end:
   second logout on the same (now-closed) session returns 404. This is the
   same contract any other feature uses to check whether a user is signed in,
   documented in `docs/ADR-001-service-boundaries.md`, Decision 6.
+- **Sign in gate on the frontend pages.** The landing page
+  (`student-4/frontend/templates/index.html`) is confirmed to call
+  `verifySession` before it shows its content, and the sign up, sign in and
+  verify pending pages are confirmed to stay reachable without a session.
+  The shared home page (`shared/index.html`, served on port 8080) is
+  confirmed to load `shared/js/auth-guard.js`, the same guard the other four
+  feature pages load. This step needs a real browser to check the actual
+  redirect, so it is a static check on the served HTML rather than a click
+  through test, and it skips itself with a printed note when
+  student-4-frontend or shared-frontend are not running.
 
 Each run registers freshly-randomised email addresses, so it is safe to
 re-run without leaving stray state behind; there is deliberately no

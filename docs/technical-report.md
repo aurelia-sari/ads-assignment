@@ -279,6 +279,7 @@ Functional:
 | F4.10 | Refuse an unverified account at sign-in, and send a fresh verification email rather than leaving the user stuck | 403 with `error_code: "email_not_verified"`; a fresh email sends unless the 60s resend cooldown from 4.8 is still active |
 | F4.11 | Record every successful sign-in | A `POST /access-logs` row is written (`user_id`, `sign_in_at`, `in_session = 1`) before `/auth/login` responds |
 | F4.12 | Sign out, closing the session other features can see | `POST /auth/logout` and `GET /auth/status/<id>` in student-4-api close and expose the session (see ADR-001 Decision 6) |
+| F4.13 | Require a valid session before the dashboard or any other feature page renders | Visiting the landing page or a feature page without a session redirects to the sign in page instead of showing content. A valid session shows the page normally |
 
 Non-functional:
 
@@ -290,6 +291,7 @@ Non-functional:
 | N4.4 | The sign-up and sign-in forms match the team UI and work down to mobile width | Both pages link `/shared/css/theme.css` only and share the same card layout; verified at 375px (phone) and 700px (tablet) |
 | N4.5 | Cross-cutting identity data is not duplicated per feature | `users`/`access_logs` live once in shared-db, resolved by every feature over HTTP (see 2.7) |
 | N4.6 | A failed sign-in never reveals whether an email is registered | `/users/authenticate` returns the identical 401 body for "no such user" and "wrong password", and hashes a dummy value on the former so response timing does not leak it either; the `email_not_verified` code is only ever returned once the password has already been confirmed correct |
+| N4.7 | The session gate applies to the whole integrated application, not only this feature's own pages | `shared/js/auth-guard.js` is loaded by the shared home page and by all five feature pages. Each one hides its content until `NextStopSession.verifySession()` confirms a session |
 
 *students 2, 3, 5: add your subsections here.*
 
@@ -450,6 +452,7 @@ integration time.
 | 11 | Access logging | `POST /access-logs` in shared-db, called by `/auth/login` on every successful sign-in, finally giving the Release 0 `access_logs` schema a writer | 31 Aug |
 | 12 | Unverified-account handling | `/auth/login` returns `email_not_verified` and redirects to the existing verify-pending page rather than a bare inline error; also triggers a real resend (reusing 6's rate limit) so that page's "check your email" copy is backed by an actual email | 31 Aug |
 | 13 | Sign-in smoke tests | Extended `student-4/tests/smoke_test.py`: generic-error parity, unverified block, no-duplicate-email-within-cooldown, successful login | 31 Aug |
+| 14 | Session gate for the dashboard and the whole app | `index.html` and `signin.html` now check the session first. `index.html` redirects to `signin.html` without one, `signin.html` redirects to the landing page if one already exists. The same guard (new `shared/js/auth-guard.js`) was used to the shared home page and the other four feature pages, so only sign up, sign in and verify pending stay reachable without a session. Frontend checks added to `student-4/tests/smoke_test.py` | 3 Sep |
 
 **Design decisions worth defending.**
 
@@ -1287,7 +1290,7 @@ record per run.
 | student-1 Caroline | Trips & Itinerary | Two tables (12 trips, 15 itinerary days), full CRUD on both through frontend, API and database. AI assistant grounded in live trip data. Cross-feature traveller resolution from the shared access API, with a 30s cache and graceful degradation. |
 | student-2 Kevin | Attractions & Dining | Three tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration through AI-Mode. |
 | student-3 TJ | Travel Mate | Generated scaffold: working `records` CRUD trio, real schema outstanding. |
-| student-4 Aurelia | Account & Dashboard | Sign-up with live client + server validation and a required T&C checkbox; email verification via Mailpit with a single-use, 5-minute token; resend rate-limited (60s / 5 attempts / 10 min block, then repeats). Sign-in checks the password server-side in shared-db, returns a generic error for both a wrong password and an unregistered email, blocks unverified accounts (re-sending a verification email), and logs every successful sign-in to `access_logs`. Identity (`users`, `access_logs`) placed in shared-db as cross-cutting data rather than student-4-db. Session cookies, sign-out, and dashboard CRUD not yet started. |
+| student-4 Aurelia | Account & Dashboard | Sign-up with live client + server validation and a required T&C checkbox; email verification via Mailpit with a single-use, 5-minute token; resend rate-limited (60s / 5 attempts / 10 min block, then repeats). Sign-in checks the password server-side in shared-db, returns a generic error for both a wrong password and an unregistered email, blocks unverified accounts (re-sending a verification email), and logs every successful sign-in to `access_logs`. Identity (`users`, `access_logs`) placed in shared-db as shared data rather than student-4-db. The landing page and every feature page across the whole app now require a session, redirecting to sign in otherwise, only sign up, sign in and verify pending stay public. |
 | student-5 Aung | Bookings & Budget | Generated scaffold. Also designed the landing page and the shared CSS theme used across the application. |
 
 **Integration properties worth stating.** Each database container owns its schema
@@ -1321,16 +1324,23 @@ student-1 passed all checks.
 
 *Add the runs for students 2, 3 and 5.*
 
-**student-4.** `scripts/smoke_test.py 4` initially failed with
-`FAIL: GET /records returns 200`, because the generic smoke test's fallback
-assumes the old `records` scaffold, this feature no longer has that resource
-(recorded as R4-6 in 2.6, now resolved). Fixed by adding
-`student-4/tests/smoke_test.py`, dispatched from `check_student_4()`:
-
 ```
 $ python3 scripts/smoke_test.py 4
 Smoke test: student-4 sign-up, email verification & sign-in
   ok  GET /health returns 200
+  ok  GET /users returns 200
+  ok  seeded student1 account is present
+  ok  seeded student2 account is present
+  ok  seeded student3 account is present
+  ok  seeded student4 account is present
+  ok  seeded student5 account is present
+  ok  seeded traveller6 account is present
+  ok  seeded traveller7 account is present
+  ok  seeded traveller8 account is present
+  ok  seeded traveller9 account is present
+  ok  seeded traveller10 account is present
+  ok  seeded student1 can sign in
+  ok  seeded traveller6 is pending verification
   ok  POST /auth/register without terms_accepted returns 400
   ok  error message names the T&C requirement
   ok  POST /auth/register with a weak password returns 400
@@ -1360,6 +1370,26 @@ Smoke test: student-4 sign-up, email verification & sign-in
   ok  POST /auth/login with the correct password on a verified account returns 200
   ok  login response returns the signed-in user
   ok  login response never leaks the password hash or verification token
+  ok  GET /auth/status/<id> returns 200
+  ok  session is valid right after login
+  ok  no last_logout recorded yet
+  ok  POST /auth/logout without a user_id returns 400
+  ok  POST /auth/logout for the signed-in user returns 200
+  ok  logout response reports in_session = 0
+  ok  logout response stamps sign_out_at
+  ok  GET /auth/status/<id> returns 200 after logout
+  ok  session is invalid after logout
+  ok  last_logout is now recorded
+  ok  logging out again with no open session returns 404
+  ok  GET /auth/status/<id> for an unknown id still returns 200
+  ok  an unknown user id is reported as not signed in, not an error
+  ok  student-4 landing page (index.html) is served
+  ok  landing page calls verifySession before showing its content
+  ok  signin.html is served without a session
+  ok  signup.html is served without a session
+  ok  verify-pending.html is served without a session
+  ok  shared home page is served
+  ok  shared home page loads the shared session guard
 
 student-4 sign-up, email verification & sign-in passed all checks.
 Smoke test: student-4
@@ -1367,61 +1397,6 @@ Smoke test: student-4
   ok  backend/API service is healthy
 
 student-4 passed all checks.
-```
-
-The verification check is real, not stubbed: it polls Mailpit's API
-(`http://localhost:8025/api/v1/messages`) for the actual email
-`student-4-api` sent, extracts the real link from its body, and visits it -
-the same thing a person would do by hand. Each run registers
-freshly-randomised emails, so it is safe to re-run without leaving stray
-state or hitting the duplicate-email check by accident; confirmed by running
-it twice in a row.
-
-The sign-up form's client-side behaviour (submit disabled until every field
-is valid, T&C checkbox required, errors on blur rather than on keystroke)
-was additionally verified against the actual rendered pages in a browser
-through the nginx hub at `localhost:8080`, not just against the API
-directly. The sign-in page (same layout, same email validation, plus the
-password show/hide toggle) was verified the same way, including the redirect
-to the verify-pending page for an unverified account.
-
-**Sign-in evidence the automated script does not cover**, verified manually
-instead (see `student-4/tests/README.md` for why):
-
-```
-$ curl -s -X POST http://localhost:8084/api/student-4/auth/login \
-    -H "Content-Type: application/json" \
-    -d '{"email":"traveller3@example.com","password":"Placeholder1!"}'
-{"error":"Please verify your email before signing in.","error_code":"email_not_verified"}
-
-$ curl -s "http://localhost:8025/api/v1/search?query=to%3Atraveller3%40example.com"
-... "Subject":"Verify your NextStop account", "Snippet":"Hi there, Welcome to
-NextStop! Click the link below to verify your email address.
-http://localhost:8080/api/student-4/auth/verify/0eAWmuOL..." ...
-```
-
-A sign-in attempt against an unverified account really does put a fresh
-verification link in the user's inbox, not just on the pending screen -
-confirmed by finding the link in Mailpit right after the login attempt above.
-
-```
-$ docker exec shared-db python -c "
-import sqlite3
-conn = sqlite3.connect('/app/data/shared.db')
-conn.row_factory = sqlite3.Row
-for r in conn.execute('SELECT * FROM access_logs WHERE user_id=2 ORDER BY id DESC LIMIT 1'):
-    print(dict(r))
-"
-{'id': 11, 'user_id': 2, 'sign_in_at': '2026-08-30T17:57:41+00:00', 'sign_out_at': None, 'in_session': 1}
-```
-
-A successful sign-in writes the `access_logs` row it is supposed to -
-confirmed here by querying `shared.db` directly, now also readable over
-HTTP via `GET /auth/status/<id>`:
-
-```
-$ curl http://localhost:8080/api/student-4/auth/status/2
-{"is_valid": true, "last_logout": null, "user_id": 2}
 ```
 
 ### 8.2 Screenshots of the integrated application
@@ -1525,7 +1500,7 @@ ce5cb28 caramelchew 2026-08-24 Ground the review prompts, fix false-negative hea
 | Kevin Kim | Attractions & Dining feature: 3 tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration | 6 | PR #6 |
 | Aung Ko Khaing | Landing page design and shared CSS theme (navy/cream palette, Poppins + Inter) | 1 | commit `b2678a0` |
 | Tanishpreet Kour | *(to complete)* | | |
-| Aurelia Sari | Account & Dashboard: sign-up page, `POST /auth/register` with client + server validation, email verification via Mailpit (single-use, 5-minute token), rate-limited resend, and the `users`/`access_logs` shared-db schema decision (2.7) | *(to complete once committed - see git log)* | `git log --author="Aurelia Sari"` |
+| Aurelia Sari | Account & Dashboard: sign-up page, `POST /auth/register` with client + server validation, email verification via Mailpit (single-use, 5-minute token), rate-limited resend, the `users`/`access_logs` shared-db schema decision (2.7), and the session gate now applied to the landing page and every feature page across the whole app | *(to complete once committed - see git log)* | `git log --author="Aurelia Sari"` |
 
 Per-student commit counts:
 
@@ -1556,6 +1531,7 @@ git shortlog -sn --all
 | 31 Aug | Required Terms & Conditions checkbox, submit-disabled-until-valid, and blur-based (not per-keystroke) field validation on the sign-up form |
 | 31 Aug | This section, plus `docs/diagrams/student-4-architecture.mmd`, `student-4-conceptual.mmd` and `student-4-erd.mmd` |
 | 31 Aug | `student-4/tests/smoke_test.py`, a real end-to-end CI check replacing the generic `records`-shaped one this feature no longer matched (fixed R4-6 / `scripts/smoke_test.py 4` failing with `FAIL: GET /records returns 200`) |
+| 3 Sep | Session gate: `index.html` and `signin.html` redirect based on session state, new `shared/js/auth-guard.js` rolled out to `shared/index.html` and to student-1, student-2, student-3 and student-5's `index.html`, so the landing page and every feature page require a session while sign up, sign in and verify pending stay public. Frontend checks added to `student-4/tests/smoke_test.py` |
 
 ### 10.3 Attendance checkpoints
 
