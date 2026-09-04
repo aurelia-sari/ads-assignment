@@ -56,9 +56,9 @@ a filter over the same data rather than a change to the model.
 |------|---------|---------|----------|-------------|----------|
 | student-1 | Caroline Zhou | Trips & Itinerary (day-by-day) + AI chatbot | :8081 | :5101 | :5201 `trips`, `itinerary_days` |
 | student-2 | Kevin Kim | Sightseeing, attractions, restaurants, recommendations | :8082 | :5102 | :5202 `places`, `favourites`, `recommendations` |
-| student-3 | Tanishpreet Kour | Travel mate matching | :8083 | :5103 | :5203 |
-| student-4 | Aurelia Sari | Auth, profile, onboarding, dashboard, travel guides | :8084 | :5104 | :5204 |
-| student-5 | Aung Ko Khaing | Flights, hotels, car rentals, budget | :8085 | :5105 | :5205 |
+| student-3 | Tanishpreet Kour | Travel mate matching | :8083 | :5103 | :5203 `trip_posts`, `connect_requests` |
+| student-4 | Aurelia Sari | Auth, profile, onboarding, travel guides | :8084 | :5104 | :5204 `destinations`, `currency_infos`, `transportation_infos`, `visa_requirements`, `weather_infos`, `safety_infos` |
+| student-5 | Aung Ko Khaing | Flights, hotels, car rentals, budget | :8085 | :5105 | :5205 `flights`, `hotels`, `budgets`, `trip_selections`, `search_history` |
 
 For each feature the specification (section 2.4) requires a feature name, a
 brief description, and a description of the frontend, backend/API, and database
@@ -142,11 +142,11 @@ verifiable from the commit history and CI runs.
 | S2-1 | Places, favourites and recommendations CRUD | Kevin | Individual | Done |
 | S2-2 | AI integration for recommendations | Kevin | Individual | Done |
 | S2-3 | Shared user-ID alignment and final place-image integration | Kevin | Individual | Done |
-| S3-1 | Travel Mate schema and CRUD | TJ | Individual | **Scaffold only** |
+| S3-1 | Travel Mate schema and CRUD | TJ | Individual | Done |
 | S4-1 | Account schema (`users`, `access_logs`, both in shared-db) and sign-up flow | Aurelia | Individual | Done |
 | S4-2 | Email verification: Mailpit delivery, single-use 5 min token, rate-limited resend | Aurelia | Individual | Done |
 | S4-3 | Profile and dashboard CRUD | Aurelia | Individual | **Not started** |
-| S5-1 | Bookings and budget schema and CRUD | Aung | Individual | **Scaffold only** |
+| S5-1 | Bookings and budget schema and CRUD | Aung | Individual | Done |
 | S5-2 | Landing page design and shared theme | Aung | Individual | Done |
 
 **Seeded record counts**, against the ten-per-table minimum in specification 2.4:
@@ -155,14 +155,19 @@ verifiable from the commit history and CI runs.
 |---------|--------|------|
 | student-1 | `trips`, `itinerary_days` | 12, 15 |
 | student-2 | `places`, `favourites`, `recommendations` | 15, 10, 10 |
-| student-3 | `records` (placeholder) | 12 |
+| student-3 | `trip_posts`, `connect_requests` | 12, 12 |
 | student-4 | `destinations`, `currency_infos`, `transportation_infos`, `visa_requirements`, `weather_infos`, `safety_infos` | 13, 13, 51, 104, 156, 13 |
-| student-5 | `records` (placeholder) | 12 |
+| student-5 | `flights`, `hotels`, `budgets`, `trip_selections`, `search_history` | 12 each |
 | shared | `travellers`, `users`, `access_logs` | 12, 10, 10 |
 
-Students 3 and 5 currently hold the generated scaffold rather than their real
-schema. The record counts satisfy the minimum, but the tables are placeholders,
-which is recorded as known issue 1. student-4 replaced its scaffold with a real
+Every table meets the ten-record minimum in specification 2.4, and every
+student's database microservice owns a schema.
+
+Identity is the one deliberate exception to feature ownership: `users` and
+`access_logs` sit in `shared-db` rather than in `student-4-db`, because a user's
+identity and session state are data every feature needs. Student-4's own
+feature data - the Travel Guides schema - lives in `student-4-db`. The
+reasoning is in 2.7 and ADR-001. student-4 replaced its scaffold with a real
 sign-up/verification flow, but `users` and `access_logs` were deliberately moved
 into shared-db rather than kept in student-4-db. student-4-db owns the Travel Guides
 schema (destinations, currency, transportation, visa, weather and safety), all
@@ -1500,9 +1505,9 @@ record per run.
 |---------|---------|-------|
 | student-1 Caroline | Trips & Itinerary | Two tables (12 trips, 15 itinerary days), full CRUD on both through frontend, API and database. AI assistant grounded in live trip data. Cross-feature traveller resolution from the shared access API, with a 30s cache and graceful degradation. |
 | student-2 Kevin | Attractions & Dining | Three tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration through AI-Mode. |
-| student-3 TJ | Travel Mate | Generated scaffold: working `records` CRUD trio, real schema outstanding. |
-| student-4 Aurelia | Account & Dashboard | Sign-up with live client + server validation and a required T&C checkbox; email verification via Mailpit with a single-use, 5-minute token; resend rate-limited (60s / 5 attempts / 10 min block, then repeats). Sign-in checks the password server-side in shared-db, returns a generic error for both a wrong password and an unregistered email, blocks unverified accounts (re-sending a verification email), and logs every successful sign-in to `access_logs`. Identity (`users`, `access_logs`) placed in shared-db as shared data rather than student-4-db. The landing page and every feature page across the whole app now require a session, redirecting to sign in otherwise, only sign up, sign in and verify pending stay public. |
-| student-5 Aung | Bookings & Budget | Generated scaffold. Also designed the landing page and the shared CSS theme used across the application. |
+| student-3 TJ | Travel Mate | Two tables (`trip_posts` 12, `connect_requests` 12), full CRUD on both through frontend, API and database. A traveller posts a trip looking for company; others send and respond to connect requests. |
+| student-4 Aurelia | Account & Travel Guides | Sign-up with live client + server validation and a required T&C checkbox; email verification via Mailpit with a single-use, 5-minute token; resend rate-limited (60s / 5 attempts / 10 min block, then repeats). Sign-in checks the password server-side in shared-db, returns a generic error for both a wrong password and an unregistered email, blocks unverified accounts (re-sending a verification email), and logs every successful sign-in to `access_logs`. Identity (`users`, `access_logs`) placed in shared-db as shared data rather than student-4-db. The landing page and every feature page across the whole app now require a session, redirecting to sign in otherwise, only sign up, sign in and verify pending stay public. |
+| student-5 Aung | Bookings & Budget | Five tables (`flights`, `hotels`, `budgets`, `trip_selections`, `search_history`, 12 rows each) with flight and hotel search, per-trip selections and budget tracking, integrated with AI-Mode. Also designed the landing page and the shared CSS theme used across the whole application. |
 
 **Integration properties worth stating.** Each database container owns its schema
 and is the only process that opens its SQLite file; cross-feature data moves over
@@ -1721,7 +1726,7 @@ integrated application.
 
 | # | Issue | Impact | Plan |
 |---|-------|--------|------|
-| 1 | Students 3 and 5 still hold the generated `records` scaffold rather than real feature schemas | Those features are not yet real | Each owner replaces their schema, routes and page |
+| 1 | `student-4-db` does not report table counts from `/health`, unlike the other four | Its schema is invisible to the integration health panel and to a quick check, which caused it to be mistaken for an empty database during review | One line in `student-4/db/app.py`, matching the pattern the other services use |
 | 1b | *(Resolved.)* `POST /auth/logout` now closes the `access_logs` row `/auth/login` opens, exposed for reading via `GET /auth/status/<id>` (see ADR-001 Decision 6) | None | n/a |
 | 2 | Ollama runs on the host, not in a container | Deployment has a manual prerequisite | Document in the video; containerise if RAM allows |
 | 3 | Local models answer direct lookups correctly but fail aggregation across the full context - asked which of 12 trips has the smallest budget, `llama3.2` named a trip costing AUD 3,300 when the smallest is AUD 2,900 | An aggregate question gives a confidently wrong answer | Demonstrate direct lookups, which are reliable. A real fix computes aggregates in the backend and passes the answer as context, rather than asking the model to scan and compare. Release 1. |
@@ -1794,11 +1799,11 @@ ce5cb28 caramelchew 2026-08-24 Ground the review prompts, fix false-negative hea
 
 | Student | Contribution | Commits | Evidence |
 |---------|--------------|---------|----------|
-| Caroline Zhou | Repository scaffold and shared architecture; Trips & Itinerary feature (2 tables, full CRUD, AI chatbot); shared AI-Mode service; agentic loop; all five CI workflows; cross-feature read; ADR-001 | 8 | `git log --author=caramelchew` |
-| Kevin Kim | Attractions & Dining feature: 3 tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration | 6 | PR #6 |
-| Aung Ko Khaing | Landing page design and shared CSS theme (navy/cream palette, Poppins + Inter) | 1 | commit `b2678a0` |
-| Tanishpreet Kour | *(to complete)* | | |
-| Aurelia Sari | Account & Dashboard: sign-up page, `POST /auth/register` with client + server validation, email verification via Mailpit (single-use, 5-minute token), rate-limited resend, the `users`/`access_logs` shared-db schema decision (2.7), and the session gate now applied to the landing page and every feature page across the whole app | *(to complete once committed - see git log)* | `git log --author="Aurelia Sari"` |
+| Caroline Zhou | Repository scaffold and shared architecture; Trips & Itinerary feature (2 tables, full CRUD, AI assistant); shared AI-Mode service; agentic loop; all five CI workflows; cross-feature traveller resolution; ADR-001; local asset vendoring | 36 | `git log --author=caramelchew --author=caro` |
+| Kevin Kim | Attractions & Dining feature: 3 tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration, user-aware favourites and recommendations | 12 | PRs #6, #17 |
+| Aung Ko Khaing | Landing page design and the shared CSS theme used across the whole application (navy/cream palette, Poppins + Inter); Bookings & Budget feature: 5 tables, flight and hotel search, per-trip selections, budget tracking, AI-Mode integration | 12 | `git log --author=AlvinKhaing` |
+| Tanishpreet Kour | Travel Mate feature: 2 tables (`trip_posts` 12, `connect_requests` 12), full CRUD, frontend for posting a trip and sending/responding to connect requests | 6 | `git log --author=Tanishpreetkour` |
+| Aurelia Sari | Account & Dashboard: sign-up page, `POST /auth/register` with client + server validation, email verification via Mailpit (single-use, 5-minute token), rate-limited resend, the `users`/`access_logs` shared-db schema decision (2.7), and the session gate now applied to the landing page and every feature page across the whole app | 42 | `git log --author="Aurelia Sari"` |
 
 Per-student commit counts:
 
