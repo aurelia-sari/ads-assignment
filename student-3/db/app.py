@@ -51,7 +51,7 @@ def health():
     )
  
  
-# --- Trip posts: full CRUD -------------------------------------------------
+# Trip posts --> full CRUD
  
 def validate_post(payload, require_all=True):
     if require_all:
@@ -197,7 +197,7 @@ def delete_trip_post(post_id):
     return jsonify({"deleted": post_id})
  
  
-# --- Connect requests: full CRUD -------------------------------------------
+# Connect requests: full CRUD 
  
 def validate_request_payload(payload, require_all=True):
     if require_all:
