@@ -2,19 +2,38 @@ graph LR
     subgraph FE["student-4-frontend (nginx :8084)"]
         SIGNUP["signup.html<br/>name / email / password / T&amp;C"]
         VERIFY["verify-pending.html<br/>resend countdown"]
-        IDX["index.html<br/>Accounts tab"]
+        FORGOT["forgot-password.html<br/>request page"]
+        FPEND["forgot-password-pending.html<br/>resend countdown"]
+        RESET["reset-password.html<br/>new password / confirm"]
+        IDX["index.html<br/>Guides tab / AI Assistant tab"]
     end
 
     subgraph API["student-4-api (Flask :5104)"]
         REG["POST /auth/register"]
         RESEND["POST /auth/resend"]
         VER["GET /auth/verify/&lt;token&gt;<br/>renders confirm/expired/invalid page"]
-        USERS["GET /users<br/>accounts fragment"]
+        FORGOTAPI["POST /auth/forgot-password<br/>and /auth/forgot-password/resend"]
+        RESETVAL["GET /auth/reset-password/validate/&lt;token&gt;"]
+        RESETAPI["POST /auth/reset-password"]
+        GUIDES["GET /guides?query=<br/>list/search fragment"]
+        DETAIL["GET /guides/&lt;id&gt;<br/>detail fragment: Currency,<br/>Transportation, Visa, Weather, Safety"]
+        SUBS["GET /guides/&lt;id&gt;/currency<br/>/transportation?type=<br/>/visa?nationality=<br/>/weather?month=<br/>/safety"]
         MAIL["send_verification_email()<br/>smtplib"]
+        RESETMAIL["send_reset_email()<br/>smtplib"]
+        AICHAT["POST /ai/guide-chat<br/>agentic_loop: Plan, Act, Observe, Adapt"]
+        AISESS["GET /ai/guide-chat/session/&lt;id&gt;<br/>DELETE same path<br/>GET /users/&lt;id&gt;/guide-chat-sessions"]
     end
 
     subgraph DB4["student-4-db (Flask + SQLite :5204)"]
-        NONE[("no domain tables yet<br/>reserved for profile/dashboard data")]
+        DEST[("destinations<br/>13 seed rows")]
+        CUR[("currency_infos<br/>13 seed rows")]
+        TRA[("transportation_infos<br/>51 seed rows")]
+        VIS[("visa_requirements<br/>104 seed rows")]
+        WEA[("weather_infos<br/>156 seed rows")]
+        SAF[("safety_infos<br/>13 seed rows")]
+        RMAP[("feature_redirect_map<br/>16 seed rows")]
+        SESS[("guide_ai_chat_sessions<br/>starts empty")]
+        MSG[("guide_ai_chat_messages<br/>starts empty")]
     end
 
     subgraph SHARED["shared-api :5000 -> shared-db :5200<br/>owns users, access_logs, travellers"]
@@ -23,22 +42,62 @@ graph LR
         TRV[("travellers<br/>12 rows")]
     end
 
+    AIMODE["ai-mode :5300<br/>POST /recommend"]
+    OLLAMA["Ollama (host)<br/>qwen2.5:0.5b"]
+
     MP["mailpit<br/>:1025 SMTP / :8025 web UI"]
+    S1["student-1-frontend :8081<br/>Trips & Itinerary"]
+    S2["student-2-frontend :8082<br/>Attractions & Dining"]
+    S3["student-3-frontend :8083<br/>Travel Mate"]
+    S5["student-5-frontend :8085<br/>#search (flights, hotels, budget)"]
 
     SIGNUP -->|"fetch POST, JSON"| REG
     VERIFY -->|"fetch POST, JSON"| RESEND
-    IDX -->|"hx-get"| USERS
+    FORGOT -->|"fetch POST, JSON"| FORGOTAPI
+    FPEND -->|"fetch POST, JSON"| FORGOTAPI
+    RESET -->|"fetch GET, JSON"| RESETVAL
+    RESET -->|"fetch POST, JSON"| RESETAPI
+    IDX -->|"hx-get, form submit"| GUIDES
+    IDX -->|"hx-get on row/tab click"| DETAIL
+    DETAIL -->|"hx-get on tab click"| SUBS
+    DETAIL -->|"Book flights button"| S5
+    IDX -->|"hx-post, question text"| AICHAT
+    IDX -->|"hx-get past chat / hx-delete"| AISESS
 
     REG -->|"HTTP JSON: create user,<br/>token + 5 min expiry"| SHARED
     RESEND -->|"HTTP JSON: rate-limit check<br/>(60s / 5 attempts / 10 min block)"| SHARED
     VER -->|"HTTP JSON: verify token"| SHARED
-    USERS -->|"HTTP JSON: list"| SHARED
+    FORGOTAPI -->|"HTTP JSON: rate-limit check<br/>(60s / 5 attempts / 10 min block),<br/>generic response either way"| SHARED
+    RESETVAL -->|"HTTP JSON: check token, no side effect"| SHARED
+    RESETAPI -->|"HTTP JSON: consume token,<br/>update password_hash"| SHARED
+    GUIDES -->|"HTTP JSON: search"| DB4
+    DETAIL -->|"HTTP JSON: read"| DB4
+    SUBS -->|"HTTP JSON: read"| DB4
+    AICHAT -->|"HTTP JSON: is this user signed in"| SHARED
+    AICHAT -->|"HTTP JSON: read guide data,<br/>read/write chat session and messages,<br/>read feature_redirect_map"| DB4
+    AICHAT -->|"HTTP JSON: system + context + question"| AIMODE
+    AISESS -->|"HTTP JSON: read/delete session"| DB4
+    AIMODE -->|"OpenAI-compatible request"| OLLAMA
+    AICHAT -.->|"redirect_path in the answer,<br/>when the question belongs to another feature"| S1
+    AICHAT -.-> S2
+    AICHAT -.-> S3
+    AICHAT -.-> S5
 
     REG --> MAIL
     RESEND --> MAIL
+    FORGOTAPI --> RESETMAIL
     MAIL -->|"SMTP"| MP
+    RESETMAIL -->|"SMTP"| MP
 
     SHARED --- USR
     SHARED --- LOG
     SHARED --- TRV
-    DB4 --- NONE
+    DB4 --- DEST
+    DB4 --- CUR
+    DB4 --- TRA
+    DB4 --- VIS
+    DB4 --- WEA
+    DB4 --- SAF
+    DB4 --- RMAP
+    DB4 --- SESS
+    DB4 --- MSG

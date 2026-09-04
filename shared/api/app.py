@@ -166,6 +166,40 @@ def authenticate_user():
     except requests.RequestException as exc:
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
+@app.post("/users/reset-password/request")
+def request_password_reset():
+    try:
+        response = requests.post(
+            f"{SHARED_DB_URL}/users/reset-password/request",
+            json=request.get_json(silent=True) or {},
+            timeout=5,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
+@app.get("/users/reset-password/validate/<token>")
+def validate_password_reset(token):
+    try:
+        response = requests.get(
+            f"{SHARED_DB_URL}/users/reset-password/validate/{token}", timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
+@app.post("/users/reset-password/confirm")
+def confirm_password_reset():
+    try:
+        response = requests.post(
+            f"{SHARED_DB_URL}/users/reset-password/confirm",
+            json=request.get_json(silent=True) or {},
+            timeout=5,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.RequestException as exc:
+        return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
+
 @app.post("/access-logs")
 def create_access_log():
     try:

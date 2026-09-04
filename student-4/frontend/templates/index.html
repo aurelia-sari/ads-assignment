@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Account & Dashboard - NextStop</title>
+    <title>Travel Guides - NextStop</title>
     <link rel="stylesheet" href="/shared/css/theme.css">
     <script src="/shared/js/htmx.min.js"></script>
     <script src="session.js"></script>
@@ -12,57 +12,78 @@
 <main class="app-shell" id="app-shell" style="display:none">
     <header class="app-header card" style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
         <div>
-            <h1>Account & Dashboard</h1>
+            <h1>Travel Guides</h1>
             <p>Student 4 &middot; Aurelia Sari &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
         </div>
         <button type="button" class="btn-sm btn-secondary" data-signout>Sign out</button>
     </header>
 
     <nav class="tab-nav">
-        <button class="tab-btn is-active" data-tab="accounts" type="button">Accounts</button>
-        <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
+        <button class="tab-btn is-active" data-tab="guides" type="button">Guides</button>
+        <button class="tab-btn" data-tab="ai" type="button">AI Assistant</button>
     </nav>
 
-    <section class="tab-panel is-active card" id="panel-accounts">
-        <div id="accounts-panel"
-             hx-get="/api/student-4/users"
-             hx-trigger="authenticated from:body"
-             hx-swap="innerHTML"></div>
+    <section class="tab-panel is-active" id="panel-guides">
+        <div class="card">
+            <form hx-get="/api/student-4/guides"
+                  hx-target="#guides-results"
+                  hx-swap="innerHTML"
+                  hx-trigger="submit">
+                <div class="form-grid">
+                    <div style="grid-column:1/-1">
+                        <label for="guides-query">City or country</label>
+                        <input id="guides-query" name="query" placeholder="Search for a city or country" autocomplete="off">
+                    </div>
+                </div>
+                <button type="submit">Search</button>
+                <span class="spinner">searching...</span>
+            </form>
+        </div>
 
-        <p class="muted" style="margin-top:1rem">
-            New accounts are created from the <a href="signup.html">sign-up page</a>,
-            not here.
-        </p>
+        <div class="card">
+            <div id="guides-results"
+                 hx-get="/api/student-4/guides"
+                 hx-trigger="authenticated from:body"
+                 hx-swap="innerHTML"></div>
+        </div>
     </section>
 
     <section class="tab-panel card" id="panel-ai">
         <h3 style="margin-top:0">NextStop AI</h3>
-        <p class="muted">Runs locally through AI-Mode and Ollama.</p>
+        <p class="muted">Ask about a destination's currency, transportation, visa, weather or
+            safety guide. Name the city in your question. Runs locally through AI-Mode and Ollama.</p>
 
         <div class="chat-log" id="chat-log">
-            <p class="muted">Ask a question about this feature's data.</p>
+            <p class="muted">Ask a question, naming a city, or open a past chat below.</p>
         </div>
 
-        <form hx-post="/api/student-4/ai/chat"
+        <form id="ai-chat-form"
+              hx-post="/api/student-4/ai/guide-chat"
               hx-target="#chat-log"
               hx-swap="beforeend"
-              hx-on::after-request="this.reset()">
+              hx-on::after-request="this.querySelector('[name=question]').value = ''">
+            <input type="hidden" id="chat-session-id" name="session_id" value="">
+            <input type="hidden" id="chat-user-id" name="user_id" value="">
             <div class="form-grid">
                 <div style="grid-column:1/-1">
                     <label>Question</label>
-                    <input name="question" required>
+                    <input name="question" placeholder="e.g. What's the weather like in Cairns in July?" required>
                 </div>
             </div>
             <button type="submit">Ask</button>
-            <span class="spinner">thinking...</span>
+            <button type="button" id="ai-new-chat" class="btn-sm btn-secondary">New chat</button>
+            <span class="spinner">thinking, this can take a moment on a local model...</span>
         </form>
+
+        <h4 style="margin:1.75rem 0 0.35rem 0">Past chats</h4>
+        <div id="chat-sessions" hx-trigger="authenticated from:body" hx-swap="innerHTML"></div>
     </section>
 </main>
 
 <script>
 const buttons = Array.from(document.querySelectorAll(".tab-btn"));
 const panels = {
-    accounts: document.getElementById("panel-accounts"),
+    guides: document.getElementById("panel-guides"),
     ai: document.getElementById("panel-ai"),
 };
 
@@ -75,6 +96,39 @@ function activate(name) {
 
 buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
 
+const chatLog = document.getElementById("chat-log");
+const chatSessions = document.getElementById("chat-sessions");
+const EMPTY_CHAT_LOG = "<p class='muted'>Ask a question, naming a city, or open a past chat below.</p>";
+
+// Never cache this: htmx replaces the element wholesale on every OOB swap.
+function getSessionIdInput() {
+    return document.getElementById("chat-session-id");
+}
+
+document.getElementById("ai-new-chat").addEventListener("click", () => {
+    getSessionIdInput().value = "";
+    chatLog.innerHTML = EMPTY_CHAT_LOG;
+});
+
+// Clear the log if the deleted session was the one open in it.
+window.addEventListener("guide-chat-session-deleted", (event) => {
+    if (String(event.detail.sessionId) === getSessionIdInput().value) {
+        getSessionIdInput().value = "";
+        chatLog.innerHTML = EMPTY_CHAT_LOG;
+    }
+});
+
+document.body.addEventListener("htmx:afterRequest", (event) => {
+    const target = event.target;
+    if (!event.detail.successful) return;
+
+    // A fresh question may have just created a new session, so the past
+    // chats list needs to catch up.
+    if (target.id === "ai-chat-form") {
+        htmx.trigger(chatSessions, "authenticated");
+    }
+});
+
 (async function () {
     const user = await NextStopSession.verifySession();
     if (!user) {
@@ -83,6 +137,11 @@ buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)
     }
     document.getElementById("app-shell").style.display = "";
     NextStopSession.initSignOutButtons("logout.html");
+
+    document.getElementById("chat-user-id").value = user.id;
+    chatSessions.setAttribute("hx-get", `/api/student-4/users/${user.id}/guide-chat-sessions`);
+    htmx.process(chatSessions);
+
     document.body.dispatchEvent(new Event("authenticated"));
 })();
 </script>

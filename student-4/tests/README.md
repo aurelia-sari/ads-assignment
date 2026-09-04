@@ -25,15 +25,39 @@ docker compose up -d student-4-db student-4-api shared-api shared-db mailpit stu
 
 It exercises the real flow end to end:
 
+- **Travel Guides.** `GET /guides` lists the seeded Australian destinations
+  and supports searching by city or country, with a not-found placeholder
+  for an unmatched search. `GET /guides/<id>` returns the destination's
+  detail view (a back-to-list link, then a Currency, Transportation, Visa,
+  Weather and Safety subsection). `GET /guides/<id>/transportation?type=`,
+  `/visa?nationality=` and `/weather?month=` switch the active tab within
+  each subsection, confirming a city only shows the transport modes it
+  actually has (e.g. Alice Springs has no metro or train tab), that picking
+  a transport mode shows a booking button only for flights (the only mode
+  student-5 can actually book), that no visa nationality is selected by
+  default since it cannot be guessed, and that the weather tab defaults to
+  the current month. `GET /guides/<id>/safety` and the other per-destination
+  endpoints return a graceful not-found message, not an error, for an
+  unknown id.
 - **Seed data.** The `student1`-`student5` and `traveller6`-`traveller10`
   accounts from `shared/db/init_db.py` are present, `student1` can sign in,
   and `traveller6` is still pending verification. Confirms the seed is baked
   into the image rather than only existing on one machine's Docker volume.
 - **Sign-up.** Registration validation (missing T&C, weak password, invalid
-  email), duplicate-email rejection, and the accounts listing.
+  email) and duplicate-email rejection. Account listing is intentionally not
+  exposed through the website, only through the database directly, so there
+  is no accounts fragment to check here.
 - **Email verification.** By polling Mailpit's API for the actual email and
   extracting the link from it, full verification including single-use
   enforcement and the resend rate limit.
+- **Forgot / reset password.** `POST /auth/forgot-password` returns the same
+  response whether or not the email is registered, so the flow cannot be used
+  to probe which emails have accounts. By using Mailpit for the actual
+  reset email and extracting the token from its link, confirms the token
+  validates, a mismatched confirmation and a weak password are rejected,
+  a valid reset actually changes the password (old password then fails,
+  new password then succeeds), the token is single-use, and the resend
+  rate limit matches email verification's.
 - **Sign-in.** `POST /auth/login` returns the same generic "Invalid email or
   password." for both a wrong password and an email with no account (no
   account enumeration), returns 403 with `error_code: "email_not_verified"`
@@ -49,8 +73,9 @@ It exercises the real flow end to end:
   documented in `docs/ADR-001-service-boundaries.md`, Decision 6.
 - **Sign in gate on the frontend pages.** The landing page
   (`student-4/frontend/templates/index.html`) is confirmed to call
-  `verifySession` before it shows its content, and the sign up, sign in and
-  verify pending pages are confirmed to stay reachable without a session.
+  `verifySession` before it shows its content, and the sign up, sign in,
+  verify pending, forgot password, forgot password pending and reset
+  password pages are confirmed to stay reachable without a session.
   The shared home page (`shared/index.html`, served on port 8080) is
   confirmed to load `shared/js/auth-guard.js`, the same guard the other four
   feature pages load. This step needs a real browser to check the actual
@@ -63,7 +88,7 @@ It exercises the real flow end to end:
   sign out.
 
 Each run registers freshly-randomised email addresses, so it is safe to
-re-run without leaving stray state behind; there is deliberately no
+re-run without leaving stray state behind. There is deliberately no
 account-delete endpoint to clean up with instead.
 
 **Not covered by the automated script** (would need a >60s sleep to clear the
@@ -74,5 +99,5 @@ unverified account, then Mailpit's API confirms a new message arrives with
 the verification link.
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted
-unit testing (project specification, section 7.3). Unit tests for this feature
+unit testing. Unit tests for this feature
 belong in this directory.
