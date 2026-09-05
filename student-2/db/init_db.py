@@ -66,9 +66,9 @@ PLACES = [
             "Iconic performing arts venue located on Sydney Harbour."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWmq1x_dIvwbRdfEAaWEYBAA60lg1nW81qFDVAQPHMq4yupZN9BGkGb6"
-            "klOPnkrcb19Y_FbjNMtDnu5aGEI2n36yLkHxhVmmvhk4X-J1saNdOHdl_H6U"
-            "7VOa4RjvC5Yaz9VZpeow=w408-h306-k-no"
+            "AHRPTWnDJ75Mz0JyGRx-UtUH9Sp9HBf13PogCckXS3R3POPXGJYgdp-3RlLU"
+            "RNEo7mWmuEziU62_9zziKFXUEFM7rdf0glcDnPVU9OAWaBcOhEww5YfO1yef"
+            "rYOzNQKQfHBcOOX9rjX9=w408-h306-k-no"
         ),
     },
     {
@@ -86,9 +86,9 @@ PLACES = [
             "and the North Shore."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWnEu3dPpYCa1Tne3FqySnZRlowQ_AkvvmAR-WxncxI6RyBfUYmnXp2Z"
-            "_uPs-m0kK0T14kLp5Arq2YLDprhssGIJsUfzHP5LPdxFPu68nR9WkhInVXbQ"
-            "bblHpJz3P17UTiZj7aNJ=w408-h306-k-no"
+            "AHRPTWk-hYefwc_wTTUCkH6PwVN5J7UYfj2zsrEqsQrhNMe8G45VnfUT7-i2"
+            "vUBkpvqj014Xm2uBQlJ6EPAjczUABhXhQ6Orhn-49gT6q649n4SBpoe1EOyp"
+            "1IkFDJSfUg7JsVZH9Msm=w408-h306-k-no"
         ),
     },
     {
@@ -106,9 +106,9 @@ PLACES = [
             "and international wildlife."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWmTHimFHUOVaAjKTk5mWxFeekf20d_50eIFQnorJEU2D5NZtlVlnX8U"
-            "fJS46_7WjFF0v2RmMs6QbjYZF_cv3ymFXW0pkX_2i20SeuDskEj5gZuDN4hd"
-            "NAWNHfmNpHJO_JWancEYUMeimC49=w408-h269-k-no"
+            "AHRPTWneYgtx9Dx9pqjy1KQRKb8nujythQN5ZpCobOJhaFfIhU-YO-nxLJgs"
+            "NtVfzFpFDtjelZsapJr1bUhFmSYzdJW7gmSSfHARowXrtTBTZUmRW4mtf_dl"
+            "cwXyfQqjlbU09ikxCyO7x0hH_e_E=w408-h269-k-no"
         ),
     },
     {
@@ -125,9 +125,9 @@ PLACES = [
             "Large historic botanical garden beside Sydney Harbour."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWk6SZIANy0T-A5ZmGWE7G0OdfY_myRs2cv_S1pDh312kc5HLqPtJyj"
-            "GhQ4CIqa0TZbnULdwqSyk6bE-iybo953tRK4DMIr722CmoAuNSoCf5RkO7Y3"
-            "oxbFJrDbFsDFgqz2c7fh7zg=w408-h306-k-no"
+            "AHRPTWn_HFOiA1joD_6pWC3zRJHBo2RGJxmkJJjY5yhV-76wPJrMaKXq-kxO"
+            "0nMur243o2ApA5miayGSd6cWQkKaMXbamnz7vIDwe_k-4ibRHoD-ZS8-wdW1"
+            "6ripiCc08-Vz5uxB3KW10g=w408-h306-k-no"
         ),
     },
     {
@@ -144,9 +144,9 @@ PLACES = [
             "Popular Sydney beach known for surfing and coastal walks."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWnHTE4e6IHIvJwdbLE2R3NH076vupHFRujWBz9tFKg5fkiXn1vbjiM6"
-            "ACxjL9h6BwAqvdaw-A02V1W1Fcc3lrYogbIAtrYvUqjBG7Zb2dpibeO-8UFG"
-            "Mm-FEA6mxdmfNLdLrZ5KI-28p0Bs=w408-h306-k-no"
+            "AHRPTWkGIdEDUbT5cy1O7W_VwzmWdfdPFobcUZ7Y4__hz-c0BMySeSVpNJX-"
+            "-97YHUt7-uzTfCFJq3NzewywDH2z9KKBdAUMmqZ5IoLt8FPybRfMjRGPHc2h"
+            "u5gPhZpXnP9R1rXrDgdQsaJhwaYN=w408-h306-k-no"
         ),
     },
     {
@@ -164,9 +164,9 @@ PLACES = [
             "and harbour views."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWlDrnTBpUzfZUxTvAejqK9j_lCE1a7hlY1fdGWUVrOmITbS8yH8vHMD"
-            "vvPGgNmChWF0jv5FMj-R-DagnQDgKy7mAe0apsFCQ1wydcIBL__TJnGyr76r"
-            "_auOBdKcorrTISgoKTte=w408-h306-k-no"
+            "AHRPTWkdc83097jjvMKJOtC67ETdYGy7Z685J4vxg_WlxIGfE52q7Sp4ZEhI"
+            "XWVy-MyHYRULlylqB3nEesfeGoVZFRq9YETFw80AM8bFs9aBGf5fKItqiHIL"
+            "sCHLnulc_xWOVVyd6s04=w408-h306-k-no"
         ),
     },
     {
@@ -184,9 +184,9 @@ PLACES = [
             "from Circular Quay."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWmfx3P-BV77Tk3GNu-bSZQ26uESjkL3n8F0dhPrR1x7eMSKjgdRCira"
-            "kpVnPXLl2xVV9xQqaEiF8o8hHMcgEkgGli7JPUhOoPOxxJaQu42hYeF7End9"
-            "kD0pgcS13iXgvbKGkhai=w433-h240-k-no"
+            "AHRPTWmTJ_j8hOWSdGeY5a9nqryKziYv2Sqh_d4AQDOPpGGVLgUvhPD4JSYs"
+            "hN04ynaohC6m5wkvBaAXYqZH1zjWD66SZR9V60FJXqs5hBS05XLmydtYyJ05"
+            "5qljevfThrTsJ0hv1hbZ=w433-h240-k-no"
         ),
     },
     {
@@ -203,9 +203,9 @@ PLACES = [
             "Major public art museum located beside The Domain."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWnli0LdsbTDeitDbYE2ThysQtxI8XLiZ7QWASzzSG1y0LUXAXaUyU7f"
-            "FZJrtl4Sq-ApFa_wo5NymHH4ZosZc4y1zd9biDbzs7xl3B3S4s6MhjpoCJsl"
-            "mvRkflbr1fYpj0h5HbRbbj19bdgB=w408-h306-k-no"
+            "AHRPTWm3Jpr_38pUbuecUCPYy9LL_T7icCXt6GnGREwt0V3D4lh1VDYmge7V"
+            "UhsrTvPF461yLX2hi3ScnWxhgeLVe7iZIM1lykqO-u0JYR_4D8N862kihOi8"
+            "2TUhFlkCmF_mbC91xJFXO11YoeXg=w408-h306-k-no"
         ),
     },
     {
@@ -222,9 +222,9 @@ PLACES = [
             "Popular Sydney food venue known for pies and hot dogs."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWnqOrhJF0893-3o1d1Qv869y8tD8C5vdKhpWr469cjoSqmwACVmu2h"
-            "JkhuDPRm5EnIAF7I6ZLRcpqDp_F-Be2nkdmrTE38DYyUrd3fAhuFYMorWpK"
-            "R3nxfEVSCfqRFTJk36S59H=w408-h271-k-no"
+            "AHRPTWnMjSEKGa68k30MEyeYV308mP8OUbpfsc9nxJjbCDjtB3NbKzV2uFZb"
+            "JqKrfR-mhYmzYORZNyrQMNCcT3oxqBWK5B0_j8jK-trM_lcW22gJRnPnJOVT"
+            "z2bW84PINVQsI9go9KXL=w408-h271-k-no"
         ),
     },
     {
@@ -241,9 +241,9 @@ PLACES = [
             "Thai restaurant offering a range of traditional dishes."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWnzK4pPOf_KROAjm4RXy9EXPHosfKVUTMIfi80omjfVFBEgsVLVk8g4"
-            "XeFHp223OGAyz6d3etybUM-Qc5L0As0AKbPMMPkR0oelfB8X5W6TURTUBE3"
-            "riGWEKUVIooVhp1fcgCWmNA=w408-h306-k-no"
+            "AHRPTWlHAbZyOcNw0daqEGzuaJXirsb_CUv8J_Je0bbO1Q6pXF8IOgMyaVJF"
+            "FDKm842M8nThHU17tmltvg7JYFRxptAw4cKC5t_24RXmfyLIUbudVoywWtLF"
+            "qkw24Lilq-6Ckhbk0Wuoxg=w408-h306-k-no"
         ),
     },
     {
@@ -261,9 +261,9 @@ PLACES = [
             "and traditional dishes."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWmgf08oCPnrsiYMYUG2oRuXbjkWrPHh1ycCIw7rT2HxUpTygFYGl_N"
-            "h4B2yr47vRNRxxZSm67LttviGZj5KEOt8x5tQ8XXSXyPaWEIZnkFoAqlKVz"
-            "_vtZlp9WHRPiBeFStxYM6b=w512-h240-k-no"
+            "AHRPTWnxQaM4GboSENWHqnNTKongCLvkGa2TNP_fPoWUDoelsZxAcop5M3Et"
+            "MQUIK6amhI_Iwha_ENGDhb9baZY06-Kg0OFqOvEFtZTAYzjA6WjAiDmM4ivZ"
+            "_8Y7fxQf47KhBWS5JAnO=w512-h240-k-no"
         ),
     },
     {
@@ -280,9 +280,9 @@ PLACES = [
             "Large cafe and garden precinct known for brunch and coffee."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWk9NeWt0ilP5Xe8bwpkp4Xm-LzM84APXkZ19kvag1NIuW1H-BoW-s2"
-            "KlT0t9NyQPvu70n9v8aKi1BHAwZd8PRWVsX_tSOEs8USHv7D4HBxPs07Bk1"
-            "qxA13lL6DwmvCVLxOLHjKJQ2HHes8=w408-h271-k-no"
+            "AHRPTWlKfO6YDIOBcriDrcHVI4nWDk7t7uZvGttxBcPBwItOEvbM-nchbRoJ"
+            "tGeZERKiCXTHeE_ivW34fhgtq-P_ORLyRZ5MsGrgnVnBwKju8MV09uGltwMK"
+            "E_0tCCqL3o6-p2vQ-5k=w408-h271-k-no"
         ),
     },
     {
@@ -297,9 +297,9 @@ PLACES = [
         "price_range": 70,
         "description": "Cantonese restaurant located in Sydney CBD.",
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWnYzpgKPS__G-b6qgXRAdO01t27qi08YwKC7S3uEwlK1gUPfCC0Mk"
-            "BuKhGxsxtmpUw_idzeusGsISU4Pb_I1fkUf9XpGsKvX_ghRzHQCjc4FQma"
-            "SLVUSnyz1jMBH6jwGY7k71uE6Q=w408-h256-k-no"
+            "AHRPTWmgvkRwI_3H7riP8_AleCpoURJ1OJrtvpXS8nXbG7Yr_R_NK3DS9ImC"
+            "Uc8-YQ80Si37hTytVf0-7xwXzWjLVWbLQiR0qOQVvkGQHaVWdUs-yfnCkze3"
+            "1TZ9fBtsvoZZfY9EgfXG_A=w408-h256-k-no"
         ),
     },
     {
@@ -316,9 +316,9 @@ PLACES = [
             "Popular bakery offering pastries, bread and cafe meals."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWmsuPKzX9osLOWKAhjqWy64jXd8FzvYDIYB4XMzYqK3UYILr72UwV"
-            "4_B5IOXanU5db_COmmi1fOD4WWrYtLwo4hOgjoYOjXaeAFZwzu6uU3oTY"
-            "C9ZTJqweRaSKcjKfFOUNr3YRv=w408-h285-k-no"
+            "AHRPTWlwWIGYg9aey-knB_CD0Y42JOCDcbvMCdO_DKA390rD1amLTTh_BXDQ"
+            "I7rNEYtFMya8KVlW-OPVwK_ZoSckcj18I6sKMvmzTtbZckzJwUoY9-NBzK-F"
+            "HWOmHb8ey2djiY3arwtA=w408-h285-k-no"
         ),
     },
     {
@@ -335,9 +335,9 @@ PLACES = [
             "Popular gelato shop offering a rotating range of flavours."
         ),
         "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWnwXp5jeHl4EdMZV14GtQ5ytmvYeTgGOZ9FdWoCp2nTTnw9SSBATp"
-            "QSGoU3X-UnCwzkbYgDCUX3kcqA_pPfj_eQD1OJN9P4Mck-GhKiHfdardPD"
-            "Oc_DvMvQQAvGeqrnAaL-N18=w426-h240-k-no"
+            "AHRPTWnJJHy8R8Gr1bJt3oiKRX83ZwsvCOBjPVy1AUhb4_x8CiSsP8mkUmSU"
+            "7f8xb4fIe1Dy1SDiD2Hz4A3IGqulMrBvlPaguTzK2vWcoxCgQgUtwRhHlzmp"
+            "lK7M2XqFV6zcp3pKYZc=w426-h240-k-no"
         ),
     },
 ]
