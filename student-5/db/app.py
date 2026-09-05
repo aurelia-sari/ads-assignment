@@ -218,9 +218,6 @@ def search_hotels():
         clauses.append("LOWER(destination) LIKE LOWER(?)")
         params.append(f"%{args['destination']}%")
 
-    # Overlap, not exact match: a hotel whose availability window overlaps
-    # the requested stay counts as a match (check_out on/after the
-    # requested start, check_in on/before the requested end).
     if args.get("start_date"):
         clauses.append("check_out >= ?")
         params.append(args["start_date"])

@@ -367,19 +367,6 @@ searchType.addEventListener("change", function () {
 });
 
 
-/* =========================================================
-   SEARCH RESULTS CACHE
-   ---------------------------------------------------------
-   FIX: Previously each "Add to Trip" button embedded
-   JSON.stringify(item) directly inside an onclick='...'
-   attribute. Because JSON.stringify uses double quotes and
-   the attribute used single quotes, any result field
-   containing an apostrophe (e.g. an airline or hotel name
-   like "O'Malley's") broke the HTML and could produce
-   invalid/unsafe markup. We now keep the last results in
-   memory and reference them by index instead, so nothing
-   from the API ever gets embedded into an inline attribute.
-========================================================= */
 
 let lastSearchResults = [];
 let lastSearchType = "flight";
@@ -403,11 +390,6 @@ async function performSearch(event) {
     const budget = document.getElementById("search-budget").value;
     const tripId = document.getElementById("trip-id").value;
 
-    // FIX: only read/send origin when the search is actually a flight
-    // search. Previously the raw field value was always read and saved
-    // to search history, even for hotel searches where the origin field
-    // is hidden but may still hold a leftover value from an earlier
-    // flight search.
     const origin =
         type === "flight"
             ? document.getElementById("origin").value.trim()
@@ -453,7 +435,7 @@ async function performSearch(event) {
             body: JSON.stringify({
                 trip_id: Number(tripId),
                 search_type: type,
-                origin, // FIX: empty string for hotel searches instead of a stale field value
+                origin,
                 destination,
                 start_date: startDate,
                 end_date: endDate,
@@ -479,9 +461,6 @@ function renderResults(results, type, tripId) {
 
     const container = document.getElementById("search-results");
 
-    // FIX: cache results so "Add to Trip" buttons can look items
-    // up by index instead of having the item JSON embedded
-    // directly in an inline onclick attribute.
     lastSearchResults = results;
     lastSearchType = type;
 
@@ -586,9 +565,6 @@ function renderResults(results, type, tripId) {
 
     container.innerHTML = html;
 
-    // FIX: delegate clicks instead of using inline onclick='...JSON...'.
-    // This avoids embedding untrusted/unescaped API data into HTML
-    // attributes entirely.
     container.querySelectorAll("[data-add-index]").forEach(button => {
         button.addEventListener("click", () => {
             const index = Number(button.dataset.addIndex);
