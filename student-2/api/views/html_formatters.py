@@ -582,7 +582,7 @@ def format_favourites(favourites):
                             "
                         >
                             {TRASH_ICON}
-                            <span>Delete Favourite</span>
+                            <span>Remove Favourite</span>
                         </button>
 
                         </div>

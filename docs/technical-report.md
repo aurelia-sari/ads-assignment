@@ -588,7 +588,7 @@ infrastructure.
 | R2-2 | The LLM recommends a place that is not present in the supplied data | High | Free-form model output cannot be assumed to respect database boundaries even when the prompt asks it to. | Added deterministic candidate selection and a validator that checks recommendation output against canonical candidate place names before accepting it. |
 | R2-3 | Frontend HTMX targets become stale after the page structure changes | Medium | Some generated fragments still targeted earlier container IDs such as `#places-panel` while the final page uses the places/favourites list containers. The backend operation could succeed while the visible page failed to refresh correctly. | Standardised dynamic fragments and edit forms on the final HTMX targets and re-tested CRUD through the rendered feature. |
 | R2-4 | Student 2 identity values diverge from the shared identity model | High | Early Release 0 code used values such as `guest` and `user-1`, while the shared USER model uses integer primary keys. This would make later authentication integration unnecessarily difficult. | Changed Student 2 favourite and recommendation ownership to integer user IDs aligned with shared-db, while keeping the relationship logical rather than creating an invalid cross-database SQLite foreign key. |
-| R2-5 | Placeholder or externally generated images do not represent the real place | Medium | Restaurant seed records initially used random `picsum.photos` URLs. They were acceptable during layout development but were neither semantically tied to the restaurant nor suitable as final evidence. | Replaced the placeholders with stable imagery corresponding to the actual seeded places and verified the integrated frontend after the change. |
+| R2-5 | Place images may not reliably represent the real place or remain available over time | Medium | Restaurant seed records initially used random `picsum.photos` URLs, which did not represent the actual places. These were replaced with representative image URLs sourced from Google Maps. However, because the images are externally hosted, the URLs may change or become unavailable over time. | Replaced the random placeholder images with representative images for the actual seeded places and verified them in the integrated frontend. The external URL dependency is documented as a limitation, and a future release could use fallback images, controlled image storage, or an appropriate image API for more reliable long-term availability. |
 
 **Open risks**
 
@@ -639,6 +639,7 @@ Entities and relationships only - no attributes, no keys, no types.
 
 Source: `docs/diagrams/student-1-conceptual.mmd`
 Source: `docs/diagrams/student-2-conceptual.mmd`
+         ![Student 2 conceptual data model](diagrams/student-2-conceptual.png)
 
 ```mermaid
 graph LR
@@ -663,6 +664,7 @@ Attributes, keys and cardinality.
 
 Source: `docs/diagrams/student-1-erd.mmd`
 Source: `docs/diagrams/student-2-erd.mmd`
+         ![Student 2 ERD](diagrams/student-2-erd.png)
 
 ```mermaid
 erDiagram
@@ -1271,6 +1273,7 @@ ownership is recorded in the README and in file headers instead.
 
 One diagram per student. student-1: `docs/diagrams/student-1-architecture.mmd`.
 student-2: `docs/diagrams/student-2-architecture.mmd`.
+            ![Student 2 architecture diagram](diagrams/student-2-architecture.png)
 student-4: `docs/diagrams/student-4-architecture.mmd`.
 
 ### 4.2 Integrated Release 0 software architecture
@@ -1410,24 +1413,17 @@ in `docs/evidence/`. Each student identifies the prompts they contributed.*
 
 #### student-2 - Kevin Kim
 
-For Student 2, the loop was run against the Attractions & Dining feature after
-its CRUD and AI recommendation paths were integrated. ACT collected evidence
-from the running services and feature implementation; OBSERVE reviewed that
-evidence; and ADAPT proposed the next validation or correction.
+The shared development agentic loop was used to review the integrated application using a Plan → Act → Observe → Adapt workflow.
 
-The Student 2 product-level recommendation pipeline should not be confused with
-this shared development agentic loop. The recommendation pipeline is an
-application feature that constrains and validates an LLM recommendation; the
-shared loop is a development/review workflow implementing
-Plan -> Act -> Observe -> Adapt.
+For Student 2, the loop verified that the Attractions & Dining database and API services were running successfully, confirmed that the Student 2 frontend, API and database were included in the integrated Docker Compose architecture, and identified the dedicated `student-2.yml` CI workflow.
 
-Student 2 also contributed the implementation prompt used to ground
-Attractions & Dining recommendations:
+The loop also demonstrated how evidence was collected from the running system, reviewed for PASS/ISSUE findings, and used to propose the next change or validation step.
+
+This development agentic loop is separate from the Student 2 recommendation pipeline. The recommendation pipeline handles user-facing AI recommendations, while the shared agentic loop is used for development-time inspection and adaptation of the integrated application.
+
+Evidence: `ai-services/agentic-loop/runs/agentic-loop-20260830-113857.md`
 
 `student-2/api/prompts/implementation/recommendation_system.txt`
-
-**Evidence:** `[UPDATE AFTER FINAL TEST: insert final Student 2/shared loop run
-filename from ai-services/agentic-loop/runs/ or docs/evidence/]`
 
 ---
 
@@ -1504,7 +1500,7 @@ record per run.
 | Student | Feature | Built |
 |---------|---------|-------|
 | student-1 Caroline | Trips & Itinerary | Two tables (12 trips, 15 itinerary days), full CRUD on both through frontend, API and database. AI assistant grounded in live trip data. Cross-feature traveller resolution from the shared access API, with a 30s cache and graceful degradation. |
-| student-2 Kevin | Attractions & Dining | Three tables (`places` 15, `favourites` 10, `recommendations` 10), CRUD, AI integration through AI-Mode. |
+| student-2 Kevin | Attractions & Dining | Three tables (places 15, favourites 10, recommendations 10) with place and favourite CRUD, AI-powered recommendations through the shared AI-Mode service, deterministic candidate filtering, canonical place-name validation, persistent recommendation history, and shared user-ID alignment. |
 | student-3 TJ | Travel Mate | Two tables (`trip_posts` 12, `connect_requests` 12), full CRUD on both through frontend, API and database. A traveller posts a trip looking for company; others send and respond to connect requests. |
 | student-4 Aurelia | Account & Travel Guides | Sign-up with live client + server validation and a required T&C checkbox; email verification via Mailpit with a single-use, 5-minute token; resend rate-limited (60s / 5 attempts / 10 min block, then repeats). Sign-in checks the password server-side in shared-db, returns a generic error for both a wrong password and an unregistered email, blocks unverified accounts (re-sending a verification email), and logs every successful sign-in to `access_logs`. Identity (`users`, `access_logs`) placed in shared-db as shared data rather than student-4-db. The landing page and every feature page across the whole app now require a session, redirecting to sign in otherwise, only sign up, sign in and verify pending stay public. |
 | student-5 Aung | Bookings & Budget | Five tables (`flights`, `hotels`, `budgets`, `trip_selections`, `search_history`, 12 rows each) with flight and hotel search, per-trip selections and budget tracking, integrated with AI-Mode. Also designed the landing page and the shared CSS theme used across the whole application. |
@@ -1539,6 +1535,43 @@ student-1 passed all checks.
 ```
 
 *Add the runs for students 2, 3 and 5.*
+
+$ python3 scripts/smoke_test.py 2
+Smoke test: student-2
+  ok  database service is healthy
+  ok  backend/API service is healthy
+
+Smoke test: student-2 places, favourites & recommendations
+  ok  GET /health returns 200
+  ok  GET /places returns 200
+  ok  POST /places missing name/address returns 400
+  ok  POST /places invalid category returns 400
+  ok  POST /places valid create returns 201
+  ok  PUT /places/<id> valid update returns 200
+  ok  DELETE /places/<id> returns 200
+
+  ok  GET /favourites?user_id=<id> returns 200
+  ok  POST /favourites valid user_id/place_id returns 201
+  ok  POST /favourites duplicate returns 400
+  ok  DELETE /favourites/<id> by another user returns 404
+  ok  DELETE /favourites/<id> by owner returns 200
+
+  ok  GET /recommendations returns 200
+  ok  POST /recommendations valid create returns 201
+  ok  GET /recommendations/<id> returns 200
+  ok  created recommendation stores correct user_id
+  ok  created recommendation stores correct question
+  ok  created recommendation stores correct location
+  ok  created recommendation stores correct answer
+  ok  created recommendation stores correct place_ids
+  ok  DELETE /recommendations/<id> returns 200
+
+  ok  POST /recommendations without user_id returns 201
+  ok  anonymous recommendation stores NULL user_id
+  ok  DELETE anonymous recommendation returns 200
+
+student-2 places, favourites & recommendations passed all checks.
+student-2 passed all checks.
 
 ```
 $ python3 scripts/smoke_test.py 4
@@ -1822,6 +1855,25 @@ git shortlog -sn --all
 | 28 Aug | Restored feature-page function after a design regression; added frontend wiring assertions to CI |
 | 28 Aug | Completed CRUD on itinerary days |
 
+#### Kevin Kim - detail
+
+| Date | Contribution |
+|------|--------------|
+| 25 Aug | Implemented the Student 2 Attractions & Dining feature structure, including the `places`, `favourites` and `recommendations` data model and seeded place data. |
+| 25 Aug | Implemented the Student 2 database API and backend/API for place management, including create, read, update and delete operations with input validation. |
+| 25 Aug | Implemented the HTMX Attractions & Dining frontend for viewing and managing places and favourites through the integrated NextStop application. |
+| 28 Aug | Updated the shared smoke-test runner so `scripts/smoke_test.py 2` dispatches to the dedicated Student 2 feature test instead of relying on the generic `/records` scaffold test. |
+| 28-31 Aug | Integrated Student 2 with the shared AI-Mode service and implemented AI-powered place recommendations using live Student 2 place records. |
+| 28-31 Aug | Added deterministic category, price and rating filtering before the LLM call, then validated generated recommendations against canonical candidate place names to reduce unsupported recommendations. |
+| 28-31 Aug | Implemented persistent recommendation history so recommendation questions, generated answers, selected place IDs, location and user ID can be stored and retrieved through the `recommendations` table. |
+| 28-31 Aug | Aligned favourites and recommendation ownership with the shared integer user-ID model, replacing early values such as `guest` and `user-1` while avoiding invalid cross-database SQLite foreign keys. |
+| 31 Aug | Added the dedicated `student-2/tests/smoke_test.py` covering service health, place CRUD and validation, favourite ownership and duplicate protection, and recommendation persistence. |
+| 31 Aug | Completed Student 2 CI integration through `.github/workflows/student-2.yml`, building the integrated Docker services and running the Student 2 smoke test through the shared runner. |
+| 31 Aug | Added Student 2 architecture and data-design documentation: `student-2-architecture.mmd`, `student-2-conceptual.mmd` and `student-2-erd.mmd`. |
+| 3-5 Sep | Replaced random `picsum.photos` place imagery with representative images for the actual seeded places and documented the long-term availability risk of externally hosted image URLs. |
+| 5 Sep | Performed the final Student 2 smoke test; all place, favourite and recommendation checks passed successfully. |
+| 5 Sep | Performed the final integrated AI recommendation test using `Can you recommend one cheap restaurant?`; the system returned Gelato Messina Darlinghurst from the Student 2 dataset and persisted the recommendation for user ID 2. |
+
 #### Aurelia Sari - detail
 
 | Date | Contribution |
@@ -2033,7 +2085,22 @@ between generated text and application state.
 place records and recommendation history is persisted only after the
 application-level recommendation workflow completes successfully.
 
-**Evidence:** `[UPDATE AFTER FINAL TEST: add one final recommendation question,
-returned place(s), and screenshot/run evidence.]`
+**Evidence.** A final recommendation test was performed through the integrated
+Student 2 Attractions & Dining feature.
+
+- **Question:** `Can you recommend one cheap restaurant?`
+- **Returned place:** `Gelato Messina Darlinghurst`
+- **AI response:** `Gelato Messina Darlinghurst is a great affordable option, with an average price of around A$10 and a rating of 4.6.`
+- **Validated place ID:** `15`
+- **User ID:** `2`
+- **Location:** `Sydney`
+
+The recommendation was displayed using the corresponding live place record,
+including its category, address, rating, average price, opening hours and
+description. The result was also persisted in the Student 2 `recommendations`
+table. The stored record contained the original question, `user_id = 2`,
+`location = Sydney`, the generated answer and `place_ids = [15]`.
+
+![Student 2 final AI recommendation evidence](evidence/student-2-ai-recommendation.png)
 
 *To do: note any further model changes and the reason for each.*
