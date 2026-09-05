@@ -11,12 +11,25 @@
 <script src="/shared/js/auth-guard.js"></script>
 </head>
 <body>
-<main class="app-shell" style="display:none">
+<main class="app-shell" >
     <script>
-    (function () {
-        NextStopAuthGuard.guardPage({ mainSelector: "main.app-shell" });
-    })();
-    </script>
+/*(function () {
+    NextStopAuthGuard.guardPage({ mainSelector: "main.app-shell" });
+})();
+(async function () {
+    if (typeof NextStopSession === "undefined") {
+        console.warn("NextStopSession not available on this page — X-Traveller-Id header not set.");
+        return;
+    }
+    const user = await NextStopSession.verifySession();
+    if (user && user.id) {
+        document.body.setAttribute(
+            "hx-headers",
+            JSON.stringify({ "X-Traveller-Id": String(user.id) })
+        );
+    }
+})();*/
+</script>
     <header class="app-header card">
         <a class="back-link" href="/"><span aria-hidden="true">&larr;</span> back to all features</a>
         <h1>Find Your Travel Mate <span class="brand-highlight">with NextStop</span></h1>
@@ -30,10 +43,8 @@
         <button class="tab-btn" data-tab="mine" type="button">My Posts</button>
         <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
     </nav>
- 
-    <!-- ============================================================
-        BROWSE — feed of other travellers' trip posts
-        ============================================================ -->
+
+    <!-- BROWSE page posts -->
     <section class="tab-panel is-active card" id="panel-browse">
         <div class="chat-head">
             <h3 style="margin:0">Browse trips</h3>
@@ -73,10 +84,8 @@
             <p class="muted">Loading trips...</p>
         </div>
     </section>
- 
-    <!-- ============================================================
-        POST A TRIP — create a new trip_posts row
-        ============================================================ -->
+
+    <!-- to create a new trip_posts row -->
     <section class="tab-panel card" id="panel-post">
         <h3 style="margin-top:0">Post a trip</h3>
         <p class="muted">Looking for a travel companion? Post your trip so others can say hi.</p>
@@ -110,26 +119,24 @@
             <button type="submit">Post trip</button>
             <span class="spinner">posting...</span>
         </form>
- 
+
         <div id="post-result" style="margin-top:1rem"></div>
     </section>
- 
-    <!-- ============================================================
-        INBOX — incoming / outgoing connect_requests
-        ============================================================ -->
+
+    <!-- to create a new trip_posts row -->
     <section class="tab-panel card" id="panel-inbox">
         <div class="tab-nav" style="border-bottom:none; margin-bottom:1rem">
             <button class="tab-btn is-active" data-subtab="incoming" type="button">Incoming</button>
             <button class="tab-btn" data-subtab="outgoing" type="button">Outgoing</button>
         </div>
- 
+
         <div class="tab-panel is-active" id="subpanel-incoming"
             hx-get="/api/student-3/connect/incoming"
             hx-trigger="load"
             hx-swap="innerHTML">
             <p class="muted">Loading incoming requests...</p>
         </div>
- 
+
         <div class="tab-panel" id="subpanel-outgoing"
             hx-get="/api/student-3/connect/outgoing"
             hx-trigger="load"
@@ -137,10 +144,8 @@
             <p class="muted">Loading outgoing requests...</p>
         </div>
     </section>
- 
-    <!-- ============================================================
-        MY POSTS — edit / delete own trip_posts
-        ============================================================ -->
+
+    <!-- MY POSTS — edit / delete own trip_posts -->
     <section class="tab-panel card" id="panel-mine">
         <h3 style="margin-top:0">My posts</h3>
         <div id="mine-list"
@@ -150,10 +155,8 @@
             <p class="muted">Loading your posts...</p>
         </div>
     </section>
- 
-    <!-- ============================================================
-        AI MODE — travel-mate compatibility chat
-        ============================================================ -->
+
+    <!-- AI MODE — travel-mate compatibility chat -->
     <section class="tab-panel card" id="panel-ai">
         <h3 style="margin-top:0">Travel Mate AI</h3>
         <p class="muted">Runs locally through AI-Mode and Ollama. Compares your trip post against other travellers and explains the match.</p>
@@ -179,10 +182,7 @@
     </section>
 </main>
  
-<!-- ============================================================
-    TEMPLATE: single trip card (for reference — the backend should
-    return HTML fragments in this shape from /api/student-3/trips)
-    ============================================================ -->
+<!-- trip cards -->
 <template id="trip-card-template">
     <div class="card">
         <div class="chat-head">
@@ -199,9 +199,11 @@
         <button class="btn-sm" data-action="say-hi">Say Hi</button>
     </div>
 </template>
- 
+
 <script>
-    // Top-level tabs
+
+
+    // Top tabs
     const buttons = Array.from(document.querySelectorAll(".tab-nav > .tab-btn"));
     const panels = {
         browse: document.getElementById("panel-browse"),
@@ -211,6 +213,7 @@
         ai: document.getElementById("panel-ai"),
     };
  
+
     function activate(name) {
         buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
         Object.entries(panels).forEach(([key, panel]) =>
