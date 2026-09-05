@@ -90,8 +90,8 @@ def check_connect_requests_read():
  
  
 def check_api_wiring():
-    status, body = request("GET", f"{API_BASE}/api/student-3/trips")
-    expect(status == 200, "backend/API GET /api/student-3/trips returns 200")
+    status, body = request("GET", f"{API_BASE}/trips")
+    expect(status == 200, "backend/API GET /trips returns 200")
     expect(
         "card" in body or "muted" in body,
         "backend/API returns an HTML fragment, not JSON",
