@@ -10,13 +10,7 @@ import os
 import sqlite3
 from datetime import date, timedelta
 
-# FIX: was hardcoded to "/app/data", an absolute path that only exists
-# inside the Docker container. Running this script directly with
-# `python3 init_db.py` on a local machine tried to create a folder at
-# the filesystem root (/app) and failed with PermissionError. Basing
-# the path on this script's own location works both inside Docker
-# (WORKDIR /app -> resolves to /app/data, unchanged) and locally
-# (resolves to a "data" folder next to this file).
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 DATABASE_NAME = os.path.join(DATA_DIR, "student5.db")
 
