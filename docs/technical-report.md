@@ -14,6 +14,8 @@
 > student; a missing individual subsection costs that student marks, not the
 > group.
 
+**GitHub Repository:** https://github.com/aurelia-sari/ads-assignment.git
+
 ---
 
 ## 1. Project overview
@@ -2430,7 +2432,7 @@ git shortlog -sn --all
 
 ## 11. Showcase video
 
-**Video URL:** *(paste the published URL here - required, 10 minutes max)*
+**Video URL:** https://drive.google.com/file/d/1jgSkqvXlPP2wukkHOEHcKdjSRavjhFgc/view?usp=sharing
 
 The video must show:
 
