@@ -14,6 +14,8 @@
 > student; a missing individual subsection costs that student marks, not the
 > group.
 
+**GitHub Repository:** https://github.com/aurelia-sari/ads-assignment.git
+
 ---
 
 ## 1. Project overview
@@ -268,6 +270,34 @@ Non-functional:
 | N2.6 | The feature must use the integrated team interface | The Student 2 frontend uses the shared NextStop theme and is accessible through the shared frontend reverse proxy |
 | N2.7 | External image availability must not determine whether the feature can be demonstrated | Final place imagery uses stable matching assets rather than random `picsum.photos` placeholders |
 
+#### student-3 - Tanishpreet kour
+Functional:
+ 
+| ID | Requirement | Acceptance criteria |
+|----|-------------|---------------------|
+| F3.1 | Post a trip looking for a travel companion, with destination, dates, travel style and an optional note | A valid submission creates a row in `trip_posts` with a generated `post_id` and `status = "open"`, and appears in Browse |
+| F3.2 | Browse open trip posts, filtered by destination | `GET /trip_posts?destination=` returns only posts whose destination contains the given text, case-insensitive |
+| F3.3 | View a single trip post | `GET /trip_posts/<id>` returns that post's full detail, or 'trip not found' if it doesn't exist |
+| F3.4 | Update any field of an existing trip post | Changed values persist and redisplay in Browse and My Posts |
+| F3.5 | Delete a trip post | The post and any connect requests referencing it (`ON DELETE CASCADE`) are both removed |
+| F3.6 | Send a "Say Hi" connect request to another traveller's open post | A row is created in `connect_requests` with `status = "pending"`, and the button shows "Requested" |
+| F3.7 | View incoming and outgoing connect requests separately | Incoming shows requests against the current traveller's own posts; outgoing shows requests the current traveller has sent |
+| F3.8 | Accept or decline an incoming request | `PUT /connect_requests/<id>` updates `status` to `accepted` or `declined` and the row re-renders with the new status pill |
+| F3.9 | Withdraw a pending outgoing request | `DELETE /connect_requests/<id>` removes the row entirely |
+| F3.10 | Ask the AI to score compatibility against the traveller's own open post | A free-text question sent to `/ai/match-suggest` returns a scored, reasoned match for each relevant candidate post |
+| F3.11 | See AI compatibility scores directly on Browse cards, on demand | The "Get AI Matches" button scores every currently visible card without requiring the separate AI mode tab |
+ 
+Non-functional:
+ 
+| ID | Requirement | How it is met |
+|----|-------------|---------------|
+| N3.1 | The backend never opens the SQLite file directly | All access to `trip_posts`/`connect_requests` goes through `student-3-db`'s REST API, called only from `DB_SERVICE_URL` |
+| N3.2 | No direct call to Ollama | `call_ollama_match()` calls the shared AI-Mode service's `/recommend` endpoint, the same boundary every other feature describes |
+| N3.3 | A database or AI outage does not show a stack trace to the user | Routes catch `requests.RequestException`/`ValueError`/`json.JSONDecodeError` and return a plain-language notice fragment instead |
+| N3.4 | The page matches the team UI | The page links `/shared/css/theme.css` only |
+| N3.5 | LLM output is treated as untrusted output, not trusted structure | `call_ollama_match()` normalises a wrapped object, a single object instead of a list, and rejects an empty result rather than assuming the model returned a bare JSON array |
+| N3.6 | Destination matching tolerates how a place name is actually typed | Matching is substring-based against every comma-separated part of a destination, so a question naming either a city or a country still matches a post stored as `"City, Country"` |
+
 #### student-4 - Aurelia Sari
 
 Functional:
@@ -462,7 +492,7 @@ as the primary data-processing layer.
   rating and free-text question signals.
 
 
-### stdudent-3 - Tanishpreet Kour - Travel mate
+### student-3 - Tanishpreet Kour - Travel mate
 **Scope.** A traveller posts a trip looking for a companion, metioning a destination, dates and travel style. Other travellers browse and filter open posts, send a "Say Hi" connect request, and the post's owner accepts, declines, or later cancels an already-accepted connection. An AI surface which scores every visible post's compatibility against the traveller's own open post and explains the score, available on demand rather than automatically.
 **Why this order.** Built bottom-up, the same shape as the other features: the database schema and its API first, then the backend/API proxy layer, then the frontend, then AI last - only once plain CRUD was verified working end to end was it worth grounding an LLM call in it.
 | # | Task | Deliverable | Done |
@@ -507,48 +537,20 @@ as the primary data-processing layer.
    instead of a list, and rejects an empty result, rather than trusting the
    shape blindly - the same principle Student 2 applies to validating
    recommended place names against real candidates.
+
 **Deferred to Release 1.**
  
 - Verified badge display: the CSS exists but nothing renders it, since it
   depends on resolving whether a traveller's `users` row (shared-db, from
   Auth) is validated - and there is currently no foreign key linking that
   table to `travellers`, the identifier this feature actually uses (see R3-4).
-- A second LLM call, or a lighter deterministic pass, to parse a free-text
-  question into more than a single destination keyword (e.g. travel style or
-  date preferences mentioned in the question itself).
+- A second LLM call, or a lighter deterministic pass, to parse a free-text question into more than a single destination keyword (e.g. travel style or
+date preferences mentioned in the question itself).
 - Expose trip posts through the MCP server so other features can query
-  Travel Mate data, matching student-1's Release 1 plan for `trips`.
-### Risk management plan - student-3 Tanishpreet Kour
+Travel Mate data, matching student-1's Release 1 plan for `trips`.
+
  
-**Risks that materialised**
- 
-| # | Risk | Impact | What happened | Response |
-|---|------|--------|---------------|----------|
-| R3-1 | A small local model does not reliably follow a "return only a JSON array" instruction | High | `qwen2.5:0.5b` (the initial local model) returned a single JSON object instead of an array, or wrapped the array in another key, causing every AI request to fail with "Model did not return a JSON array" | `call_ollama_match()` normalises the response: a bare list is used as-is, a dict is searched for a nested list value, a single match object is wrapped in a list. Switched to a larger model (`llama3.1:8b`, later the shared `ai-mode` service's configured model) for more reliable structured output |
-| R3-2 | Destination matching only checked the first comma-separated segment of a destination string | High | A question naming a country ("vietnam") failed to match a post stored as `"Hanoi, Vietnam"`, since only `"hanoi"` was checked. The AI silently fell back to comparing against an unrelated post instead | Every comma-separated part of every known destination is now checked as its own token, so a question naming either the city or the country matches |
-| R3-3 | Substring-detected destination hints were then matched by exact string equality | Medium | A test post whose destination was typed as the bare word `"iceland"` collided with the real seeded `"Reykjavik, Iceland"` post. The hint correctly matched "iceland", but exact-equality candidate filtering then excluded the real Iceland post, since its full string is not literally equal to "iceland" | Candidate filtering changed from exact equality to substring containment, consistent with how the hint itself was detected |
-| R3-4 | The Browse filter form's closing tag was placed immediately after it opened | High | All of the Destination, Start date and End date inputs, plus the Filter button, ended up as siblings *outside* the `<form>` rather than inside it. Filtering silently did nothing regardless of what was typed, and "Get AI Matches" (which reads the form's fields by ID) always sent an empty destination | Restructured the section so every input and the Filter button sit inside the `<form>`, with "Get AI Matches" placed in the same row for layout, reading the form by ID via `hx-include` regardless of DOM position |
-| R3-5 | Browse's list did not refresh after posting a new trip | Medium | HTMX's `hx-trigger="load"` fires once, when an element first enters the DOM at page load - switching tabs via CSS visibility toggling does not re-trigger it, so a newly posted trip was invisible in Browse until a full page refresh | `create_trip()` now sends an `HX-Trigger: tripPosted` response header, and the Browse form listens for `tripPosted from:body` in addition to `load`, so posting anywhere on the page refreshes Browse automatically |
-| R3-6 | The Start date/End date filter fields were visually present but never read server-side | Medium | `browse_trips()` only ever read the `destination` query parameter; typing dates and clicking Filter had no effect on the results shown | Added `start`/`end` reading in both the API proxy layer and the database layer's `list_trip_posts()`, implementing date-range overlap rather than exact match |
- 
-**Open risks**
- 
-| # | Risk | Likelihood | Impact | Mitigation | Owner |
-|---|------|-----------|--------|------------|-------|
-| R3-7 | `X-Traveller-Id` is set from `users.id` (shared-db, Auth) and used directly as `traveller_id` (shared-db, a different table), with no real foreign key between them | Certain, by design for Release 0 | Medium | Only works because seed data numbers both tables 1-5 for demo accounts; a newly-registered user has no matching `travellers` row. Flagged to the team as a shared-db schema gap, not a student-3-only fix | Team, Release 1 |
-| R3-8 | The verified badge described in the registration form is not rendered | Certain | Low | Blocked on R3-7 - there is no reliable link yet between a logged-in user and a "verified" flag to display | Me, Release 1 |
-| R3-9 | A small local model can produce internally inconsistent reasoning text (e.g. stating "no overlap in destination" while also citing a shared destination) | Medium | Low | Cosmetic - the numeric score is still usable and displayed; the reasoning sentence is supplementary. A larger review model would reduce this, at a speed cost | Me |
-| R3-10 | Ollama/AI-Mode unavailable during the showcase | Medium | High | AI-Mode's own availability is a team-level concern (see student-1's R7/R8); `ai_score_trips()` and `match_suggest()` both catch the failure and show a plain-language notice rather than a stack trace, so CRUD remains usable even if AI does not | Team |
- 
-**What I would carry into Release 1.** R3-2 and R3-3 share a shape with
-student-2's R2-1/R2-2 and student-1's R1/R2: a check or a matching rule that
-worked for the one case it was tested against broke the moment a second,
-differently-shaped case appeared. R3-4 is a different lesson entirely - it was
-not a logic bug at all, but a structural HTML mistake that silently disabled a
-feature without any error being thrown anywhere in the stack, which is why it
-took several rounds of "it looks the same but nothing happens" before the actual
-cause (elements sitting outside their form) was found by reading the file
-directly rather than guessing from symptoms.
+
 
 
 #### student-4 - Aurelia Sari - Account & Dashboard
@@ -780,6 +782,39 @@ does not prove that its recommendation is grounded, just as a generic CRUD
 smoke test does not prove that the actual Student 2 resources work. Release 1
 should continue validating semantic output as well as HTTP success when MCP and
 RAG are introduced.
+
+
+### student-3 - tanishpreet kour
+
+**Risks that materialised**
+ 
+| # | Risk | Impact | What happened | Response |
+|---|------|--------|---------------|----------|
+| R3-1 | A small local model does not reliably follow a "return only a JSON array" instruction | High | `qwen2.5:0.5b` (the initial local model) returned a single JSON object instead of an array, or wrapped the array in another key, causing every AI request to fail with "Model did not return a JSON array" | `call_ollama_match()` normalises the response: a bare list is used as-is, a dict is searched for a nested list value, a single match object is wrapped in a list. Switched to a larger model (`llama3.1:8b`, later the shared `ai-mode` service's configured model) for more reliable structured output |
+| R3-2 | Destination matching only checked the first comma-separated segment of a destination string | High | A question naming a country ("vietnam") failed to match a post stored as `"Hanoi, Vietnam"`, since only `"hanoi"` was checked. The AI silently fell back to comparing against an unrelated post instead | Every comma-separated part of every known destination is now checked as its own token, so a question naming either the city or the country matches |
+| R3-3 | Substring-detected destination hints were then matched by exact string equality | Medium | A test post whose destination was typed as the bare word `"iceland"` collided with the real seeded `"Reykjavik, Iceland"` post. The hint correctly matched "iceland", but exact-equality candidate filtering then excluded the real Iceland post, since its full string is not literally equal to "iceland" | Candidate filtering changed from exact equality to substring containment, consistent with how the hint itself was detected |
+| R3-4 | The Browse filter form's closing tag was placed immediately after it opened | High | All of the Destination, Start date and End date inputs, plus the Filter button, ended up as siblings *outside* the `<form>` rather than inside it. Filtering silently did nothing regardless of what was typed, and "Get AI Matches" (which reads the form's fields by ID) always sent an empty destination | Restructured the section so every input and the Filter button sit inside the `<form>`, with "Get AI Matches" placed in the same row for layout, reading the form by ID via `hx-include` regardless of DOM position |
+| R3-5 | Browse's list did not refresh after posting a new trip | Medium | HTMX's `hx-trigger="load"` fires once, when an element first enters the DOM at page load - switching tabs via CSS visibility toggling does not re-trigger it, so a newly posted trip was invisible in Browse until a full page refresh | `create_trip()` now sends an `HX-Trigger: tripPosted` response header, and the Browse form listens for `tripPosted from:body` in addition to `load`, so posting anywhere on the page refreshes Browse automatically |
+| R3-6 | The Start date/End date filter fields were visually present but never read server-side | Medium | `browse_trips()` only ever read the `destination` query parameter; typing dates and clicking Filter had no effect on the results shown | Added `start`/`end` reading in both the API proxy layer and the database layer's `list_trip_posts()`, implementing date-range overlap rather than exact match |
+ 
+**Open risks**
+ 
+| # | Risk | Likelihood | Impact | Mitigation | Owner |
+|---|------|-----------|--------|------------|-------|
+| R3-7 | `X-Traveller-Id` is set from `users.id` (shared-db, Auth) and used directly as `traveller_id` (shared-db, a different table), with no real foreign key between them | Certain, by design for Release 0 | Medium | Only works because seed data numbers both tables 1-5 for demo accounts; a newly-registered user has no matching `travellers` row. Flagged to the team as a shared-db schema gap, not a student-3-only fix | Team, Release 1 |
+| R3-8 | The verified badge described in the registration form is not rendered | Certain | Low | Blocked on R3-7 - there is no reliable link yet between a logged-in user and a "verified" flag to display | Me, Release 1 |
+| R3-9 | A small local model can produce internally inconsistent reasoning text (e.g. stating "no overlap in destination" while also citing a shared destination) | Medium | Low | Cosmetic - the numeric score is still usable and displayed; the reasoning sentence is supplementary. A larger review model would reduce this, at a speed cost | Me |
+| R3-10 | Ollama/AI-Mode unavailable during the showcase | Medium | High | AI-Mode's own availability is a team-level concern (see student-1's R7/R8); `ai_score_trips()` and `match_suggest()` both catch the failure and show a plain-language notice rather than a stack trace, so CRUD remains usable even if AI does not | Team |
+ 
+**What I would carry into Release 1.** R3-2 and R3-3 share a shape with
+student-2's R2-1/R2-2 and student-1's R1/R2: a check or a matching rule that
+worked for the one case it was tested against broke the moment a second,
+differently-shaped case appeared. R3-4 is a different lesson entirely - it was
+not a logic bug at all, but a structural HTML mistake that silently disabled a
+feature without any error being thrown anywhere in the stack, which is why it
+took several rounds of "it looks the same but nothing happens" before the actual
+cause (elements sitting outside their form) was found by reading the file
+directly rather than guessing from symptoms.
 
 #### student-4 - Aurelia Sari
 
@@ -1410,6 +1445,178 @@ chat tables start empty and fill as travellers use the AI Assistant tab.
    not a real natural language classifier. A question phrased unusually
    enough to miss every keyword falls through to the guide category
    keywords or to unrelated, rather than to the feature it actually meant.
+
+#### student-3 - Tanishpreet Kour - Travel Mate
+ 
+**Conceptual model**
+ 
+Source: `docs/diagrams/student-3-conceptual.mmd`
+ 
+```mermaid
+graph LR
+    T["TRAVELLER<br/><i>who is travelling</i>"]
+    P["TRIP POST<br/><i>a trip looking for a companion</i>"]
+    C["CONNECT REQUEST<br/><i>a 'Say Hi' between two travellers</i>"]
+ 
+    T -->|"posts<br/>1 : many"| P
+    T -->|"sends<br/>1 : many"| C
+    P -->|"receives<br/>1 : many"| C
+```
+ 
+Three entities. A traveller posts many trip posts looking for a companion, and
+sends many connect requests. Each connect request targets exactly one trip
+post. **Only TRIP_POST and CONNECT_REQUEST are owned by student-3.** TRAVELLER
+belongs to the shared access service - the same cross-service boundary
+student-1 describes for its own TRAVELLER relationship, and for the same
+reason: `traveller_id` cannot be a real foreign key across two separate SQLite
+files.
+ 
+**Entity-relationship diagram**
+ 
+Source: `docs/diagrams/student-3-erd.mmd`
+ 
+```mermaid
+erDiagram
+    TRAVELLER      ||..o{ TRIP_POST      : "posts (cross-service)"
+    TRAVELLER      ||..o{ CONNECT_REQUEST : "sends (cross-service)"
+    TRIP_POST      ||--o{ CONNECT_REQUEST : "receives"
+ 
+    TRAVELLER {
+        INTEGER traveller_id PK "owned by shared-db"
+        TEXT    full_name
+        TEXT    email        UK
+        TEXT    home_city
+        TEXT    member_since
+    }
+ 
+    TRIP_POST {
+        INTEGER post_id       PK
+        INTEGER traveller_id  FK  "cross-service, not enforced"
+        TEXT    destination       "NOT NULL"
+        TEXT    start_date        "NOT NULL, ISO 8601"
+        TEXT    end_date          "NOT NULL, ISO 8601, >= start_date"
+        TEXT    travel_style      "NOT NULL"
+        TEXT    note              "optional, default ''"
+        TEXT    status            "open | matched | closed"
+        TEXT    created_at        "NOT NULL, ISO 8601"
+    }
+ 
+    CONNECT_REQUEST {
+        INTEGER request_id         PK
+        INTEGER from_traveller_id  FK "cross-service, not enforced"
+        INTEGER to_post_id         FK  "NOT NULL, ON DELETE CASCADE"
+        TEXT    message                "optional, default ''"
+        TEXT    status                 "pending | accepted | declined"
+        TEXT    created_at             "NOT NULL, ISO 8601"
+    }
+```
+ 
+The two relationship notations differ deliberately, the same distinction
+student-1 draws:
+ 
+| Notation | Relationship | Meaning |
+|----------|--------------|---------|
+| `\|\|--o{` (solid) | TRIP_POST to CONNECT_REQUEST | Identifying, enforced in SQLite by a foreign key with `ON DELETE CASCADE` |
+| `\|\|..o{` (dashed) | TRAVELLER to TRIP_POST / CONNECT_REQUEST | Non-identifying and **not enforceable** - the entities live in different services and different SQLite files |
+ 
+**Logical model**
+ 
+**TRIP_POST**
+ 
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| post_id | integer | PK | surrogate, auto-assigned |
+| traveller_id | integer | FK → TRAVELLER | NOT NULL, **cross-service** |
+| destination | string(120) | | NOT NULL |
+| start_date | date | | NOT NULL |
+| end_date | date | | NOT NULL, `end_date >= start_date` |
+| travel_style | string(120) | | NOT NULL |
+| note | string(500) | | optional, default '' |
+| status | enum | | one of open, matched, closed |
+| created_at | date | | NOT NULL |
+ 
+**CONNECT_REQUEST**
+ 
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| request_id | integer | PK | surrogate, auto-assigned |
+| from_traveller_id | integer | FK → TRAVELLER | NOT NULL, cross-service |
+| to_post_id | integer | FK → TRIP_POST | NOT NULL, cascade on delete |
+| message | string(500) | | optional, default '' |
+| status | enum | | one of pending, accepted, declined |
+| created_at | date | | NOT NULL |
+ 
+**Normalisation.** Both relations are in third normal form.
+ 
+- *1NF* - every attribute is atomic. `travel_style` is a single descriptive
+  string rather than a repeating group of separate style flags.
+- *2NF* - both relations use a single-attribute surrogate primary key, so no
+  partial dependency on part of a composite key is possible.
+- *3NF* - no non-key attribute determines another. `destination` does not
+  derive `travel_style`; `status` does not derive `message`.
+`traveller_id` and `from_traveller_id` are deliberately the *only* traveller
+attributes stored here, for the same reason student-1 gives for `TRIP`:
+copying a traveller's name into `trip_posts` would denormalise across a
+service boundary and create a second source of truth. The name is resolved
+at render time instead, through `get_traveller()` calling the shared access
+API - see R3-7 for the known gap in that resolution.
+ 
+**Physical model**
+ 
+```sql
+CREATE TABLE trip_posts (
+    post_id        INTEGER PRIMARY KEY,
+    traveller_id   INTEGER NOT NULL,
+    destination    TEXT NOT NULL,
+    start_date     TEXT NOT NULL,
+    end_date       TEXT NOT NULL,
+    travel_style   TEXT NOT NULL,
+    note           TEXT DEFAULT '',
+    status         TEXT NOT NULL DEFAULT 'open',
+    created_at     TEXT NOT NULL
+);
+ 
+CREATE TABLE connect_requests (
+    request_id         INTEGER PRIMARY KEY,
+    from_traveller_id  INTEGER NOT NULL,
+    to_post_id         INTEGER NOT NULL,
+    message            TEXT DEFAULT '',
+    status             TEXT NOT NULL DEFAULT 'pending',
+    created_at         TEXT NOT NULL,
+    FOREIGN KEY (to_post_id) REFERENCES trip_posts (post_id) ON DELETE CASCADE
+);
+```
+ 
+Seeded with **12 trip posts and 12 connect requests**, above the ten-record
+minimum required by specification section 2.4.
+ 
+**Where the physical model departs from the logical model, and why**
+ 
+| Logical | Physical | Reason |
+|---------|----------|--------|
+| `date` | `TEXT` | SQLite has no date type. ISO 8601 strings sort and compare correctly as text, the same reasoning student-1 and student-4 give for their own date/timestamp fields. |
+| `enum` for `status` | `TEXT` + application check | SQLite has no enum. Validated in `db/app.py` against `VALID_POST_STATUSES`/`VALID_REQUEST_STATUSES`. |
+| `end_date >= start_date` | application check | Enforced in `validate_post()` rather than as a table constraint. |
+| FK to TRAVELLER | none | The referenced table is in another service's database file. |
+ 
+`PRAGMA foreign_keys = ON` is set on every connection, so the `ON DELETE
+CASCADE` between `trip_posts` and `connect_requests` actually fires - without
+it SQLite would silently ignore the cascade.
+ 
+**Known limitations of the physical model**
+ 
+1. **`traveller_id`/`from_traveller_id` are not enforceable foreign keys**,
+   the same cross-service gap R3-7 describes: they reference shared-db's
+   `travellers` table by convention only. There is currently no foreign key
+   linking `travellers` to `users` either, which is why the verified-badge
+   feature (R3-8) can't be built yet.
+2. **No unique constraint preventing a traveller from posting duplicate
+   trips** to the same destination and dates. Not exercised by the seed
+   data, but nothing in `validate_post()` currently rejects it.
+3. **No indexes beyond the primary keys.** At 12 rows this is irrelevant;
+   `trip_posts(destination)` would be the first index worth adding, since
+   Browse filters on it directly.
+
 #### student-5 - Aung Ko Khaing - Bookings & Budget
 
 **Conceptual model**
@@ -1727,6 +1934,7 @@ ownership is recorded in the README and in file headers instead.
 One diagram per student. student-1: `docs/diagrams/student-1-architecture.mmd`.
 student-2: `docs/diagrams/student-2-architecture.mmd`.
             ![Student 2 architecture diagram](diagrams/student-2-architecture.png)
+student-3: `docs/diagrams/student-3-architecture.mmd`.
 student-4: `docs/diagrams/student-4-architecture.mmd`.
 
 student-5: `docs/diagrams/student-5ERD.png`.
@@ -1987,7 +2195,37 @@ Smoke test: student-1
 
 student-1 passed all checks.
 ```
-
+**STUDENT 3**
+```
+$ python3 scripts/smoke_test.py 3
+Smoke test: student-3
+  ok  database service is healthy
+  ok  backend/API service is healthy
+ 
+Smoke test: student-3 (Travel Mate)
+  ok  database service is healthy
+  ok  backend/API service is healthy
+  ok  GET /trip_posts returns 200
+  ok  GET /trip_posts returns a list
+  ok  /trip_posts is seeded with at least 10 records (found 12)
+  ok  POST /trip_posts creates a record (201)
+  ok  GET /trip_posts/13 reads it back
+  ok  PUT /trip_posts/13 updates it
+  ok  update actually changed travel_style
+  ok  DELETE /trip_posts/13 removes it
+  ok  GET /trip_posts/13 is 404 after delete
+  ok  GET /connect_requests returns 200
+  ok  GET /connect_requests returns a list
+  ok  /connect_requests is seeded with at least 10 records (found 12)
+  ok  backend/API GET /api/student-3/trips returns 200
+  ok  backend/API returns an HTML fragment, not JSON
+  ok  frontend serves its page
+  ok  page has HTMX attributes (7 found)
+  ok  page calls its own API (/api/student-3/)
+  ok  page uses the shared CSS theme
+ 
+student-3 passed all checks.
+```
 *Add the runs for students 2, 3 and 5.*
 
 $ python3 scripts/smoke_test.py 2
@@ -2412,7 +2650,7 @@ git shortlog -sn --all
 
 ## 11. Showcase video
 
-**Video URL:** *(paste the published URL here - required, 10 minutes max)*
+**Video URL:** https://drive.google.com/file/d/1jgSkqvXlPP2wukkHOEHcKdjSRavjhFgc/view?usp=sharing
 
 The video must show:
 
