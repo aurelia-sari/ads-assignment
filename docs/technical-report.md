@@ -463,12 +463,116 @@ as the primary data-processing layer.
 - Expand recommendation preferences beyond the Release 0 category, price,
   rating and free-text question signals.
 
+
+### stdudent-3 - Tanishpreet Kour - Travel mate
+**Scope.** A traveller posts a trip looking for a companion, metioning a destination, dates and travel style. Other travellers browse and filter open posts, send a "Say Hi" connect request, and the post's owner accepts, declines, or later cancels an already-accepted connection. An AI surface which scores every visible post's compatibility against the traveller's own open post and explains the score, available on demand rather than automatically.
+**Why this order.** Built bottom-up, the same shape as the other features: the database schema and its API first, then the backend/API proxy layer, then the frontend, then AI last - only once plain CRUD was verified working end to end was it worth grounding an LLM call in it.
+| # | Task | Deliverable | Done |
+|---|------|-------------|------|
+| 1 | Database schema and seed | `trip_posts` (12 rows), `connect_requests` (12 rows) | 1 Sep |
+| 2 | Database API | CRUD over HTTP on both tables, port 5203 | 1 Sep |
+| 3 | Backend/API | HTMX fragments for browse/post/inbox/edit/delete, port 5103 | 1-2 Sep |
+| 4 | Frontend | Five tabs (Browse, Post a Trip, Inbox, My Posts, AI mode), shared CSS theme | 1-2 Sep |
+| 5 | Connect request lifecycle | Accept/decline, withdraw, and a later addition: cancel an already-accepted connection | 3 Sep |
+| 6 | AI-Mode integration | Real call through the shared AI-Mode service, replacing an initial placeholder response | 2 Sep |
+| 7 | AI destination-aware matching | Free-text question parsed for a destination keyword, used to target the AI's candidate set | 2-3 Sep |
+| 8 | AI compatibility scores on Browse cards | "Get AI Matches" button scores every visible card, not only a separate chat surface | 3 Sep |
+| 9 | Date-range filtering | Browse's Start/End date fields, previously cosmetic, wired into real overlap filtering | 4 Sep |
+| 10 | CI workflow | `student-3.yml`, build + validate | 4 Sep |
+| 11 | Docker Compose integration | `student-3-frontend/api/db` wired into the shared compose file, all reporting healthy | 4 Sep |
+ 
+**Design decisions worth defending.**
+ 
+1. *The backend never opens the SQLite file directly.* Every call from
+   `student-3-api` to `trip_posts`/`connect_requests` goes through
+   `student-3-db`'s REST API, matching every other feature's data-ownership
+   rule.
+2. *AI-Mode is the only route to the LLM.* `call_ollama_match()` calls the
+   shared AI-Mode service's `/recommend` endpoint rather than talking to
+   Ollama directly, the same boundary students 1, 2, 4 and 5 all describe.
+3. *Destination matching is substring-based, not exact-match.* A question
+   naming either a city ("Hanoi") or a country ("Vietnam") needs to match a
+   post stored as `"Hanoi, Vietnam"`. Every comma-separated part of every
+   known destination is checked as its own token, rather than only the first
+   segment - see R3-2 below for why this mattered in practice.
+4. *AI compatibility scoring is button-triggered, not automatic on page
+   load.* The registration form describes scores appearing on Browse cards
+   automatically. In practice, the local model (initially `llama3.1:8b`,
+   several seconds per call) would make Browse itself feel unresponsive if it
+   scored every card on every page load. A "Get AI Matches" button gives the
+   user control over when that wait happens, without weakening the feature -
+   the score still appears directly on the card once requested, just not
+   unconditionally.
+5. *LLM output is treated as untrusted output.* `call_ollama_match()` does
+   not assume the model returns a bare JSON array just because `format:
+   "json"` was requested. It normalises a wrapped object, a single object
+   instead of a list, and rejects an empty result, rather than trusting the
+   shape blindly - the same principle Student 2 applies to validating
+   recommended place names against real candidates.
+**Deferred to Release 1.**
+ 
+- Verified badge display: the CSS exists but nothing renders it, since it
+  depends on resolving whether a traveller's `users` row (shared-db, from
+  Auth) is validated - and there is currently no foreign key linking that
+  table to `travellers`, the identifier this feature actually uses (see R3-4).
+- A second LLM call, or a lighter deterministic pass, to parse a free-text
+  question into more than a single destination keyword (e.g. travel style or
+  date preferences mentioned in the question itself).
+- Expose trip posts through the MCP server so other features can query
+  Travel Mate data, matching student-1's Release 1 plan for `trips`.
+### Risk management plan - student-3 Tanishpreet Kour
+ 
+**Risks that materialised**
+ 
+| # | Risk | Impact | What happened | Response |
+|---|------|--------|---------------|----------|
+| R3-1 | A small local model does not reliably follow a "return only a JSON array" instruction | High | `qwen2.5:0.5b` (the initial local model) returned a single JSON object instead of an array, or wrapped the array in another key, causing every AI request to fail with "Model did not return a JSON array" | `call_ollama_match()` normalises the response: a bare list is used as-is, a dict is searched for a nested list value, a single match object is wrapped in a list. Switched to a larger model (`llama3.1:8b`, later the shared `ai-mode` service's configured model) for more reliable structured output |
+| R3-2 | Destination matching only checked the first comma-separated segment of a destination string | High | A question naming a country ("vietnam") failed to match a post stored as `"Hanoi, Vietnam"`, since only `"hanoi"` was checked. The AI silently fell back to comparing against an unrelated post instead | Every comma-separated part of every known destination is now checked as its own token, so a question naming either the city or the country matches |
+| R3-3 | Substring-detected destination hints were then matched by exact string equality | Medium | A test post whose destination was typed as the bare word `"iceland"` collided with the real seeded `"Reykjavik, Iceland"` post. The hint correctly matched "iceland", but exact-equality candidate filtering then excluded the real Iceland post, since its full string is not literally equal to "iceland" | Candidate filtering changed from exact equality to substring containment, consistent with how the hint itself was detected |
+| R3-4 | The Browse filter form's closing tag was placed immediately after it opened | High | All of the Destination, Start date and End date inputs, plus the Filter button, ended up as siblings *outside* the `<form>` rather than inside it. Filtering silently did nothing regardless of what was typed, and "Get AI Matches" (which reads the form's fields by ID) always sent an empty destination | Restructured the section so every input and the Filter button sit inside the `<form>`, with "Get AI Matches" placed in the same row for layout, reading the form by ID via `hx-include` regardless of DOM position |
+| R3-5 | Browse's list did not refresh after posting a new trip | Medium | HTMX's `hx-trigger="load"` fires once, when an element first enters the DOM at page load - switching tabs via CSS visibility toggling does not re-trigger it, so a newly posted trip was invisible in Browse until a full page refresh | `create_trip()` now sends an `HX-Trigger: tripPosted` response header, and the Browse form listens for `tripPosted from:body` in addition to `load`, so posting anywhere on the page refreshes Browse automatically |
+| R3-6 | The Start date/End date filter fields were visually present but never read server-side | Medium | `browse_trips()` only ever read the `destination` query parameter; typing dates and clicking Filter had no effect on the results shown | Added `start`/`end` reading in both the API proxy layer and the database layer's `list_trip_posts()`, implementing date-range overlap rather than exact match |
+ 
+**Open risks**
+ 
+| # | Risk | Likelihood | Impact | Mitigation | Owner |
+|---|------|-----------|--------|------------|-------|
+| R3-7 | `X-Traveller-Id` is set from `users.id` (shared-db, Auth) and used directly as `traveller_id` (shared-db, a different table), with no real foreign key between them | Certain, by design for Release 0 | Medium | Only works because seed data numbers both tables 1-5 for demo accounts; a newly-registered user has no matching `travellers` row. Flagged to the team as a shared-db schema gap, not a student-3-only fix | Team, Release 1 |
+| R3-8 | The verified badge described in the registration form is not rendered | Certain | Low | Blocked on R3-7 - there is no reliable link yet between a logged-in user and a "verified" flag to display | Me, Release 1 |
+| R3-9 | A small local model can produce internally inconsistent reasoning text (e.g. stating "no overlap in destination" while also citing a shared destination) | Medium | Low | Cosmetic - the numeric score is still usable and displayed; the reasoning sentence is supplementary. A larger review model would reduce this, at a speed cost | Me |
+| R3-10 | Ollama/AI-Mode unavailable during the showcase | Medium | High | AI-Mode's own availability is a team-level concern (see student-1's R7/R8); `ai_score_trips()` and `match_suggest()` both catch the failure and show a plain-language notice rather than a stack trace, so CRUD remains usable even if AI does not | Team |
+ 
+**What I would carry into Release 1.** R3-2 and R3-3 share a shape with
+student-2's R2-1/R2-2 and student-1's R1/R2: a check or a matching rule that
+worked for the one case it was tested against broke the moment a second,
+differently-shaped case appeared. R3-4 is a different lesson entirely - it was
+not a logic bug at all, but a structural HTML mistake that silently disabled a
+feature without any error being thrown anywhere in the stack, which is why it
+took several rounds of "it looks the same but nothing happens" before the actual
+cause (elements sitting outside their form) was found by reading the file
+directly rather than guessing from symptoms.
+
+
 #### student-4 - Aurelia Sari - Account & Dashboard
 
 **Scope.** Release 0 delivers sign-up and email verification: create an
 account, verify it through a real (locally caught) email, and resend that
 email under a rate limit. Profile editing and the dashboard itself are Release
 1 work - see 1.1's "known scaffold, not secured" note and 2.3's critical path.
+
+| # | Task | Deliverable | Done |
+|---|------|-------------|------|
+| 1 | Database schema and seed | `trip_posts` (12 rows), `connect_requests` (12 rows) | 1 Sep |
+| 2 | Database API | CRUD over HTTP on both tables, port 5203 | 1 Sep |
+| 3 | Backend/API | HTMX fragments for browse/post/inbox/edit/delete, port 5103 | 1-2 Sep |
+| 4 | Frontend | Five tabs (Browse, Post a Trip, Inbox, My Posts, AI mode), shared CSS theme | 1-2 Sep |
+| 5 | Connect request lifecycle | Accept/decline, withdraw, and a later addition: cancel an already-accepted connection | 3 Sep |
+| 6 | AI-Mode integration | Real call through the shared AI-Mode service, replacing an initial placeholder response | 2 Sep |
+| 7 | AI destination-aware matching | Free-text question parsed for a destination keyword, used to target the AI's candidate set | 2-3 Sep |
+| 8 | AI compatibility scores on Browse cards | "Get AI Matches" button scores every visible card, not only a separate chat surface | 3 Sep |
+| 9 | Date-range filtering | Browse's Start/End date fields, previously cosmetic, wired into real overlap filtering | 4 Sep |
+| 10 | CI workflow | `student-3.yml`, build + validate | 4 Sep |
+| 11 | Docker Compose integration | `student-3-frontend/api/db` wired into the shared compose file, all reporting healthy | 4 Sep |
 
 **Why this order.** Sign-up has to exist before anything else in this feature
 can - a dashboard has nothing to show without an account, and no other
