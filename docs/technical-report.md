@@ -1747,6 +1747,7 @@ student-2: `docs/diagrams/student-2-architecture.mmd`.
             ![Student 2 architecture diagram](diagrams/student-2-architecture.png)
 student-4: `docs/diagrams/student-4-architecture.mmd`.
 
+student-5: `docs/diagrams/student-5ERD.png`.
 ### 4.2 Integrated Release 0 software architecture
 
 `docs/diagrams/integrated-architecture.mmd`.
@@ -2202,6 +2203,35 @@ Smoke test: student-4 sign-up, email verification & sign-in
 
 student-4 sign-up, email verification & sign-in passed all checks.
 ```
+Feature smoke test: student-5 (Bookings & Budget)
+  ok  database service is healthy
+  ok  backend/API service is healthy
+  ok  database service reports health
+  ok  budgets is seeded with at least 10 records (found 12)
+  ok  flights is seeded with at least 10 records (found 12)
+  ok  hotels is seeded with at least 10 records (found 12)
+  ok  trip_selections is seeded with at least 10 records (found 12)
+  ok  search_history is seeded with at least 10 records (found 12)
+  ok  GET /budgets/1 returns the seeded budget
+  ok  PUT /budgets/1 updates the budget
+  ok  the update actually changed total_budget
+  ok  PUT /budgets/1 restores the original values
+  ok  GET /flights/search returns 200
+  ok  flight search response has a results field
+  ok  flight search for Melbourne returns at least one result
+  ok  every flight result carries a recommendation_score
+  ok  GET /hotels/search returns 200
+  ok  hotel search for Melbourne returns at least one result
+  ok  POST /selections creates a selection (201)
+  ok  GET /selections/1 reads the trip's selections
+  ok  the new selection appears in the trip's list
+  ok  DELETE /selections/51 removes it
+  ok  the deleted selection no longer appears
+  ok  POST /search-history creates a record (201)
+  ok  GET /search-history/1 returns 200
+  ok  the new search appears in trip 1's search history
+
+student-5 feature smoke test passed.
 
 ### 8.2 Screenshots of the integrated application
 
