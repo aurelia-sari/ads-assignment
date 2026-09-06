@@ -14,6 +14,8 @@
 > student; a missing individual subsection costs that student marks, not the
 > group.
 
+**GitHub Repository:** https://github.com/aurelia-sari/ads-assignment.git
+
 ---
 
 ## 1. Project overview
@@ -1953,6 +1955,7 @@ student-2: `docs/diagrams/student-2-architecture.mmd`.
 student-3: `docs/diagrams/student-3-architecture.mmd`.
 student-4: `docs/diagrams/student-4-architecture.mmd`.
 
+student-5: `docs/diagrams/student-5ERD.png`.
 ### 4.2 Integrated Release 0 software architecture
 
 `docs/diagrams/integrated-architecture.mmd`.
@@ -2438,6 +2441,35 @@ Smoke test: student-4 sign-up, email verification & sign-in
 
 student-4 sign-up, email verification & sign-in passed all checks.
 ```
+Feature smoke test: student-5 (Bookings & Budget)
+  ok  database service is healthy
+  ok  backend/API service is healthy
+  ok  database service reports health
+  ok  budgets is seeded with at least 10 records (found 12)
+  ok  flights is seeded with at least 10 records (found 12)
+  ok  hotels is seeded with at least 10 records (found 12)
+  ok  trip_selections is seeded with at least 10 records (found 12)
+  ok  search_history is seeded with at least 10 records (found 12)
+  ok  GET /budgets/1 returns the seeded budget
+  ok  PUT /budgets/1 updates the budget
+  ok  the update actually changed total_budget
+  ok  PUT /budgets/1 restores the original values
+  ok  GET /flights/search returns 200
+  ok  flight search response has a results field
+  ok  flight search for Melbourne returns at least one result
+  ok  every flight result carries a recommendation_score
+  ok  GET /hotels/search returns 200
+  ok  hotel search for Melbourne returns at least one result
+  ok  POST /selections creates a selection (201)
+  ok  GET /selections/1 reads the trip's selections
+  ok  the new selection appears in the trip's list
+  ok  DELETE /selections/51 removes it
+  ok  the deleted selection no longer appears
+  ok  POST /search-history creates a record (201)
+  ok  GET /search-history/1 returns 200
+  ok  the new search appears in trip 1's search history
+
+student-5 feature smoke test passed.
 
 ### 8.2 Screenshots of the integrated application
 
@@ -2598,18 +2630,23 @@ git shortlog -sn --all
 
 #### Aung Ko Khaing - detail
 
-| Date | Contribution |
-|------|--------------|
-| 31 Aug | Bookings & Budget schema and seed data: `budgets`, `flights`, `hotels`, `trip_selections`, `search_history` (12 rows each); database API and backend/API for search, budget CRUD, selections and search history |
-| 31 Aug | Frontend: five-tab page (Search, Budget, My selections, Search history, AI assistant), linked to the shared CSS theme |
-| 1 Sep | Fixed an inline-attribute injection defect: "Add to Trip" buttons embedded raw `JSON.stringify()` inside an `onclick` attribute, breaking on any field containing an apostrophe; replaced with `data-*` attributes and a client-side results cache |
-| 1-2 Sep | Diagnosed and fixed a recurring local/Docker networking mismatch: `DB_SERVICE_URL`/`AI_MODE_URL` defaulting to Docker-only hostnames, and the frontend's API path needing a different shape (prefixed vs. bare) depending on whether nginx was proxying it. Landed on an `API_BASE` that auto-detects the serving environment |
-| 2 Sep | Restructured `student-5-api` from a single `app.py` into `routes/`, `services/`, `views/`, following student-1's layered pattern |
-| 2-3 Sep | Built the AI-Mode integration: a grounded chatbot (`routes/ai_chat.py`) and a separate structured budget advisor (`routes/ai_budget.py`), both routed through `services/ai_mode.py` to the shared AI-Mode service, never calling Ollama directly |
-| 3 Sep | Added `student-5/tests/smoke_test.py` and wired `check_student_5()` into the shared `scripts/smoke_test.py`, replacing the generic `records`-shaped check this feature didn't fit (same pattern as students 2 and 4) |
-| 4 Sep | Replaced the seed data's international destinations with 12 real domestic Australian flight routes and hotels; updated every hardcoded reference across the AI grounding, the smoke test and the frontend to match |
-| 4 Sep | Removed a redundant duplicate AI input box, consolidating natural-language search parsing into the single chatbot rather than two separate "ask AI something" boxes |
-| — | Designed the shared landing page and the navy/cream CSS theme (`shared/css/theme.css`) used across all five features |
+| Date  | Contribution |
+
+|------|---------------|
+
+| 28 Aug | Landing page design and the shared CSS theme (navy/cream palette) used across all five features |
+
+| 31 Aug | Flight and hotel search feature and database file: schema, seed data, search implementation |
+
+| 2 Sep | AI-Mode integration connected and working end to end — chatbot and budget advisor |
+
+| 2 Sep | Added `check_student_5()` dispatch to the shared `scripts/smoke_test.py` |
+
+| 2 Sep | Added the dedicated `student-5/tests/smoke_test.py`, exercising each Bookings & Budget resource on its own terms |
+
+| 4 Sep | Frontend updates to `index.html` |
+
+| 6 Sep | Added Student 5's sections to the technical report |
 
 ### 10.3 Attendance checkpoints
 
@@ -2631,7 +2668,7 @@ git shortlog -sn --all
 
 ## 11. Showcase video
 
-**Video URL:** *(paste the published URL here - required, 10 minutes max)*
+**Video URL:** https://drive.google.com/file/d/1jgSkqvXlPP2wukkHOEHcKdjSRavjhFgc/view?usp=sharing
 
 The video must show:
 
