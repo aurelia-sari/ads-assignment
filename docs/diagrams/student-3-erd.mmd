@@ -1,0 +1,38 @@
+%% student-3 (Tanishpreet Kour) - Travel Mate
+%% Entity-relationship diagram.
+%%
+%% TRAVELLER is owned by the shared access database, not by this service.
+%% It is drawn because trip posts and connect requests reference it, but the
+%% dashed relationship is a reminder that SQLite cannot enforce it: the
+%% reference crosses a service boundary and is resolved over HTTP at render
+%% time via get_traveller(). See ADR-001.
+erDiagram
+    TRAVELLER  ||..o{ TRIP_POST       : "posts (cross-service)"
+    TRAVELLER  ||..o{ CONNECT_REQUEST : "sends (cross-service)"
+    TRIP_POST  ||--o{ CONNECT_REQUEST : "receives"
+    TRAVELLER {
+        INTEGER traveller_id PK
+        TEXT    full_name
+        TEXT    email        UK
+        TEXT    home_city
+        TEXT    member_since
+    }
+    TRIP_POST {
+        INTEGER post_id       PK
+        INTEGER traveller_id  FK "cross-service, not enforced"
+        TEXT    destination       "NOT NULL"
+        TEXT    start_date        "NOT NULL, ISO 8601"
+        TEXT    end_date          "NOT NULL, ISO 8601, >= start_date"
+        TEXT    travel_style      "NOT NULL"
+        TEXT    note              "optional, default empty"
+        TEXT    status            "open|matched|closed"
+        TEXT    created_at        "NOT NULL"
+    }
+    CONNECT_REQUEST {
+        INTEGER request_id        PK
+        INTEGER from_traveller_id FK "cross-service, not enforced"
+        INTEGER to_post_id        FK "NOT NULL, ON DELETE CASCADE"
+        TEXT    message               "optional, default empty"
+        TEXT    status                "pending|accepted|declined"
+        TEXT    created_at            "NOT NULL"
+    }
