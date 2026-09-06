@@ -2258,18 +2258,23 @@ git shortlog -sn --all
 
 #### Aung Ko Khaing - detail
 
-| Date | Contribution |
-|------|--------------|
-| 31 Aug | Bookings & Budget schema and seed data: `budgets`, `flights`, `hotels`, `trip_selections`, `search_history` (12 rows each); database API and backend/API for search, budget CRUD, selections and search history |
-| 31 Aug | Frontend: five-tab page (Search, Budget, My selections, Search history, AI assistant), linked to the shared CSS theme |
-| 1 Sep | Fixed an inline-attribute injection defect: "Add to Trip" buttons embedded raw `JSON.stringify()` inside an `onclick` attribute, breaking on any field containing an apostrophe; replaced with `data-*` attributes and a client-side results cache |
-| 1-2 Sep | Diagnosed and fixed a recurring local/Docker networking mismatch: `DB_SERVICE_URL`/`AI_MODE_URL` defaulting to Docker-only hostnames, and the frontend's API path needing a different shape (prefixed vs. bare) depending on whether nginx was proxying it. Landed on an `API_BASE` that auto-detects the serving environment |
-| 2 Sep | Restructured `student-5-api` from a single `app.py` into `routes/`, `services/`, `views/`, following student-1's layered pattern |
-| 2-3 Sep | Built the AI-Mode integration: a grounded chatbot (`routes/ai_chat.py`) and a separate structured budget advisor (`routes/ai_budget.py`), both routed through `services/ai_mode.py` to the shared AI-Mode service, never calling Ollama directly |
-| 3 Sep | Added `student-5/tests/smoke_test.py` and wired `check_student_5()` into the shared `scripts/smoke_test.py`, replacing the generic `records`-shaped check this feature didn't fit (same pattern as students 2 and 4) |
-| 4 Sep | Replaced the seed data's international destinations with 12 real domestic Australian flight routes and hotels; updated every hardcoded reference across the AI grounding, the smoke test and the frontend to match |
-| 4 Sep | Removed a redundant duplicate AI input box, consolidating natural-language search parsing into the single chatbot rather than two separate "ask AI something" boxes |
-| — | Designed the shared landing page and the navy/cream CSS theme (`shared/css/theme.css`) used across all five features |
+| Date  | Contribution |
+
+|------|---------------|
+
+| 28 Aug | Landing page design and the shared CSS theme (navy/cream palette) used across all five features |
+
+| 31 Aug | Flight and hotel search feature and database file: schema, seed data, search implementation |
+
+| 2 Sep | AI-Mode integration connected and working end to end — chatbot and budget advisor |
+
+| 2 Sep | Added `check_student_5()` dispatch to the shared `scripts/smoke_test.py` |
+
+| 2 Sep | Added the dedicated `student-5/tests/smoke_test.py`, exercising each Bookings & Budget resource on its own terms |
+
+| 4 Sep | Frontend updates to `index.html` |
+
+| 6 Sep | Added Student 5's sections to the technical report |
 
 ### 10.3 Attendance checkpoints
 
