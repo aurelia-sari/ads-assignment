@@ -2070,8 +2070,54 @@ prompt.
 
 ### 5.4 Agentic loop workflow record
 
-*Paste a run from `ai-services/agentic-loop/runs/` here, or reference the copy
-in `docs/evidence/`. Each student identifies the prompts they contributed.*
+Each student identifies below the prompt assets they contributed and the review
+record they collected.
+
+#### student-1 - Caroline Zhou
+
+**What I contributed.** The shared agentic loop itself and every prompt it uses.
+
+| Module | Role |
+|--------|------|
+| `agentic-loop/loop.py` | The Plan - Act - Observe - Adapt cycle. ADAPT's "next check" is parsed out and seeds the next iteration's PLAN, which is what makes it a loop rather than a single review pass. |
+| `agentic-loop/collectors.py` | The ACT step. Live HTTP calls to every running service, and reads of `docker-compose.yml`, `shared/nginx.conf` and the workflow files. |
+| `agentic-loop/llm.py` | Ollama client, with a separate review model from the one the application serves. |
+| `agentic-loop/reporter.py` | Terminal output and the markdown run record. |
+| `agentic-loop/main.py` | Menu and non-interactive entry point. |
+
+**Prompt assets I authored**, in `ai-services/prompts/review/`:
+
+| Prompt | Role in the loop |
+|--------|------------------|
+| `planner_system_prompt.txt` | Reviewer persona and the grounding rules that constrain every step |
+| `plan_prompt.txt` | PLAN - at most four checks, each verifiable from a named source |
+| `observe_prompt.txt` | OBSERVE - separates PASS from ISSUE, and forces an unevaluated check into ISSUE |
+| `adapt_prompt.txt` | ADAPT - one next change and one next check, in a fixed two-line format |
+| `database_review_prompt.txt` | Review target: the database microservices |
+| `implementation_review_prompt.txt` | Review target: the backend/API layer |
+| `architecture_review_prompt.txt` | Review target: the microservices architecture |
+| `devops_review_prompt.txt` | Review target: the DevOps pipeline |
+
+I also authored the three application prompts in
+`ai-services/prompts/implementation/` that AI-Mode loads for the traveller
+assistant.
+
+**The design decision worth stating.** ACT does not ask the model what the
+system looks like - it goes and measures it. Every claim OBSERVE reviews comes
+from a live HTTP response or a file read, so the model is reasoning over
+evidence rather than recalling. That is also what exposed the loop's limits
+honestly: the evidence was right and the model still miscounted it, which is
+recorded as known issue 7.
+
+**Prompt iteration.** The first version of `planner_system_prompt.txt` described
+the reviewer's role but not the project, and the model invented
+`schemaRepository.js`, `config.json` and a Java class in its ADAPT output. The
+grounding rules now restrict it to files appearing verbatim in the evidence.
+Before and after are in appendix A.1.
+
+**Review record.** `docs/evidence/agentic-loop-release0-run.md` - a full
+Plan → Act → Observe → Adapt iteration over the database review target, run
+against the integrated application with all five features implemented.
 
 #### student-2 - Kevin Kim
 
