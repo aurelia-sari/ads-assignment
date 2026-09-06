@@ -13,12 +13,17 @@ import yaml
 
 REPO_ROOT = Path(os.getenv("REPO_ROOT", "/repo"))
 
+# Resources are each service's real collection endpoints. They were "/records"
+# while every feature was still on the generated scaffold; leaving them there
+# once the features were built made the loop report 404 for four of five
+# services, which reads as an outage rather than a stale probe list.
+# Add your endpoint here when you add one, or the loop stops seeing your data.
 STUDENTS = [
     ("student-1", "Trips & Itinerary",     5101, 5201, ["/trips", "/days"]),
-    ("student-2", "Attractions & Dining",  5102, 5202, ["/records"]),
-    ("student-3", "Travel Mate",           5103, 5203, ["/records"]),
-    ("student-4", "Account & Dashboard",   5104, 5204, ["/records"]),
-    ("student-5", "Bookings & Budget",     5105, 5205, ["/records"]),
+    ("student-2", "Attractions & Dining",  5102, 5202, ["/places", "/favourites", "/recommendations"]),
+    ("student-3", "Travel Mate",           5103, 5203, ["/trip_posts", "/connect_requests"]),
+    ("student-4", "Account & Travel Guides", 5104, 5204, ["/destinations"]),
+    ("student-5", "Bookings & Budget",     5105, 5205, []),
 ]
 
 
@@ -47,6 +52,8 @@ def collect_database_evidence():
             continue
 
         lines.append(f"{name}-db: health 200 ({feature})")
+        if not resources:
+            lines.append("  no collection endpoint exposed for review")
         for resource in resources:
             status, response = _get(f"{base}{resource}")
             if status != 200:

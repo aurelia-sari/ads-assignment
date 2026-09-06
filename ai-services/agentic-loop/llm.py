@@ -14,7 +14,13 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:1143
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
 OLLAMA_REVIEW_MODEL = os.getenv("OLLAMA_REVIEW_MODEL", OLLAMA_MODEL)
 
-PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
+# The prompts sit in two different places depending on how the loop is run, and
+# hard-coding either one breaks the other:
+#   in the container, the Dockerfile copies them beside the modules -> /app/prompts
+#   in the repo, they live one level up             -> ai-services/prompts
+# Resolve by looking, so running it either way works.
+_HERE = Path(__file__).resolve().parent
+PROMPT_DIR = _HERE / "prompts" if (_HERE / "prompts").is_dir() else _HERE.parent / "prompts"
 
 client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
 
