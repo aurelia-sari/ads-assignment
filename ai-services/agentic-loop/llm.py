@@ -14,7 +14,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:1143
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
 OLLAMA_REVIEW_MODEL = os.getenv("OLLAMA_REVIEW_MODEL", OLLAMA_MODEL)
 
-PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
+PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
 
