@@ -308,8 +308,6 @@ Non-functional:
 | N4.8 | The assistant never answers with an invented fact | The Observe step (`agentic_loop/core/validator.py`) checks the model's answer restates a fact that was actually retrieved, retrying once with a stricter prompt, then falling back to a disclaimer or a clarifying question instead of a guess |
 | N4.9 | A password reset request never reveals whether an email is registered | `POST /auth/forgot-password` returns the identical body for a registered and an unregistered email, folding a 404 from shared-api into the same generic response as a real send |
 
-*students 2, 3, 5: add your subsections here.*
-#### student-5 - Aung Ko Khaing
 #### student-5 - Aung Ko Khaing
 
 Functional:
@@ -677,44 +675,30 @@ verified before the frontend, so that once the UI was built against them there
 was one place to look when something didn't match, not two. AI grounding was
 added last, after the underlying CRUD and search endpoints were already
 reliable enough to be worth grounding against.
-
 | # | Task | Deliverable | Done |
 |---|------|-------------|------|
-| 1 | Database schema and seed | `budgets`, `flights`, `hotels`, `trip_selections`, `search_history` (12 rows each) | 31 Aug |
-| 2 | Database API | CRUD/search over HTTP across all five tables, port 5205 | 31 Aug |
-| 3 | Backend/API, ranking | Weighted recommendation score computed server-side over the full result set | 31 Aug |
-| 4 | Frontend | Five tabs (Search, Budget, My selections, Search history, AI assistant), shared CSS theme | 31 Aug |
-| 5 | Bug fix: unsafe inline result data | Replaced `onclick`-embedded JSON with `data-*` attributes and a results cache | 1 Sep |
-| 6 | Local/Docker dual environment support | `API_BASE` auto-detects Live Server vs. nginx and adjusts both host and path shape | 1-2 Sep |
-| 7 | `routes/`, `services/`, `views/` restructure | Split the monolithic `api/app.py` into student-1's layered pattern | 2 Sep |
-| 8 | AI-Mode integration | Grounded chatbot (`routes/ai_chat.py`) and budget advisor (`routes/ai_budget.py`), both via `services/ai_mode.py` | 2-3 Sep |
-| 9 | Feature-specific smoke test | `student-5/tests/smoke_test.py`, dispatched from `check_student_5()` (same pattern as students 2 and 4), replacing the generic `records`-shaped check this feature doesn't fit | 3 Sep |
-| 10 | Seed data localisation | Replaced international destinations with 12 real domestic Australian routes/hotels, updated every hardcoded reference (AI grounding examples, smoke test assertions, frontend placeholders) to match | 4 Sep |
-| 11 | UI cleanup | Removed a redundant second "AI travel search" input box once it became clear it duplicated the chatbot | 4 Sep |
-| 12 | Landing page & shared theme | Designed the shared navy/cream CSS theme and unified landing page used across all five features | (group-facing, see contribution log) |
+| 1 | Landing page & shared theme | Designed the shared navy/cream CSS theme and unified landing page used across all five features | 28 Aug |
+| 2 | Database schema and seed | `budgets`, `flights`, `hotels`, `trip_selections`, `search_history` (12 rows each) | 31 Aug |
+| 3 | Database API | CRUD/search over HTTP across all five tables, port 5205 | 31 Aug |
+| 4 | Backend/API, ranking | Weighted recommendation score computed server-side over the full result set | 31 Aug |
+| 5 | Frontend | Five tabs (Search, Budget, My selections, Search history, AI assistant), shared CSS theme | 31 Aug |
+| 6 | Bug fix: unsafe inline result data | Replaced `onclick`-embedded JSON with `data-*` attributes and a results cache | 1 Sep |
+| 7 | Local/Docker dual environment support | `API_BASE` auto-detects Live Server vs. nginx and adjusts both host and path shape | 1-2 Sep |
+| 8 | `routes/`, `services/`, `views/` restructure | Split the monolithic `api/app.py` into student-1's layered pattern | 2 Sep |
+| 9 | AI-Mode integration | Grounded chatbot (`routes/ai_chat.py`) and budget advisor (`routes/ai_budget.py`), both via `services/ai_mode.py` | 2-3 Sep |
+| 10 | Feature-specific smoke test | `student-5/tests/smoke_test.py`, dispatched from `check_student_5()` (same pattern as students 2 and 4), replacing the generic `records`-shaped check this feature doesn't fit | 3 Sep |
+| 11 | Seed data localisation | Replaced international destinations with 12 real domestic Australian routes/hotels| 4 Sep |
+| 12 | UI cleanup | Removed a redundant second "AI travel search" input box once it became clear it duplicated the chatbot | 4 Sep |
 
 **Design decisions worth defending.**
 
-1. *Ranking is computed in the API layer, not the database layer.* The
-   weighted score (50% price, 30% rating, 20% popularity) needs the whole
-   result set at once to normalize price against its min/max, so it's computed
-   once results come back from `student-5-db`, not per-row inside SQL.
-2. *Budgets upsert rather than requiring separate create/update calls.* The
-   frontend's "save budget" flow has no reliable way to know in advance
-   whether a trip already has a budget row, so `PUT /budgets/<trip_id>`
-   creates if missing and updates if present, rather than pushing that check
-   onto the caller.
-3. *A dedicated smoke test instead of the shared generic one.* Bookings &
-   Budget spans five resources with genuinely different shapes — flights and
-   hotels are read-only search endpoints, budgets don't support delete at all,
-   only selections and search history behave like a conventional creatable
-   record. Forcing that into one generic CRUD test would mean writing fake
-   endpoints purely to satisfy it.
-4. *The frontend detects its own serving environment instead of hardcoding
-   one.* The same HTML/JS file needs to call the API differently depending on
-   whether nginx is proxying and stripping the `/api/student-5` prefix (the
-   real deployment) or not (local Live Server testing) — getting this
-   consistent took a few iterations, documented as R5-2 below.
+1. **Ranking happens in the API, not the database.** The score (50% price, 30% rating, 20% popularity) needs the whole result set at once to normalize price, so it's computed after results come back from `student-5-db`, not per-row in SQL.
+
+2. **Budgets upsert instead of separate create/update calls.** The frontend can't know in advance if a trip already has a budget, so `PUT /budgets/<trip_id>` creates it if missing or updates it if present.
+
+3. **A dedicated smoke test, not the shared generic one.** Bookings & Budget has five resources with different shapes — flights/hotels are read-only, budgets can't be deleted, only selections and search history behave like normal CRUD. Forcing that into one generic test would mean adding fake endpoints just to pass it.
+
+4. **The frontend detects its own environment.** The same file needs different API paths depending on whether nginx is proxying (real deployment) or not (local Live Server testing) — see R5-2.
 
 **Deferred to Release 1.**
 
@@ -819,29 +803,27 @@ RAG are introduced.
 
 **Risks that materialised**
 
-| # | Risk | Impact | What happened | Response |
-|---|------|--------|---------------|----------|
-| R5-1 | The shared smoke test does not represent the real Student 5 schema | High | The scaffold's generic test checks `GET /records`, but Student 5 replaced that placeholder with five real resources. CI failed with `FAIL: GET /records returns 200` even though the actual feature worked. | Added a dedicated `student-5/tests/smoke_test.py`, dispatched via `check_student_5()` in the shared runner — same pattern as students 2 and 4. |
-| R5-2 | The same route shape can't satisfy both the nginx-proxied deployment and local testing | High | nginx strips the `/api/student-5` prefix before forwarding to the API, so Flask's routes are bare. Testing locally via Live Server with no nginx meant those bare routes were unreachable at the paths the frontend was calling — this went back and forth (routes prefixed, then reverted, then prefixed again) before landing on the right fix. | The frontend's `API_BASE` now checks `window.location.port` and picks both the correct host *and* whether to include the prefix, so one file works in both environments. |
-| R5-3 | Docker-only service hostnames don't resolve outside Docker | Medium | `DB_SERVICE_URL` and `AI_MODE_URL` default to `http://student-5-db:5205` and `http://ai-mode:5300`, which only resolve through Docker's internal DNS. Running services directly with `python3` for local debugging, both connections failed until this was understood. | Documented the override: `DB_SERVICE_URL=http://localhost:5205 AI_MODE_URL=http://localhost:5300 python3 api/app.py` for local runs; Docker Compose needs no override since its defaults already match. |
-| R5-4 | Untrusted API data embedded directly in an HTML attribute | Medium | "Add to Trip" buttons built their `onclick` handler with `JSON.stringify(item)` inside single-quoted attribute syntax. Any result field containing an apostrophe (a plausible airline or hotel name) broke the attribute and produced invalid markup. | Replaced with `data-*` attributes and an in-memory results cache; no API data lands inside an HTML attribute anymore. |
-| R5-5 | Changing the seed data broke every hardcoded reference to the old destinations | Medium | Switching seed data from international to domestic Australian routes silently broke the AI chatbot's grounding examples (still querying "Tokyo"), the smoke test's search assertions (still checking "Bangkok"), and the frontend's placeholder text — none of which showed an error, they just silently returned nothing useful. | Grepped the whole codebase for the old destination names and updated every reference to match the new seed data. |
-| R5-6 | Local ports silently claimed by the OS or a leftover container | Low | Port 5205 (a prior Docker container left running) and port 5000 (macOS's AirPlay Receiver, a very common conflict with Flask's classic default port) both blocked local startup with no obvious cause from the error message alone. | Diagnosed with `lsof -i :<port>` in each case; documented that AirPlay Receiver specifically needs disabling in System Settings on Mac. |
+| # | Risk | What happened | Fix |
+|---|------|----------------|-----|
+| R5-1 | Shared smoke test didn't match our real schema | CI checked a generic `/records` endpoint that no longer existed, so it failed even though the feature worked | Wrote a dedicated `student-5/tests/smoke_test.py` |
+| R5-2 | One route shape can't work for both nginx and local testing | nginx strips the `/api/student-5` prefix; testing locally with no nginx meant those routes were unreachable | Frontend now auto-detects its environment and adjusts the path |
+| R5-3 | Docker hostnames don't resolve outside Docker | `DB_SERVICE_URL`/`AI_MODE_URL` default to Docker-only names, so local `python3` runs couldn't connect | Documented env var overrides for local runs |
+| R5-4 | Unsafe data in an HTML attribute | Result data was embedded as raw JSON inside `onclick`, breaking on any apostrophe | Switched to `data-*` attributes + a results cache |
+| R5-5 | New seed data broke old hardcoded references | Switching to Australian destinations silently broke AI examples, test assertions, and placeholders still pointing at "Tokyo"/"Bangkok" | Updated every reference to match the new data |
+| R5-6 | Local ports blocked by other processes | Port 5205 (leftover container) and 5000 (macOS AirPlay) both blocked startup | Diagnosed with `lsof -i :<port>` |
 
 **Open risks**
 
-| # | Risk | Likelihood | Impact | Mitigation | Owner |
-|---|------|-----------|--------|------------|-------|
-| R5-7 | The specific model required (`llama3.2:latest`) isn't pulled on the showcase machine | Medium | High | Confirmed via `ollama list`/`ollama pull` before the demo; documented as an explicit pre-recording checklist item. | Me |
-| R5-8 | Grounding reduces but does not guarantee against hallucination | Medium | Medium | The system prompt instructs the model to only use supplied context and say when information is unavailable, but this is a prompt-level constraint, not an enforced one — no output validator checks the budget advisor's answer against the real numbers the way student-2's recommendation validator checks place names. A Release 1 candidate. | Me |
-| R5-9 | `budget_aud`/`price_aud` are `REAL`, not integer cents | Low (Release 0), higher once arithmetic is added | Medium | Same reasoning as student-1's `budget_aud` limitation — fine while values are only displayed/summed for presentation, wrong once real financial calculation is added. | Me, Release 1 |
+| # | Risk | Mitigation |
+|---|------|------------|
+| R5-7 | Required model not pulled on the demo machine | Check with `ollama list` before recording |
+| R5-8 | Grounding reduces but doesn't guarantee against hallucination | No output validator yet — Release 1 candidate |
+| R5-9 | Money fields are `REAL`, not integer cents | Fine for display only; needs fixing before real arithmetic |
 
-**What I would carry into Release 1.** R5-1 and R5-2 are the same underlying
-lesson from two different angles: a check or a code path that assumes one
-canonical shape breaks the moment the real feature (or the real deployment
-environment) diverges from that assumption. The fix both times was the same —
-stop forcing the divergent case into the generic shape, and instead write
-something that accounts for what's actually different about it.
+**Takeaway for Release 1.** R5-1 and R5-2 are the same lesson twice: a check
+or code path built around one assumed shape breaks once the real feature
+differs from it. Both times, the fix was writing something that fit the
+actual difference instead of forcing it into the generic shape.
 
 ### 2.7 Data design
 
