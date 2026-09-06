@@ -309,6 +309,31 @@ Non-functional:
 | N4.9 | A password reset request never reveals whether an email is registered | `POST /auth/forgot-password` returns the identical body for a registered and an unregistered email, folding a 404 from shared-api into the same generic response as a real send |
 
 *students 2, 3, 5: add your subsections here.*
+#### student-5 - Aung Ko Khaing
+#### student-5 - Aung Ko Khaing
+
+Functional:
+
+| ID | Requirement | Acceptance criteria |
+|----|-------------|---------------------|
+| F5.1 | Search flights by origin, destination, dates, travellers and maximum budget | Results ranked by a weighted score (50% price, 30% rating, 20% popularity) and displayed in a table |
+| F5.2 | Search hotels by destination, check-in/check-out dates and maximum budget | Results ranked the same way, using total stay price rather than per-night price |
+| F5.3 | Set or update a trip's total, flight and hotel budget allocation | Saving upserts — creates the budget row if none exists for that trip, updates it otherwise |
+| F5.4 | Add a searched flight or hotel to a trip's selections | Selection appears in the trip's selection list with a generated ID and recorded price |
+| F5.5 | View and remove a trip's selections, with a running total | Selections list shows every item and the summed price; removing one drops it from both the list and the total |
+| F5.6 | View a trip's past flight/hotel searches | Every search run through F5.1/F5.2 is logged automatically and retrievable per trip |
+| F5.7 | Ask an AI chatbot a question grounded in the trip's real budget, selections and live search results | Answer references actual numbers from the trip, not invented ones |
+| F5.8 | Ask an AI budget advisor to review a trip's budget against actual spend | Response is grounded in the trip's real budget and selection totals and gives one practical recommendation |
+
+Non-functional:
+
+| ID | Requirement | How it is met |
+|----|-------------|---------------|
+| N5.1 | The backend never opens the SQLite file directly | All access to `student-5-db` goes through `services/database_api.py` |
+| N5.2 | never calls Ollama directly | AI requests go through `services/ai_mode.py` to the shared AI-Mode service only |
+| N5.3 | A database or AI outage does not show a stack trace to the user | Routes catch `requests.RequestException`/`requests.HTTPError` separately and return a controlled error (an HTML notice fragment for chat, a JSON error for budget-advisor and every CRUD route) |
+| N5.4 | User input cannot perform SQL injection | Every query in `db/app.py` uses parameterized `?` placeholders; even dynamic `WHERE` clause construction for flight/hotel search only interpolates column names the code controls, never values |
+
 
 ### 2.5 Feature plan **(Individual)**
 
@@ -535,6 +560,67 @@ integration time.
 - Swap Mailpit for Resend, isolated to `send_verification_email()` in
   `student-4-api`, by design
 
+#### student-5 - Aung Ko Khaing - Bookings & Budget
+
+**Scope.** A traveller searches flights and hotels with results ranked by a
+weighted price/rating/popularity score, manages a per-trip budget, keeps a
+running list of selected flights/hotels with a live total, and can ask two
+separate AI surfaces — an open-ended chatbot and a structured budget advisor —
+both grounded in the trip's real data.
+
+**Why this order.** The database schema and ranking logic were built and
+verified before the frontend, so that once the UI was built against them there
+was one place to look when something didn't match, not two. AI grounding was
+added last, after the underlying CRUD and search endpoints were already
+reliable enough to be worth grounding against.
+
+| # | Task | Deliverable | Done |
+|---|------|-------------|------|
+| 1 | Database schema and seed | `budgets`, `flights`, `hotels`, `trip_selections`, `search_history` (12 rows each) | 31 Aug |
+| 2 | Database API | CRUD/search over HTTP across all five tables, port 5205 | 31 Aug |
+| 3 | Backend/API, ranking | Weighted recommendation score computed server-side over the full result set | 31 Aug |
+| 4 | Frontend | Five tabs (Search, Budget, My selections, Search history, AI assistant), shared CSS theme | 31 Aug |
+| 5 | Bug fix: unsafe inline result data | Replaced `onclick`-embedded JSON with `data-*` attributes and a results cache | 1 Sep |
+| 6 | Local/Docker dual environment support | `API_BASE` auto-detects Live Server vs. nginx and adjusts both host and path shape | 1-2 Sep |
+| 7 | `routes/`, `services/`, `views/` restructure | Split the monolithic `api/app.py` into student-1's layered pattern | 2 Sep |
+| 8 | AI-Mode integration | Grounded chatbot (`routes/ai_chat.py`) and budget advisor (`routes/ai_budget.py`), both via `services/ai_mode.py` | 2-3 Sep |
+| 9 | Feature-specific smoke test | `student-5/tests/smoke_test.py`, dispatched from `check_student_5()` (same pattern as students 2 and 4), replacing the generic `records`-shaped check this feature doesn't fit | 3 Sep |
+| 10 | Seed data localisation | Replaced international destinations with 12 real domestic Australian routes/hotels, updated every hardcoded reference (AI grounding examples, smoke test assertions, frontend placeholders) to match | 4 Sep |
+| 11 | UI cleanup | Removed a redundant second "AI travel search" input box once it became clear it duplicated the chatbot | 4 Sep |
+| 12 | Landing page & shared theme | Designed the shared navy/cream CSS theme and unified landing page used across all five features | (group-facing, see contribution log) |
+
+**Design decisions worth defending.**
+
+1. *Ranking is computed in the API layer, not the database layer.* The
+   weighted score (50% price, 30% rating, 20% popularity) needs the whole
+   result set at once to normalize price against its min/max, so it's computed
+   once results come back from `student-5-db`, not per-row inside SQL.
+2. *Budgets upsert rather than requiring separate create/update calls.* The
+   frontend's "save budget" flow has no reliable way to know in advance
+   whether a trip already has a budget row, so `PUT /budgets/<trip_id>`
+   creates if missing and updates if present, rather than pushing that check
+   onto the caller.
+3. *A dedicated smoke test instead of the shared generic one.* Bookings &
+   Budget spans five resources with genuinely different shapes — flights and
+   hotels are read-only search endpoints, budgets don't support delete at all,
+   only selections and search history behave like a conventional creatable
+   record. Forcing that into one generic CRUD test would mean writing fake
+   endpoints purely to satisfy it.
+4. *The frontend detects its own serving environment instead of hardcoding
+   one.* The same HTML/JS file needs to call the API differently depending on
+   whether nginx is proxying and stripping the `/api/student-5` prefix (the
+   real deployment) or not (local Live Server testing) — getting this
+   consistent took a few iterations, documented as R5-2 below.
+
+**Deferred to Release 1.**
+
+- Real MCP/RAG grounding for the AI surfaces, replacing the hand-built context
+  summary in `routes/ai_chat.py`
+- `budget_aud`/`price_aud` as integer cents rather than `REAL` (same rationale
+  as student-1's known limitation for `budget_aud`)
+- A unique constraint or reconciliation check preventing a selection from
+  referencing a flight/hotel ID that no longer exists in the search results
+
 ### 2.6 Risk management plan **(Individual)**
 
 #### student-1 - Caroline Zhou
@@ -624,6 +710,34 @@ RAG are introduced.
 |---|------|-----------|--------|------------|-------|
 | R4-4 | Mailpit is a dev-only SMTP catcher; nothing sends real email yet | Certain, by design | Medium | Scoped deliberately for Release 0 - `send_verification_email()` is isolated so swapping in Resend is a one-function change | Me, Release 1 |
 | R4-5 | *(Resolved.)* `POST /auth/logout` now closes the `access_logs` row `/auth/login` opens (see ADR-001 Decision 6) | Low | Low | None, closed | Me |
+
+#### student-5 - Aung Ko Khaing
+
+**Risks that materialised**
+
+| # | Risk | Impact | What happened | Response |
+|---|------|--------|---------------|----------|
+| R5-1 | The shared smoke test does not represent the real Student 5 schema | High | The scaffold's generic test checks `GET /records`, but Student 5 replaced that placeholder with five real resources. CI failed with `FAIL: GET /records returns 200` even though the actual feature worked. | Added a dedicated `student-5/tests/smoke_test.py`, dispatched via `check_student_5()` in the shared runner — same pattern as students 2 and 4. |
+| R5-2 | The same route shape can't satisfy both the nginx-proxied deployment and local testing | High | nginx strips the `/api/student-5` prefix before forwarding to the API, so Flask's routes are bare. Testing locally via Live Server with no nginx meant those bare routes were unreachable at the paths the frontend was calling — this went back and forth (routes prefixed, then reverted, then prefixed again) before landing on the right fix. | The frontend's `API_BASE` now checks `window.location.port` and picks both the correct host *and* whether to include the prefix, so one file works in both environments. |
+| R5-3 | Docker-only service hostnames don't resolve outside Docker | Medium | `DB_SERVICE_URL` and `AI_MODE_URL` default to `http://student-5-db:5205` and `http://ai-mode:5300`, which only resolve through Docker's internal DNS. Running services directly with `python3` for local debugging, both connections failed until this was understood. | Documented the override: `DB_SERVICE_URL=http://localhost:5205 AI_MODE_URL=http://localhost:5300 python3 api/app.py` for local runs; Docker Compose needs no override since its defaults already match. |
+| R5-4 | Untrusted API data embedded directly in an HTML attribute | Medium | "Add to Trip" buttons built their `onclick` handler with `JSON.stringify(item)` inside single-quoted attribute syntax. Any result field containing an apostrophe (a plausible airline or hotel name) broke the attribute and produced invalid markup. | Replaced with `data-*` attributes and an in-memory results cache; no API data lands inside an HTML attribute anymore. |
+| R5-5 | Changing the seed data broke every hardcoded reference to the old destinations | Medium | Switching seed data from international to domestic Australian routes silently broke the AI chatbot's grounding examples (still querying "Tokyo"), the smoke test's search assertions (still checking "Bangkok"), and the frontend's placeholder text — none of which showed an error, they just silently returned nothing useful. | Grepped the whole codebase for the old destination names and updated every reference to match the new seed data. |
+| R5-6 | Local ports silently claimed by the OS or a leftover container | Low | Port 5205 (a prior Docker container left running) and port 5000 (macOS's AirPlay Receiver, a very common conflict with Flask's classic default port) both blocked local startup with no obvious cause from the error message alone. | Diagnosed with `lsof -i :<port>` in each case; documented that AirPlay Receiver specifically needs disabling in System Settings on Mac. |
+
+**Open risks**
+
+| # | Risk | Likelihood | Impact | Mitigation | Owner |
+|---|------|-----------|--------|------------|-------|
+| R5-7 | The specific model required (`llama3.2:latest`) isn't pulled on the showcase machine | Medium | High | Confirmed via `ollama list`/`ollama pull` before the demo; documented as an explicit pre-recording checklist item. | Me |
+| R5-8 | Grounding reduces but does not guarantee against hallucination | Medium | Medium | The system prompt instructs the model to only use supplied context and say when information is unavailable, but this is a prompt-level constraint, not an enforced one — no output validator checks the budget advisor's answer against the real numbers the way student-2's recommendation validator checks place names. A Release 1 candidate. | Me |
+| R5-9 | `budget_aud`/`price_aud` are `REAL`, not integer cents | Low (Release 0), higher once arithmetic is added | Medium | Same reasoning as student-1's `budget_aud` limitation — fine while values are only displayed/summed for presentation, wrong once real financial calculation is added. | Me, Release 1 |
+
+**What I would carry into Release 1.** R5-1 and R5-2 are the same underlying
+lesson from two different angles: a check or a code path that assumes one
+canonical shape breaks the moment the real feature (or the real deployment
+environment) diverges from that assumption. The fix both times was the same —
+stop forcing the divergent case into the generic shape, and instead write
+something that accounts for what's actually different about it.
 
 ### 2.7 Data design
 
@@ -1210,6 +1324,259 @@ chat tables start empty and fill as travellers use the AI Assistant tab.
    not a real natural language classifier. A question phrased unusually
    enough to miss every keyword falls through to the guide category
    keywords or to unrelated, rather than to the feature it actually meant.
+#### student-5 - Aung Ko Khaing - Bookings & Budget
+
+**Conceptual model**
+
+```mermaid
+graph LR
+    TR["TRIP<br/><i>owned by student-1</i>"]
+    B["BUDGET<br/><i>allocation for a trip</i>"]
+    F["FLIGHT<br/><i>a searchable flight option</i>"]
+    H["HOTEL<br/><i>a searchable hotel option</i>"]
+    S["TRIP SELECTION<br/><i>a flight or hotel added to a trip</i>"]
+    SH["SEARCH HISTORY<br/><i>a past flight/hotel search</i>"]
+
+    TR -->|"has, 1:1"| B
+    TR -->|"accumulates, 1:many"| S
+    TR -->|"logs, 1:many"| SH
+    F -.->|"referenced by (cross-table, not FK)"| S
+    H -.->|"referenced by (cross-table, not FK)"| S
+```
+
+Six entities, only four of which are physically owned tables in this database —
+`FLIGHT` and `HOTEL` are searchable catalogues, not per-trip records. `TRIP`
+itself is owned by student-1's service, the same cross-service relationship
+shape as student-1's `TRAVELLER` and student-4's `USER` — `budget_id`,
+`selection_id`, and `search_id` all key off a `trip_id` that this service
+doesn't itself own or validate.
+
+**Entity-relationship diagram**
+
+```mermaid
+erDiagram
+    TRIP           ||..o{ BUDGET         : "has (cross-service)"
+    TRIP           ||..o{ TRIP_SELECTION : "accumulates (cross-service)"
+    TRIP           ||..o{ SEARCH_HISTORY : "logs (cross-service)"
+
+    BUDGET {
+        INTEGER budget_id     PK
+        INTEGER trip_id           "cross-service, not enforced"
+        REAL    total_budget      "NOT NULL"
+        REAL    flight_budget     "NOT NULL, default 0"
+        REAL    hotel_budget      "NOT NULL, default 0"
+        TEXT    currency          "NOT NULL, default AUD"
+        TEXT    created_at        "NOT NULL"
+        TEXT    updated_at        "NOT NULL"
+    }
+
+    FLIGHT {
+        INTEGER flight_id        PK
+        TEXT    airline              "NOT NULL"
+        TEXT    flight_number        "NOT NULL"
+        TEXT    origin                "NOT NULL"
+        TEXT    destination           "NOT NULL"
+        TEXT    departure_date        "NOT NULL, ISO 8601"
+        TEXT    departure_time        "NOT NULL"
+        TEXT    arrival_time          "NOT NULL"
+        INTEGER duration_minutes      "NOT NULL"
+        INTEGER stops                 "NOT NULL, default 0"
+        REAL    price_aud             "NOT NULL"
+        REAL    popularity_score      "NOT NULL, default 0"
+        REAL    rating                "NOT NULL, default 0"
+        TEXT    created_at            "NOT NULL"
+    }
+
+    HOTEL {
+        INTEGER hotel_id            PK
+        TEXT    name                     "NOT NULL"
+        TEXT    destination              "NOT NULL"
+        TEXT    check_in                 "NOT NULL, ISO 8601"
+        TEXT    check_out                "NOT NULL, ISO 8601"
+        INTEGER rooms                     "NOT NULL, default 1"
+        REAL    price_per_night_aud       "NOT NULL"
+        REAL    total_price_aud           "NOT NULL"
+        REAL    rating                    "NOT NULL, default 0"
+        REAL    popularity_score          "NOT NULL, default 0"
+        TEXT    created_at                "NOT NULL"
+    }
+
+    TRIP_SELECTION {
+        INTEGER selection_id  PK
+        INTEGER trip_id           "cross-service, not enforced"
+        TEXT    item_type         "NOT NULL, flight or hotel"
+        INTEGER item_id           "NOT NULL, references FLIGHT or HOTEL depending on item_type"
+        TEXT    item_name         "NOT NULL, denormalised at selection time"
+        REAL    price_aud         "NOT NULL, denormalised at selection time"
+        TEXT    selected_at       "NOT NULL"
+    }
+
+    SEARCH_HISTORY {
+        INTEGER search_id  PK
+        INTEGER trip_id         "cross-service, not enforced, nullable"
+        TEXT    search_type     "NOT NULL, flight or hotel"
+        TEXT    origin
+        TEXT    destination     "NOT NULL"
+        TEXT    start_date
+        TEXT    end_date
+        INTEGER travellers      "NOT NULL, default 1"
+        REAL    budget_aud
+        TEXT    search_query
+        TEXT    created_at      "NOT NULL"
+    }
+```
+
+`TRIP_SELECTION.item_id` is deliberately a *polymorphic* reference — it points
+at `FLIGHT.flight_id` when `item_type = 'flight'` and `HOTEL.hotel_id` when
+`item_type = 'hotel'`, rather than two separate nullable foreign key columns.
+
+**Logical model**
+
+**BUDGET**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| budget_id | integer | PK | surrogate, auto-assigned |
+| trip_id | integer | FK → TRIP | NOT NULL, **cross-service** |
+| total_budget | decimal(10,2) | | NOT NULL |
+| flight_budget | decimal(10,2) | | NOT NULL, default 0 |
+| hotel_budget | decimal(10,2) | | NOT NULL, default 0 |
+| currency | string(3) | | NOT NULL, default 'AUD' |
+| created_at | timestamp | | NOT NULL |
+| updated_at | timestamp | | NOT NULL |
+
+**FLIGHT** / **HOTEL** — catalogue tables, no foreign keys of their own;
+referenced (not enforced) by `TRIP_SELECTION.item_id`. Full attribute list
+matches the ERD above.
+
+**TRIP_SELECTION**
+
+| Attribute | Domain | Key | Constraint |
+|-----------|--------|-----|------------|
+| selection_id | integer | PK | surrogate, auto-assigned |
+| trip_id | integer | FK → TRIP | NOT NULL, cross-service |
+| item_type | enum | | 'flight' or 'hotel' |
+| item_id | integer | polymorphic FK → FLIGHT or HOTEL | NOT NULL, not locally enforced |
+| item_name | string(120) | | NOT NULL, denormalised |
+| price_aud | decimal(10,2) | | NOT NULL, denormalised |
+| selected_at | timestamp | | NOT NULL |
+
+**SEARCH_HISTORY** — attributes as in the ERD; `trip_id` cross-service and
+nullable (a search can be logged before a trip context is chosen).
+
+**Normalisation.** `TRIP_SELECTION.item_name` and `.price_aud` are a
+deliberate, documented denormalisation: they copy values from `FLIGHT`/`HOTEL`
+at the moment of selection rather than joining live. This is intentional, not
+an oversight — a selection should keep showing the price the traveller
+actually saw and chose at booking time, even if the catalogue's seed data (or
+a future live pricing feed) changes that flight's price afterward. Every other
+relation is in third normal form: single-attribute surrogate keys rule out
+partial dependency, and no non-key attribute derives another (e.g. `rating`
+does not derive `price_aud`).
+
+**Physical model**
+
+```sql
+CREATE TABLE budgets (
+    budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_id INTEGER NOT NULL,
+    total_budget REAL NOT NULL,
+    flight_budget REAL NOT NULL DEFAULT 0,
+    hotel_budget REAL NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'AUD',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE flights (
+    flight_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    airline TEXT NOT NULL,
+    flight_number TEXT NOT NULL,
+    origin TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    departure_date TEXT NOT NULL,
+    departure_time TEXT NOT NULL,
+    arrival_time TEXT NOT NULL,
+    duration_minutes INTEGER NOT NULL,
+    stops INTEGER NOT NULL DEFAULT 0,
+    price_aud REAL NOT NULL,
+    popularity_score REAL NOT NULL DEFAULT 0,
+    rating REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE hotels (
+    hotel_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    check_in TEXT NOT NULL,
+    check_out TEXT NOT NULL,
+    rooms INTEGER NOT NULL DEFAULT 1,
+    price_per_night_aud REAL NOT NULL,
+    total_price_aud REAL NOT NULL,
+    rating REAL NOT NULL DEFAULT 0,
+    popularity_score REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE trip_selections (
+    selection_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_id INTEGER NOT NULL,
+    item_type TEXT NOT NULL CHECK(item_type IN ('flight', 'hotel')),
+    item_id INTEGER NOT NULL,
+    item_name TEXT NOT NULL,
+    price_aud REAL NOT NULL,
+    selected_at TEXT NOT NULL
+);
+
+CREATE TABLE search_history (
+    search_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_id INTEGER,
+    search_type TEXT NOT NULL,
+    origin TEXT,
+    destination TEXT NOT NULL,
+    start_date TEXT,
+    end_date TEXT,
+    travellers INTEGER NOT NULL DEFAULT 1,
+    budget_aud REAL,
+    search_query TEXT,
+    created_at TEXT NOT NULL
+);
+```
+
+Seeded with **12 rows in each of the five tables**, above the ten-record
+minimum in specification 2.4. Destinations are real domestic Australian
+routes/cities (Melbourne, Brisbane, Perth, Adelaide, Gold Coast, Cairns,
+Canberra, Hobart, Darwin, Sunshine Coast, Launceston, Alice Springs), matching
+the destinations used across student-4's Travel Guides tables so the two
+features stay consistent.
+
+**Where the physical model departs from the logical model, and why**
+
+| Logical | Physical | Reason |
+|---------|----------|--------|
+| `date`/`timestamp` | `TEXT` | Same reasoning as every other student's tables: SQLite has no date/timestamp type, ISO 8601 strings sort and compare correctly as text. |
+| `enum` for `item_type`/`search_type` | `TEXT` + `CHECK` constraint (`trip_selections`) or application validation (`search_history`) | SQLite has no enum type. |
+| `decimal(10,2)` for money fields | `REAL` | See known limitation below. |
+| FK to TRIP | none | `TRIP` lives in student-1's database file, a separate service. |
+| Polymorphic FK (`item_id`) | plain `INTEGER`, no constraint | SQLite can't express "references table A or table B depending on another column" as a real foreign key. |
+
+**Known limitations of the physical model**
+
+1. **Every money field is `REAL`**, the same binary-floating-point concern
+   student-1 documents for `budget_aud`. Not changed for Release 0 since values
+   are only displayed and summed for presentation, but it should become
+   integer cents before any real financial arithmetic is added.
+2. **`trip_selections.item_id` isn't a real foreign key.** A selection can, in
+   principle, reference a flight or hotel ID that's since been deleted from
+   the catalogue. Since `item_name`/`price_aud` are denormalised at selection
+   time (see Normalisation above), a stale reference wouldn't actually break
+   display — but a genuine reconciliation check is still a reasonable Release
+   1 addition.
+3. **No indexes beyond primary keys.** At 12 rows per table this is
+   irrelevant; `trip_selections(trip_id)` and `search_history(trip_id)` would
+   be the first indexes to add, since every "load this trip's selections/
+   history" query filters on exactly that column.
 
 ## 3. Repository structure
 
@@ -1888,6 +2255,21 @@ git shortlog -sn --all
 | 31 Aug | `student-4/tests/smoke_test.py`, a real end-to-end CI check replacing the generic `records`-shaped one this feature no longer matched (fixed R4-6 / `scripts/smoke_test.py 4` failing with `FAIL: GET /records returns 200`) |
 | 3 Sep | Session gate: `index.html` and `signin.html` redirect based on session state, new `shared/js/auth-guard.js` rolled out to `shared/index.html` and to student-1, student-2, student-3 and student-5's `index.html`, so the landing page and every feature page require a session while sign up, sign in and verify pending stay public. Frontend checks added to `student-4/tests/smoke_test.py` |
 | 3 Sep | Logout confirmation page (`logout.html`), reached only via an actual sign-out (one-time `sessionStorage` flag) and wired up from both `index.html`'s sign-out button and `shared/index.html`'s sign-out link. Checks added to `student-4/tests/smoke_test.py` |
+
+#### Aung Ko Khaing - detail
+
+| Date | Contribution |
+|------|--------------|
+| 31 Aug | Bookings & Budget schema and seed data: `budgets`, `flights`, `hotels`, `trip_selections`, `search_history` (12 rows each); database API and backend/API for search, budget CRUD, selections and search history |
+| 31 Aug | Frontend: five-tab page (Search, Budget, My selections, Search history, AI assistant), linked to the shared CSS theme |
+| 1 Sep | Fixed an inline-attribute injection defect: "Add to Trip" buttons embedded raw `JSON.stringify()` inside an `onclick` attribute, breaking on any field containing an apostrophe; replaced with `data-*` attributes and a client-side results cache |
+| 1-2 Sep | Diagnosed and fixed a recurring local/Docker networking mismatch: `DB_SERVICE_URL`/`AI_MODE_URL` defaulting to Docker-only hostnames, and the frontend's API path needing a different shape (prefixed vs. bare) depending on whether nginx was proxying it. Landed on an `API_BASE` that auto-detects the serving environment |
+| 2 Sep | Restructured `student-5-api` from a single `app.py` into `routes/`, `services/`, `views/`, following student-1's layered pattern |
+| 2-3 Sep | Built the AI-Mode integration: a grounded chatbot (`routes/ai_chat.py`) and a separate structured budget advisor (`routes/ai_budget.py`), both routed through `services/ai_mode.py` to the shared AI-Mode service, never calling Ollama directly |
+| 3 Sep | Added `student-5/tests/smoke_test.py` and wired `check_student_5()` into the shared `scripts/smoke_test.py`, replacing the generic `records`-shaped check this feature didn't fit (same pattern as students 2 and 4) |
+| 4 Sep | Replaced the seed data's international destinations with 12 real domestic Australian flight routes and hotels; updated every hardcoded reference across the AI grounding, the smoke test and the frontend to match |
+| 4 Sep | Removed a redundant duplicate AI input box, consolidating natural-language search parsing into the single chatbot rather than two separate "ask AI something" boxes |
+| — | Designed the shared landing page and the navy/cream CSS theme (`shared/css/theme.css`) used across all five features |
 
 ### 10.3 Attendance checkpoints
 
