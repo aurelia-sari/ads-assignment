@@ -1,0 +1,30 @@
+graph LR
+    subgraph FE["student-3-frontend (nginx :8083)"]
+        HTML["index.html<br/>Browse / Post / Inbox / My Posts / AI mode tabs"]
+        HTMX["HTMX<br/>hx-get, hx-post, hx-put, hx-delete"]
+    end
+    subgraph API["student-3-api (Flask :5103)"]
+        RT["trip routes<br/>CRUD on trip_posts"]
+        RC["connect routes<br/>CRUD on connect_requests"]
+        RA["ai routes<br/>match-suggest, ai-score"]
+        SV["DB_SERVICE_URL calls<br/>the only path to its own database"]
+        SS["get_traveller&#40;&#41;<br/>cross-feature reads,<br/>degrades to Unknown traveller"]
+        SA["call_ollama_match&#40;&#41;"]
+    end
+    subgraph DB["student-3-db (Flask + SQLite :5203)"]
+        T1[("trip_posts<br/>12 rows")]
+        T2[("connect_requests<br/>12 rows")]
+    end
+    AM["ai-mode :5300"]
+    SH["shared-api :5000<br/>owns travellers"]
+    HTML --> HTMX
+    HTMX -->|"HTML fragments"| RT & RC & RA
+    RT & RC --> SV
+    RC --> SS
+    SS -->|"HTTP: resolve traveller name"| SH
+    RA --> SV
+    RA --> SA
+    SA --> AM
+    SV -->|"HTTP JSON"| DB
+    DB --- T1
+    DB --- T2
