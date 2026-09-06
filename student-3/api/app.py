@@ -17,7 +17,7 @@ FRONTEND_DIR = os.environ.get("FRONTEND_DIR", "../frontend/templates")
 # The "logged-in" traveller for this local/dev build. Swap for real auth
 # (Feature 5, student-5) once that's integrated.
 CURRENT_TRAVELLER_ID = int(os.environ.get("CURRENT_TRAVELLER_ID", "1"))
-#newly addeddddddddddd just some experimeting
+#newly addedddd
 SHARED_DB_URL = os.environ.get("SHARED_DB_URL", "http://localhost:5200")
 
 
@@ -358,7 +358,7 @@ def withdraw_request(request_id):
     r = requests.delete(f"{DB_SERVICE_URL}/connect_requests/{request_id}", timeout=5)
     if r.status_code >= 400:
         return f'<p class="error">{r.json().get("error", "Withdraw failed")}</p>', 400
-    return ""  # swap the row away entirely
+    return "" 
 
 # --- AI Integration: match-suggest (Plan -> Act -> Observe -> Adapt) -------
 def build_match_prompt(my_post, candidates, question):
@@ -440,7 +440,7 @@ def extract_destination_hint(question, all_open_posts):
    matched = [t for t in tokens if t in question_lower]
    if not matched:
        return None
-   return max(matched, key=len)  # prefer the more specific/longer match
+   return max(matched, key=len)  
 @app.post("/ai/match-suggest")
 def match_suggest():
    """
@@ -521,7 +521,7 @@ def match_suggest():
            f'<span class="compat-reason">{m.get("reason", "")}</span></div></div>'
        )
    return "".join(rows) + f'<p class="muted">{widen_note}{low_confidence_note}</p>'
-# --- AI scoring for Browse cards (button-triggered) -------------------------
+# --- AI scoring for Browse cards (button-triggered) -
 
 
 @app.post("/trips/ai-score")
@@ -545,8 +545,7 @@ def ai_score_trips():
     if not my_posts:
         note = "Post a trip first to see AI compatibility scores."
     else:
-        # NEW: pick the post that matches the current destination filter,
-        # falling back to the first post only if nothing matches.
+    
         if destination:
             dest_lower = destination.lower()
             my_post = next(
