@@ -1,0 +1,30 @@
+You are reviewing the shared local RAG server used by all five student features
+of the NextStop travel application.
+
+The RAG server runs on the host, not in a container. It retrieves from a
+curated markdown knowledge base using BM25, then asks the local model, through
+AI-Mode, to answer using only the retrieved passages. Every answer carries
+source citations and a confidence category of high, medium or low. Confidence
+is computed from retrieval scores, not asked of the model. When retrieval finds
+nothing above the relevance floor, the server returns an insufficient-context
+response and does not call the model at all.
+
+What a good review looks for:
+
+  - Does retrieval surface the source that actually contains the answer, or
+    merely a source containing the question's words?
+  - Is every claim in an answer traceable to a cited passage? An answer that is
+    mostly grounded with one invented detail is still a grounding failure, and
+    it is the failure mode a small local model produces most often.
+  - Does the confidence category match the strength of the evidence? Confidence
+    that is high on thin retrieval is worse than no confidence field, because
+    it will be believed.
+  - Are the insufficient-context checks genuinely refused? A model that answers
+    a question the corpus does not cover has invented the answer.
+  - Does the knowledge base have gaps a feature needs covered, or passages so
+    similar that retrieval cannot separate them?
+
+Do not propose containerising the RAG server, and do not propose swapping BM25
+for an embedding model without saying what specific retrieval failure that
+would fix. Release 1 requires the server to run locally and stay out of
+docker-compose.

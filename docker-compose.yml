@@ -1,20 +1,35 @@
 # ---------------------------------------------------------------------------
-# Group 25 - Travel App - Release 0
-# One shared Docker Compose configuration for the whole integrated application.
+# Group 25 - Travel App - Release 1
+# One shared Docker Compose configuration for the containerised application.
 #
-#   docker compose up --build          start the integrated application
+#   ./scripts/ai_services.sh up        start the LOCAL AI services first
+#   docker compose up --build          start the containerised application
 #   open http://localhost:8080         unified home page
-#   docker compose run --rm agentic-loop   Plan -> Act -> Observe -> Adapt demo
 #
-# Container inventory (18 core + 1 shared AI service):
+# Container inventory (18 containers):
 #   shared-frontend, shared-api, shared-db                        (3)
 #   student-{1..5}-{frontend,api,db}                             (15)
-#   ai-mode                                                       (1)
+#
+# NOT in this file, by Release 1 requirement: AI-Mode, the MCP server, the RAG
+# server and the agentic loop all run on the host and are NOT compose services.
+# They are managed by ./scripts/ai_services.sh. The containerised backends
+# reach them through host.docker.internal, which is why every backend below
+# declares an extra_hosts entry for it.
 # ---------------------------------------------------------------------------
 
+# Every backend/API reaches the three host-local AI services the same way, so
+# the connection approach Release 0 used for AI-Mode is simply extended to MCP
+# and RAG rather than replaced.
 x-api-env: &api-env
-  AI_MODE_URL: ${AI_MODE_URL:-http://ai-mode:5300}
+  AI_MODE_URL: ${AI_MODE_URL:-http://host.docker.internal:5300}
+  MCP_SERVER_URL: ${MCP_SERVER_URL:-http://host.docker.internal:5400}
+  RAG_SERVER_URL: ${RAG_SERVER_URL:-http://host.docker.internal:5500}
   SHARED_API_URL: http://shared-api:5000
+
+# host.docker.internal is how a container reaches a service on the host. The
+# three local AI services live there, so every backend/API needs this.
+x-host-gateway: &host-gateway
+  - "host.docker.internal:host-gateway"
 
 services:
 
@@ -71,48 +86,6 @@ services:
       - travel-network
     restart: unless-stopped
 
-  # --- Shared AI services -------------------------------------------------
-
-  ai-mode:
-    build:
-      context: ./ai-services
-      dockerfile: ai-mode/Dockerfile
-    container_name: ai-mode
-    ports:
-      - "5300:5300"
-    environment:
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - travel-network
-    restart: unless-stopped
-
-  # Terminal-only service. Not started by `up`; run it on demand:
-  #   docker compose run --rm agentic-loop
-  agentic-loop:
-    build:
-      context: ./ai-services
-      dockerfile: agentic-loop/Dockerfile
-    container_name: agentic-loop
-    profiles: ["tools"]
-    environment:
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:latest}
-      OLLAMA_REVIEW_MODEL: ${OLLAMA_REVIEW_MODEL:-llama3.2:latest}
-      SHARED_API_URL: http://shared-api:5000
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./ai-services/agentic-loop/runs:/app/runs
-      # Read-only view of the repo so the loop can review compose and workflow files.
-      - ./:/repo:ro
-    stdin_open: true
-    tty: true
-    networks:
-      - travel-network
-
   # --- Student 1 : Caroline Zhou - Trips & Itinerary (AI chatbot) ---------
 
   student-1-frontend:
@@ -136,9 +109,9 @@ services:
       DB_SERVICE_URL: http://student-1-db:5201
     depends_on:
       - student-1-db
-      - ai-mode
       # Cross-feature reads: traveller records come from the shared access API.
       - shared-api
+    extra_hosts: *host-gateway
     networks:
       - travel-network
     restart: unless-stopped
@@ -177,7 +150,7 @@ services:
       DB_SERVICE_URL: http://student-2-db:5202
     depends_on:
       - student-2-db
-      - ai-mode
+    extra_hosts: *host-gateway
     networks:
       - travel-network
     restart: unless-stopped
@@ -216,7 +189,7 @@ services:
       DB_SERVICE_URL: http://student-3-db:5203
     depends_on:
       - student-3-db
-      - ai-mode
+    extra_hosts: *host-gateway
     networks:
       - travel-network
     restart: unless-stopped
@@ -259,10 +232,10 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
     depends_on:
       - student-4-db
-      - ai-mode
       # Cross-feature reads: user accounts and access logs come from the shared access API
       - shared-api
       - mailpit
+    extra_hosts: *host-gateway
     networks:
       - travel-network
     restart: unless-stopped
@@ -301,7 +274,7 @@ services:
       DB_SERVICE_URL: http://student-5-db:5205
     depends_on:
       - student-5-db
-      - ai-mode
+    extra_hosts: *host-gateway
     networks:
       - travel-network
     restart: unless-stopped
