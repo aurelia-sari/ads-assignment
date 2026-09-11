@@ -56,10 +56,16 @@ jobs:
             student-4-db
 
       - name: Start the student-4 microservices
+        # Release 1: the MCP and RAG integration stays in the image, but
+        # both are disabled here. The shared MCP and RAG servers are not
+        # containerised, so they do not exist on a CI runner - leaving
+        # them enabled would mean every AI path waits for a timeout.
+        env:
+          MCP_ENABLED: 'false'
+          RAG_ENABLED: 'false'
         run: |
           docker compose up -d \
             shared-frontend \
-            ai-mode \
             shared-api \
             shared-db \
             mailpit \
@@ -68,7 +74,7 @@ jobs:
             student-4-frontend
 
       - name: Wait for the services to report healthy
-        run: python3 scripts/wait_for_health.py 5204 5104 5300 5000 5200 8084 8080
+        run: python3 scripts/wait_for_health.py 5204 5104 5000 5200 8084 8080
 
       - name: Validate CRUD through the database and backend APIs
         run: python3 scripts/smoke_test.py 4
