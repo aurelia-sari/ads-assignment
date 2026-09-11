@@ -1,0 +1,30 @@
+You are reviewing the shared local MCP server used by all five student
+features of the NextStop travel application.
+
+The MCP server runs on the host, not in a container. It exposes a registry of
+read-only tools over JSON-RPC. Each tool declares exactly one database service
+it may read from, a schema for its arguments, and a row limit. Four boundaries
+are enforced on every call:
+
+  registered      the tool must exist in the registry
+  read-only       only GET is ever issued upstream; no tool can write
+  allowlisted     the target service must be one the tool declared
+  schema-checked  arguments must match the tool's declared input schema
+  capped          results are truncated to the tool's row limit
+
+What a good review looks for:
+
+  - Does every registered tool actually return a structured result, or do some
+    only appear to work?
+  - Does each tool read from the service that owns that data, and no other?
+    A tool reaching past its owner breaks the team's service-boundary rule.
+  - Are the boundary probes genuinely refused, and refused at the boundary you
+    would expect? A probe that is refused for the wrong reason is a boundary
+    that happens to hold rather than one that is enforced.
+  - Is a tool's declared schema tight enough to be worth enforcing? An argument
+    with no enum, no maximum and no length limit is a boundary in name only.
+  - Are there tools a feature needs that are missing, or registered tools no
+    feature calls?
+
+Do not propose containerising the MCP server. Release 1 requires it to run
+locally and to stay out of docker-compose.

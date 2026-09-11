@@ -35,7 +35,9 @@ def print_menu():
         "  2  Backend/API implementation\n"
         "  3  Microservices architecture\n"
         "  4  DevOps pipeline\n"
-        "  5  All four, in sequence\n"
+        "  5  MCP server validation          (Release 1)\n"
+        "  6  RAG grounding validation       (Release 1)\n"
+        "  7  All six, in sequence\n"
         "  0  Exit"
     )
 

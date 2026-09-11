@@ -1,10 +1,16 @@
 """Shared AI-Mode service.
 
-One containerised AI service for the whole team. Every student backend/API
-calls this service instead of talking to Ollama itself, so the group has a
-single place for model selection, prompt loading and error handling.
+One AI service for the whole team. Every student backend/API calls this service
+instead of talking to Ollama itself, so the group has a single place for model
+selection, prompt loading and error handling.
 
 Request flow:  Frontend -> Backend/API -> AI-Mode -> Ollama -> LLM
+
+As of Release 1 this runs on the host and is NOT a docker-compose service. The
+containerised backends reach it through host.docker.internal, and it reaches
+Ollama on plain localhost.
+
+Run it with:  ./scripts/ai_services.sh up
 """
 
 import os
@@ -17,10 +23,30 @@ from openai import OpenAI
 app = Flask(__name__)
 CORS(app)
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434/v1")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
+# Running on the host now, so Ollama is on plain localhost. The
+# host.docker.internal spelling only resolves from inside a container.
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 
-PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
+
+def _resolve_prompt_dir():
+    """Find the shared prompt directory.
+
+    The repo keeps prompts at ai-services/prompts, shared by AI-Mode and the
+    agentic loop. The old container image copied them in alongside app.py
+    instead, and the two layouts disagreeing is what broke the prompt path
+    twice already. Checking both means neither layout can break it again.
+    """
+    here = Path(__file__).resolve().parent
+    for candidate in (here / "prompts", here.parent / "prompts"):
+        if candidate.is_dir():
+            return candidate
+    raise RuntimeError(
+        f"No prompts directory found next to {here} or {here.parent}"
+    )
+
+
+PROMPT_DIR = _resolve_prompt_dir()
 
 client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
 
@@ -149,4 +175,4 @@ def recommend():
         )
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5300)
+    app.run(host="0.0.0.0", port=int(os.getenv("AI_MODE_PORT", "5300")))

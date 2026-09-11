@@ -1,6 +1,6 @@
 # NextStop - Group 25 Agentic AI Travel Application
 
-41026 Advanced Software Development, Spring 2026 - Release 0.
+41026 Advanced Software Development, Spring 2026 - Release 1.
 
 An integrated Agentic AI travel planning application built as a microservices
 architecture. Five students each own a frontend, a backend/API, and a database
@@ -16,8 +16,12 @@ microservice; one shared Docker Compose configuration runs the whole thing.
 | student-4 | Aurelia Sari | Authentication, profile, onboarding, dashboard, travel guides | 8084 | 5104 | 5204 |
 | student-5 | Aung Ko Khaing | Flights, hotels, car rentals, budget | 8085 | 5105 | 5205 |
 
-Shared services: `shared-frontend` (8080), `shared-api` (5000), `shared-db`
-(5200), `ai-mode` (5300), `mailpit` (8025 web UI / 1025 SMTP).
+Shared containerised services: `shared-frontend` (8080), `shared-api` (5000),
+`shared-db` (5200), `mailpit` (8025 web UI / 1025 SMTP).
+
+Shared **local, non-containerised** services (Release 1): `ai-mode` (5300),
+`mcp-server` (5400), `rag-server` (5500) and the `agentic-loop`. These are
+deliberately *not* docker-compose services - see "Local AI services" below.
 
 > **Directory naming is fixed.** The project specification (section 7.1)
 > requires each student's artefacts to live in their designated `student-x/`
@@ -38,19 +42,20 @@ Shared services: `shared-frontend` (8080), `shared-api` (5000), `shared-db`
 
 ```bash
 cp .env.example .env
+./scripts/ai_services.sh install   # once: venv for the local AI services
 ./scripts/dev.sh up
 open http://localhost:8080
 ```
 
-`dev.sh up` builds every image, starts the integrated application, and waits
-for the services to report healthy. The unified home page at
+`dev.sh up` starts the local AI services, builds every image, starts the
+integrated application, and waits for the services to report healthy. The unified home page at
 <http://localhost:8080> routes to all five student frontends and shows a live
 health panel for every microservice.
 
 Other commands:
 
 ```bash
-./scripts/dev.sh health      # health of every service
+./scripts/dev.sh health      # health of every service, containerised and local
 ./scripts/dev.sh smoke 1     # CRUD smoke test for student 1
 ./scripts/dev.sh loop        # the agentic loop, interactive
 ./scripts/dev.sh logs student-1-api
@@ -62,8 +67,11 @@ Other commands:
 ```
 .
 ├── .github/workflows/       student-1.yml .. student-5.yml
-├── ai-services/
+├── ai-services/             all NON-containerised, run on the host
 │   ├── ai-mode/             shared AI-Mode service (Flask, port 5300)
+│   ├── mcp-server/          shared MCP server (Flask + JSON-RPC, port 5400)
+│   ├── rag-server/          shared RAG server (Flask + BM25, port 5500)
+│   │   └── knowledge/       the curated corpus retrieval runs over
 │   ├── agentic-loop/        Plan -> Act -> Observe -> Adapt loop (terminal)
 │   └── prompts/             prompt engineering artefacts
 │       ├── implementation/  prompts the running application uses
@@ -73,7 +81,7 @@ Other commands:
 │   ├── evidence/            screenshots and run records for the report
 │   ├── ADR-001-service-boundaries.md
 │   └── technical-report.md  the Release 0 report skeleton
-├── scripts/                 dev.sh, smoke_test.py, wait_for_health.py, scaffold_student.py
+├── scripts/                 dev.sh, ai_services.sh, smoke_test.py, wait_for_health.py
 ├── shared/                  unified index.html, shared CSS theme, access API, access DB
 ├── student-1/ .. student-5/ frontend/, api/, db/, tests/ per student
 ├── docker-compose.yml       one shared configuration for the whole application
@@ -107,6 +115,20 @@ Request flow for an AI interaction:
 Frontend -> Backend/API -> AI-Mode -> Ollama -> LLM
 ```
 
+Release 1 adds two more, both through the feature's own backend/API and both
+crossing the container boundary onto the host:
+
+```
+Frontend -> Backend/API -> MCP server -> student-N-db          (tool call)
+Frontend -> Backend/API -> RAG server -> AI-Mode -> Ollama     (grounded answer)
+                               |
+                               +-> BM25 over knowledge/*.md
+```
+
+The containerisation boundary matters: everything left of the arrow into an AI
+service runs in Docker, and AI-Mode, MCP, RAG and the agentic loop run on the
+host.
+
 Two rules the whole team relies on:
 
 1. **Each database service owns its schema.** No service opens another
@@ -119,6 +141,105 @@ Two rules the whole team relies on:
 All five frontends are reachable from one origin because `shared-frontend`
 reverse-proxies `/student-N/` and `/api/student-N/`. That means HTMX never
 makes a cross-origin request and the group does not need CORS workarounds.
+
+## Local AI services
+
+Release 1 requires AI-Mode, the MCP server, the RAG server and the agentic loop
+to run **on the host** and to stay out of `docker-compose.yml`. They are managed
+by their own script:
+
+```bash
+./scripts/ai_services.sh install   # create ai-services/.venv, install deps
+./scripts/ai_services.sh up        # start ai-mode, mcp-server, rag-server
+./scripts/ai_services.sh status    # is each one responding?
+./scripts/ai_services.sh logs mcp-server
+./scripts/ai_services.sh down
+```
+
+`dev.sh up` calls `ai_services.sh up` for you, so the usual workflow is
+unchanged.
+
+### How the containers reach them
+
+A containerised backend reaches a host service through `host.docker.internal`,
+so every `student-N-api` gets:
+
+| Variable | Value |
+|----------|-------|
+| `AI_MODE_URL` | `http://host.docker.internal:5300` |
+| `MCP_SERVER_URL` | `http://host.docker.internal:5400` |
+| `RAG_SERVER_URL` | `http://host.docker.internal:5500` |
+
+`.env` holds those container-facing spellings because compose needs them.
+`ai_services.sh` re-points the same three at `localhost` for the host processes,
+which is the one thing to remember: **one `.env`, two perspectives.** A service
+on the host cannot resolve `host.docker.internal`.
+
+### Turning them off
+
+`MCP_ENABLED` and `RAG_ENABLED` default to `true` and are set to `false` in CI.
+The integration stays in the image; only the runtime path is skipped, and the
+frontend shows a "disabled in this environment" notice. Without this, CI would
+wait out a timeout on every AI path, because the host services do not exist on
+a runner.
+
+## The shared MCP server
+
+One non-containerised MCP server on **:5400**, used by all five features. It
+speaks JSON-RPC (`initialize`, `tools/list`, `tools/call`) at `POST /mcp`, and
+also exposes plain `GET /health` and `GET /tools` for terminal validation.
+
+Six read-only tools are registered, one per feature:
+
+| Tool | Owner | Reads from |
+|------|-------|-----------|
+| `list_trips`, `get_trip_itinerary` | student-1 | `student-1-db` |
+| `search_places` | student-2 | `student-2-db` |
+| `find_travel_mates` | student-3 | `student-3-db` |
+| `lookup_destination_guide` | student-4 | `student-4-db` |
+| `search_flights` | student-5 | `student-5-db` |
+
+Four boundaries are enforced on every call, in `mcp-server/boundaries.py`:
+
+1. **read-only** - only GET is ever issued upstream; there is no write path
+2. **allowlisted** - the target must be the service the tool declared
+3. **schema-checked** - arguments must match the tool's declared input schema
+4. **capped** - results are truncated to the tool's row limit
+
+```bash
+curl -s localhost:5400/tools | python3 -m json.tool
+curl -s -X POST localhost:5400/mcp -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+       "params":{"name":"list_trips","arguments":{"status":"planned"}}}'
+```
+
+## The shared RAG server
+
+One non-containerised RAG server on **:5500**, used by all five features.
+
+Retrieval is BM25 over the curated markdown in
+`ai-services/rag-server/knowledge/` - no embedding model and no vector store, so
+it starts instantly on an 8 GB machine and every citation traces back to term
+frequencies in a named file.
+
+Generation goes through AI-Mode, so the rule that only AI-Mode talks to Ollama
+still holds.
+
+Every answer carries **source citations** and a **confidence category** of
+high, medium or low, computed from retrieval scores rather than asked of the
+model - a small local model asked how confident it is answers "high" almost
+unconditionally. When nothing clears the relevance floor, the server returns an
+**insufficient-context** response and does not call the model at all.
+
+```bash
+curl -s localhost:5500/health | python3 -m json.tool
+curl -s -X POST localhost:5500/search -H 'Content-Type: application/json' \
+  -d '{"question":"How should I split my trip budget?"}'
+curl -s -X POST localhost:5500/ask -H 'Content-Type: application/json' \
+  -d '{"question":"What is the capital of Peru?"}'   # insufficient context
+```
+
+After editing the knowledge base, `POST /reindex` rebuilds without a restart.
 
 ## AI-Mode
 
@@ -210,11 +331,24 @@ application rather than reasoning about it in the abstract:
   check that would confirm it, which seeds the next iteration.
 
 Review targets: the database microservices, the backend/API implementation, the
-microservices architecture, and the DevOps pipeline.
+microservices architecture, the DevOps pipeline, and - added in Release 1 - the
+**MCP server** and **RAG grounding** validation modes.
+
+The MCP mode calls every registered tool, then fires six probes that must each
+be refused, checking not only that the call failed but that it was refused at
+the boundary that should have caught it. The RAG mode checks retrieval and
+grounding separately, because they fail separately: that the top source is the
+file which actually contains the answer, that answers carry citations and a
+confidence category, and that off-corpus questions are refused rather than
+answered.
+
+The loop runs on the host, not in a container.
 
 ```bash
 ./scripts/dev.sh loop            # interactive menu
-./scripts/dev.sh loop all 2      # two iterations over all four targets
+./scripts/dev.sh loop mcp        # MCP validation mode
+./scripts/dev.sh loop rag        # RAG grounding validation mode
+./scripts/dev.sh loop all 2      # two iterations over all six targets
 ```
 
 Every run writes a markdown record to `ai-services/agentic-loop/runs/`. Copy the

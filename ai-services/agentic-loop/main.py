@@ -1,7 +1,11 @@
 """Entry point for the shared team agentic loop.
 
-    docker compose run --rm agentic-loop            interactive
-    docker compose run --rm agentic-loop all 2      two iterations over all targets
+Runs on the host - Release 1 requires the loop to be non-containerised.
+
+    ./scripts/dev.sh loop             interactive
+    ./scripts/dev.sh loop all 2       two iterations over every target
+    ./scripts/dev.sh loop mcp         the MCP validation mode alone
+    ./scripts/dev.sh loop rag         the RAG validation mode alone
 """
 
 import sys
@@ -15,8 +19,10 @@ TARGETS = {
     "2": "implementation",
     "3": "architecture",
     "4": "devops",
+    "5": "mcp",
+    "6": "rag",
 }
-ALL_TARGETS = ["db", "implementation", "architecture", "devops"]
+ALL_TARGETS = ["db", "implementation", "architecture", "devops", "mcp", "rag"]
 
 
 def run_targets(targets, iterations_per_target):
@@ -55,13 +61,13 @@ def main():
         try:
             choice = input("> ").strip()
         except EOFError:
-            print("\nNo terminal attached. Try: docker compose run --rm agentic-loop all 1")
+            print("\nNo terminal attached. Try: ./scripts/dev.sh loop all 1")
             return
 
         if choice == "0":
             print("Loop closed.")
             return
-        if choice == "5":
+        if choice == "7":
             run_targets(ALL_TARGETS, 1)
             continue
         if choice in TARGETS:

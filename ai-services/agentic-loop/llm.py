@@ -10,11 +10,24 @@ from pathlib import Path
 
 from openai import OpenAI
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434/v1")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
+# The loop runs on the host in Release 1, so Ollama is on plain localhost.
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 OLLAMA_REVIEW_MODEL = os.getenv("OLLAMA_REVIEW_MODEL", OLLAMA_MODEL)
 
-PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
+
+def _resolve_prompt_dir():
+    """Find the shared prompt directory - see the note in ai-mode/app.py."""
+    here = Path(__file__).resolve().parent
+    for candidate in (here / "prompts", here.parent / "prompts"):
+        if candidate.is_dir():
+            return candidate
+    raise RuntimeError(
+        f"No prompts directory found next to {here} or {here.parent}"
+    )
+
+
+PROMPT_DIR = _resolve_prompt_dir()
 
 client = OpenAI(base_url=OLLAMA_BASE_URL, api_key="ollama")
 
