@@ -21,3 +21,7 @@ venv/
 
 # Agentic loop run artefacts (evidence is committed manually to docs/evidence)
 ai-services/agentic-loop/runs/
+
+# Release 1: local (non-containerised) AI service runtime
+ai-services/.venv/
+ai-services/.runtime/
