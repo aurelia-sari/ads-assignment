@@ -1388,3 +1388,50 @@ pre {
     vertical-align: middle;
     margin-left: 0.15rem;
 }
+/* --- Release 1: RAG citations -------------------------------------------
+   Shared by all five features, because every feature renders grounded answers
+   the same way. The citation block sits inside the answer bubble and is set
+   back from it: the answer is the thing being read, the sources are the thing
+   being checked, and they should not compete. */
+.citations {
+    margin-top: 0.75rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--color-slate-200);
+    font-size: 0.85rem;
+}
+
+.citations .pill {
+    margin-bottom: 0.4rem;
+}
+
+.citations p.muted {
+    margin: 0.3rem 0 0.5rem;
+    font-size: 0.8rem;
+}
+
+.citations strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--color-navy-800);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.citation-list {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--color-slate-500);
+}
+
+.citation-list li {
+    margin-bottom: 0.2rem;
+}
+
+.citation-list code {
+    background: var(--color-slate-100, #eef1f5);
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    color: var(--color-navy-800);
+}

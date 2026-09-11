@@ -267,3 +267,118 @@ def chat_exchange(question, answer):
         "<div class='chat-msg bot'><div class='who'>NextStop AI</div>"
         f"<div class='bubble'>{escape(answer)}</div></div>"
     )
+
+
+# --- Release 1: MCP and RAG fragments ---------------------------------------
+
+CONFIDENCE_PILLS = {
+    "high": "pill-booked",
+    "medium": "pill-planned",
+    "low": "pill-cancelled",
+    "insufficient": "pill-cancelled",
+}
+
+
+def confidence_pill(confidence):
+    css = CONFIDENCE_PILLS.get(confidence, "pill-planned")
+    return f"<span class='pill {css}'>confidence: {escape(confidence)}</span>"
+
+
+def mcp_result(tool_name, result):
+    """Render one MCP tool result.
+
+    A call refused at a tool boundary is shown as a refusal naming the boundary,
+    not as a generic error. The boundary holding is the feature working, so the
+    interface should say which one held rather than hiding it behind "failed".
+    """
+    if result.get("isError"):
+        boundary = result.get("boundary", "unknown")
+        message = result.get("content", [{}])[0].get("text", "")
+        return (
+            "<div class='notice notice-error'>"
+            f"MCP refused this call at the <strong>{escape(boundary)}</strong> boundary."
+            "</div>"
+            f"<pre>{escape(message)}</pre>"
+        )
+
+    structured = result.get("structuredContent", {})
+    rows = structured.get("rows", [])
+
+    header = (
+        "<div class='notice notice-ok'>"
+        f"Tool <strong>{escape(tool_name)}</strong> returned "
+        f"{structured.get('row_count', 0)} row(s) from "
+        f"<strong>{escape(str(structured.get('source', '')))}</strong>"
+        + (" (truncated to the tool's row limit)" if structured.get("truncated") else "")
+        + "</div>"
+    )
+
+    if not rows:
+        return header + "<p class='muted'>The tool ran and matched no records.</p>"
+
+    # The registry returns differently shaped rows per tool, so the table is
+    # built from whatever keys the first row actually has rather than from a
+    # fixed column list.
+    columns = [key for key in rows[0] if not isinstance(rows[0][key], (dict, list))]
+    head = "".join(f"<th>{escape(str(column))}</th>" for column in columns)
+    body = "".join(
+        "<tr>"
+        + "".join(f"<td>{escape(str(row.get(column, '')))}</td>" for column in columns)
+        + "</tr>"
+        for row in rows
+    )
+    return header + f"<table class='data-table'><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+
+
+def rag_answer(question, result):
+    """Render a grounded RAG answer with its citations and confidence category.
+
+    The insufficient-context case is rendered deliberately plainly: no citation
+    list, no confidence pill dressed up as a result. A refusal that looks like
+    an answer is the thing grounding exists to prevent.
+    """
+    confidence = result.get("confidence", "unknown")
+    answer = result.get("answer", "")
+
+    block = (
+        "<div class='chat-msg user'><div class='who'>You</div>"
+        f"<div class='bubble'>{escape(question)}</div></div>"
+        "<div class='chat-msg bot'><div class='who'>NextStop AI (grounded)</div>"
+        f"<div class='bubble'>{escape(answer)}"
+    )
+
+    if not result.get("grounded"):
+        block += (
+            "<div class='citations'>"
+            "<span class='pill pill-cancelled'>insufficient context</span>"
+            f"<p class='muted'>{escape(result.get('confidence_reason', ''))}</p>"
+            "</div></div></div>"
+        )
+        return block
+
+    citations = result.get("citations", [])
+    items = "".join(
+        f"<li>[{citation['number']}] <code>{escape(citation['source'])}</code>"
+        f" &rsaquo; {escape(citation['section'])}"
+        f" <span class='muted'>(score {citation['score']})</span></li>"
+        for citation in citations
+    )
+    block += (
+        "<div class='citations'>"
+        f"{confidence_pill(confidence)}"
+        f"<p class='muted'>{escape(result.get('confidence_reason', ''))}</p>"
+        f"<strong>Sources</strong><ol class='citation-list'>{items}</ol>"
+        "</div></div></div>"
+    )
+    return block
+
+
+def ai_disabled_fragment(service):
+    """Shown when MCP or RAG is switched off, as it is during CI."""
+    return (
+        "<div class='notice notice-error'>"
+        f"{escape(service)} is disabled in this environment. "
+        "The integration is present but its runtime path is switched off "
+        f"({escape(service.upper().replace(' ', '_'))}_ENABLED=false)."
+        "</div>"
+    )

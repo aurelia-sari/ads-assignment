@@ -27,6 +27,8 @@
         <button class="tab-btn is-active" data-tab="trips" type="button">All trips</button>
         <button class="tab-btn" data-tab="itinerary" type="button">Day-by-day</button>
         <button class="tab-btn" data-tab="ai" type="button">AI assistant</button>
+        <button class="tab-btn" data-tab="mcp" type="button">MCP tools</button>
+        <button class="tab-btn" data-tab="rag" type="button">Ask (grounded)</button>
     </nav>
 
     <!-- Trips: full CRUD ------------------------------------------------ -->
@@ -103,12 +105,98 @@
     </section>
 </main>
 
+    <!-- MCP tools (Release 1) --------------------------------------------- -->
+    <section class="tab-panel card" id="panel-mcp">
+        <h3 style="margin-top:0">MCP tools</h3>
+        <p class="muted">
+            Calls the shared local MCP server through this feature's backend/API.
+            The server is not containerised - start it with
+            <code>./scripts/ai_services.sh up</code>. Each tool may only read
+            from the database service it declares, and arguments are checked
+            against the tool's registered schema before the call is made.
+        </p>
+
+        <form hx-post="/api/student-1/ai/mcp"
+              hx-target="#mcp-panel"
+              hx-swap="innerHTML">
+            <div class="chat-options">
+                <label for="mcp-tool" style="margin:0">Tool</label>
+                <select id="mcp-tool" name="tool">
+                    <option value="list_trips">list_trips</option>
+                    <option value="get_trip_itinerary">get_trip_itinerary</option>
+                </select>
+
+                <label for="mcp-destination" style="margin:0">Destination</label>
+                <input id="mcp-destination" type="text" name="destination"
+                       placeholder="e.g. Tokyo" autocomplete="off">
+
+                <label for="mcp-status" style="margin:0">Status</label>
+                <select id="mcp-status" name="status">
+                    <option value="">any</option>
+                    <option value="planned">planned</option>
+                    <option value="booked">booked</option>
+                    <option value="completed">completed</option>
+                </select>
+
+                <label for="mcp-trip-id" style="margin:0">Trip ID</label>
+                <input id="mcp-trip-id" type="number" name="trip_id" min="1"
+                       placeholder="for get_trip_itinerary">
+
+                <button type="submit">Run tool</button>
+                <span class="spinner">calling the MCP server...</span>
+            </div>
+        </form>
+
+        <div id="mcp-panel" style="margin-top:1rem">
+            <p class="muted">No tool has been run yet.</p>
+        </div>
+    </section>
+
+    <!-- RAG grounded answers (Release 1) ------------------------------------ -->
+    <section class="tab-panel card" id="panel-rag">
+        <h3 style="margin-top:0">Ask NextStop (grounded)</h3>
+        <p class="muted">
+            Answers come from the shared local RAG server, which retrieves from
+            the NextStop knowledge base and answers only from what it retrieved.
+            Every answer shows its sources and a confidence category. A question
+            the knowledge base does not cover returns an insufficient-context
+            response instead of a guess - try
+            <strong>"what is the capital of Peru?"</strong> to see that path.
+        </p>
+
+        <div class="chat-log" id="rag-log">
+            <div class="chat-log__empty" id="rag-empty">
+                Try <strong>"how should I split my trip budget?"</strong>
+            </div>
+        </div>
+
+        <form hx-post="/api/student-1/ai/rag"
+              hx-target="#rag-log"
+              hx-swap="beforeend"
+              hx-on::after-request="this.reset(); document.getElementById('rag-log').scrollTop = 99999">
+            <label for="rag-question" class="sr-only-label">Ask a grounded question</label>
+            <div class="chat-input-row">
+                <input id="rag-question" type="text" name="question"
+                       placeholder="Ask about trip planning, budgets, bookings..."
+                       autocomplete="off" required>
+                <button type="submit">Ask</button>
+            </div>
+            <div class="chat-options">
+                <label for="rag-trip-id" style="margin:0">Ground in one trip (optional)</label>
+                <input id="rag-trip-id" type="number" name="trip_id" min="1" placeholder="trip ID">
+                <span class="spinner">retrieving, then answering locally...</span>
+            </div>
+        </form>
+    </section>
+
 <script>
 const buttons = Array.from(document.querySelectorAll(".tab-btn"));
 const panels = {
     trips: document.getElementById("panel-trips"),
     itinerary: document.getElementById("panel-itinerary"),
     ai: document.getElementById("panel-ai"),
+    mcp: document.getElementById("panel-mcp"),
+    rag: document.getElementById("panel-rag"),
 };
 
 function activate(name) {
@@ -118,10 +206,9 @@ function activate(name) {
     );
     window.location.hash = name;
 
-    if (name === "ai") {
-        const input = document.getElementById("ai-question");
-        if (input) input.focus();
-    }
+    const focusTargets = { ai: "ai-question", rag: "rag-question", mcp: "mcp-destination" };
+    const input = document.getElementById(focusTargets[name]);
+    if (input) input.focus();
 }
 
 buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)));
