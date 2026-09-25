@@ -35,7 +35,7 @@
         <h1>Find Your Travel Mate <span class="brand-highlight">with NextStop</span></h1>
 <p>Student 3 &middot; Tanishpreet Kour</p>
     </header>
- 
+
     <nav class="tab-nav">
         <button class="tab-btn is-active" data-tab="browse" type="button">Browse</button>
         <button class="tab-btn" data-tab="post" type="button">Post a Trip</button>
@@ -49,7 +49,7 @@
         <div class="chat-head">
             <h3 style="margin:0">Browse trips</h3>
         </div>
- 
+
         <form id="browse-filter-form" class="form-grid"
             hx-get="/api/student-3/trips"
             hx-target="#browse-list"
@@ -79,7 +79,7 @@
             </div>
         </form>
         <span class="spinner">scoring...</span>
- 
+
         <div id="browse-list">
             <p class="muted">Loading trips...</p>
         </div>
@@ -89,7 +89,7 @@
     <section class="tab-panel card" id="panel-post">
         <h3 style="margin-top:0">Post a trip</h3>
         <p class="muted">Looking for a travel companion? Post your trip so others can say hi.</p>
- 
+
         <form hx-post="/api/student-3/trips"
             hx-target="#post-result"
             hx-swap="innerHTML"
@@ -160,11 +160,11 @@
     <section class="tab-panel card" id="panel-ai">
         <h3 style="margin-top:0">Travel Mate AI</h3>
         <p class="muted">Runs locally through AI-Mode and Ollama. Compares your trip post against other travellers and explains the match.</p>
- 
+
         <div class="chat-log" id="chat-log">
             <p class="chat-log__empty">Post a trip first, then ask the AI to suggest compatible travel mates.</p>
         </div>
- 
+
         <form hx-post="/api/student-3/ai/match-suggest"
             hx-target="#chat-log"
             hx-swap="beforeend"
@@ -189,6 +189,22 @@
             <button type="submit">Search via MCP</button>
         </form>
         <div id="mcp-result" style="margin-top:0.75rem"></div>
+    </div>
+</section>
+
+<!--Rag block -->
+            <div id="mcp-result" style="margin-top:0.75rem"></div>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+        <h4 style="margin-top:0">Ask the NextStop knowledge base (RAG)</h4>
+        <form hx-post="/api/student-3/ai/ask-grounded"
+            hx-target="#rag-result" hx-swap="innerHTML">
+            <input name="question" required placeholder="e.g. How does compatibility scoring work?">
+            <button type="submit">Ask (grounded)</button>
+            <span class="spinner">retrieving...</span>
+        </form>
+        <div id="rag-result" style="margin-top:0.75rem"></div>
     </div>
 </section>
 
@@ -223,7 +239,7 @@
         mine: document.getElementById("panel-mine"),
         ai: document.getElementById("panel-ai"),
     };
- 
+
 
     function activate(name) {
         buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));

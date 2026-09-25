@@ -21,6 +21,7 @@ CURRENT_TRAVELLER_ID = int(os.environ.get("CURRENT_TRAVELLER_ID", "1"))
 #newly addedddd
 SHARED_DB_URL = os.environ.get("SHARED_DB_URL", "http://localhost:5200")
 MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://localhost:5400")
+RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://localhost:5500")
 
 
 
@@ -59,6 +60,18 @@ def call_mcp_tool(tool_name, arguments):
     if "error" in body:
         raise ValueError(body["error"].get("message", "MCP server error"))
     return body["result"]
+
+#RAG
+def call_rag_ask(question, live_context=None):
+    """Call the shared RAG server's /ask endpoint and return its full
+    response: answer, grounded flag, confidence, confidence_reason,
+    and citations. Raises requests.RequestException on transport failure."""
+    payload = {"question": question}
+    if live_context:
+        payload["context"] = live_context
+    r = requests.post(f"{RAG_SERVER_URL}/ask", json=payload, timeout=60)
+    r.raise_for_status()
+    return r.json()
 
 AI_MODE_URL = os.environ.get("AI_MODE_URL", "http://ai-mode:5300")
 # --- Serve the frontend (handy for local testing) --------------------------
@@ -217,6 +230,27 @@ MCP_RESULT_TMPL = """
   </div>
 {% endif %}
 """
+
+#rag tmpl
+RAG_RESULT_TMPL = """
+<div class="card">
+  <p><strong>{{ "AI Answer" if result.grounded else "No answer available" }}</strong></p>
+  <p>{{ result.answer }}</p>
+  <p class="muted">
+    Confidence: <span class="pill pill-{{ result.confidence }}">{{ result.confidence }}</span>
+  </p>
+  {% if result.citations %}
+    <div class="chat-log">
+      {% for c in result.citations %}
+        <p class="compat-reason">
+          [{{ c.number }}] {{ c.source }} &gt; {{ c.section }} &mdash; {{ c.excerpt }}
+        </p>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+"""
+
 
 
 @app.get("/trips")
@@ -629,6 +663,18 @@ def mcp_find_mates():
     except (requests.RequestException, ValueError) as exc:
         return f'<div class="card"><p class="error">MCP request failed: {exc}</p></div>', 502
     return render_template_string(MCP_RESULT_TMPL, result=result)
+
+# rag integration
+@app.post("/ai/ask-grounded")
+def ask_grounded():
+    question = request.form.get("question", "")
+    if not question.strip():
+        return '<div class="card"><p class="error">Type a question first.</p></div>', 400
+    try:
+        result = call_rag_ask(question)
+    except requests.RequestException as exc:
+        return f'<div class="card"><p class="error">RAG request failed: {exc}</p></div>', 502
+    return render_template_string(RAG_RESULT_TMPL, result=result)
 
 
 if __name__ == "__main__":
