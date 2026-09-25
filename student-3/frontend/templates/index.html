@@ -179,9 +179,20 @@
             <button type="submit">Ask</button>
             <span class="spinner">thinking...</span>
         </form>
-    </section>
-</main>
- 
+
+        <!--MCP block adding-->
+            <div class="card" style="margin-top:1rem">
+        <h4 style="margin-top:0">Find via MCP tool</h4>
+        <form hx-post="/api/student-3/mcp/find-mates"
+            hx-target="#mcp-result" hx-swap="innerHTML">
+            <input name="destination" placeholder="e.g. Bali (optional)">
+            <button type="submit">Search via MCP</button>
+        </form>
+        <div id="mcp-result" style="margin-top:0.75rem"></div>
+    </div>
+</section>
+
+
 <!-- trip cards -->
 <template id="trip-card-template">
     <div class="card">
@@ -220,11 +231,11 @@
             panel.classList.toggle("is-active", key === name)
         );
     }
- 
+
     buttons.forEach((b) => {
         if (b.dataset.tab) b.addEventListener("click", () => activate(b.dataset.tab));
     });
- 
+
     // Inbox sub-tabs (incoming / outgoing)
     const subButtons = Array.from(document.querySelectorAll("#panel-inbox .tab-btn[data-subtab]"));
     const subPanels = {

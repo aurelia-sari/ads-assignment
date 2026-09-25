@@ -9,6 +9,7 @@ feature from one URL locally: http://localhost:5103/
 """
 import json
 import os
+import itertools
 import requests
 from flask import Flask, jsonify, render_template_string, request, send_from_directory
 app = Flask(__name__)
@@ -19,6 +20,7 @@ FRONTEND_DIR = os.environ.get("FRONTEND_DIR", "../frontend/templates")
 CURRENT_TRAVELLER_ID = int(os.environ.get("CURRENT_TRAVELLER_ID", "1"))
 #newly addedddd
 SHARED_DB_URL = os.environ.get("SHARED_DB_URL", "http://localhost:5200")
+MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://localhost:5400")
 
 
 
@@ -36,6 +38,27 @@ def get_traveller(traveller_id):
 #OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 #OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 
+
+#mcp adding
+_mcp_id_counter = itertools.count(1)
+
+def call_mcp_tool(tool_name, arguments):
+    """Call one registered MCP tool and return its structured result.
+    Raises requests.RequestException on transport failure, and returns
+    a dict with isError=True if the MCP server refused the call (a
+    boundary violation, not a network problem)."""
+    payload = {
+        "jsonrpc": "2.0",
+        "id": next(_mcp_id_counter),
+        "method": "tools/call",
+        "params": {"name": tool_name, "arguments": arguments},
+    }
+    r = requests.post(f"{MCP_SERVER_URL}/mcp", json=payload, timeout=10)
+    r.raise_for_status()
+    body = r.json()
+    if "error" in body:
+        raise ValueError(body["error"].get("message", "MCP server error"))
+    return body["result"]
 
 AI_MODE_URL = os.environ.get("AI_MODE_URL", "http://ai-mode:5300")
 # --- Serve the frontend (handy for local testing) --------------------------
@@ -174,6 +197,27 @@ REQUEST_ROW_TMPL = """
 <p class="muted">Nothing here yet.</p>
 {% endfor %}
 """
+#mcp adding
+
+MCP_RESULT_TMPL = """
+{% if result.isError %}
+  <div class="card"><p class="error">MCP call refused ({{ result.boundary }}): {{ result.content[0].text }}</p></div>
+{% else %}
+  {% set data = result.structuredContent %}
+  <div class="card">
+    <p class="muted">{{ result.content[0].text }}</p>
+    {% for row in data.rows %}
+      <div class="trip-card__footer">
+        <strong>{{ row.destination }}</strong>
+        <span class="muted"> &middot; {{ row.start_date }} &rarr; {{ row.end_date }} &middot; {{ row.travel_style }}</span>
+      </div>
+    {% else %}
+      <p class="muted">No matches.</p>
+    {% endfor %}
+  </div>
+{% endif %}
+"""
+
 
 @app.get("/trips")
 def browse_trips():
@@ -573,6 +617,20 @@ def ai_score_trips():
     if note:
         cards_html += f'<p class="muted">{note}</p>'
     return cards_html
+
+#mcp integration
+
+@app.post("/mcp/find-mates")
+def mcp_find_mates():
+    destination = request.form.get("destination", "")
+    args = {"destination": destination} if destination else {}
+    try:
+        result = call_mcp_tool("find_travel_mates", args)
+    except (requests.RequestException, ValueError) as exc:
+        return f'<div class="card"><p class="error">MCP request failed: {exc}</p></div>', 502
+    return render_template_string(MCP_RESULT_TMPL, result=result)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5103)))
 
