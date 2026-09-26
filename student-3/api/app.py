@@ -19,23 +19,53 @@ FRONTEND_DIR = os.environ.get("FRONTEND_DIR", "../frontend/templates")
 # (Feature 5, student-5) once that's integrated.
 CURRENT_TRAVELLER_ID = int(os.environ.get("CURRENT_TRAVELLER_ID", "1"))
 #newly addedddd
-SHARED_DB_URL = os.environ.get("SHARED_DB_URL", "http://localhost:5200")
+SHARED_API_URL = os.environ.get("SHARED_API_URL", "http://localhost:5000")
 MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://localhost:5400")
 RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://localhost:5500")
+MCP_ENABLED = os.environ.get("MCP_ENABLED", "true").lower() == "true"
+RAG_ENABLED = os.environ.get("RAG_ENABLED", "true").lower() == "true"
 
 
 
 
 def get_traveller(traveller_id):
-    """Best-effort lookup of a traveller's display name from shared-db.
-    Returns None on any failure so a down shared-db never breaks Inbox."""
+    """Best-effort lookup of a traveller's display name from shared-api.
+    Returns None on any failure so a down shared-api never breaks Inbox."""
     try:
-        r = requests.get(f"{SHARED_DB_URL}/travellers/{traveller_id}", timeout=3)
+        r = requests.get(f"{SHARED_API_URL}/travellers/{traveller_id}", timeout=3)
         if r.status_code == 200:
             return r.json()
     except requests.RequestException:
         pass
     return None
+
+
+def build_thread(post_id, other_id):
+    r = requests.get(f"{DB_SERVICE_URL}/connect_requests", timeout=5)
+    r.raise_for_status()
+    all_reqs = r.json()
+
+    thread = [
+        req for req in all_reqs
+        if req["to_post_id"] == post_id
+        and req["from_traveller_id"] in (CURRENT_TRAVELLER_ID, other_id)
+    ]
+    thread.sort(key=lambda r: r["created_at"])
+
+    for msg in thread:
+        msg["is_mine"] = msg["from_traveller_id"] == CURRENT_TRAVELLER_ID
+        if not msg["is_mine"]:
+            traveller = get_traveller(msg["from_traveller_id"])
+            msg["other_party_name"] = traveller["full_name"] if traveller else None
+
+    return render_template_string(
+        CHAT_THREAD_TMPL, messages=thread, post_id=post_id, other_id=other_id
+    )
+
+
+@app.get("/connect/thread/<int:post_id>/<int:other_id>")
+def connect_thread(post_id, other_id):
+    return build_thread(post_id, other_id)
 #OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 #OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 
@@ -116,15 +146,16 @@ TRIP_CARD_TMPL = """
             Delete
         </button>
         </div>
-    {% else %}
+            {% else %}
         <button class="say-hi-btn" hx-post="/api/student-3/connect"
-                hx-vals='{"to_post_id": {{ post.post_id }}}'
-                hx-target="closest .card" hx-swap="outerHTML">
+                hx-vals='{"to_post_id": {{ post.post_id }}, "other_id": {{ post.traveller_id }}}'
+                hx-target="next .thread-placeholder" hx-swap="innerHTML">
         Say Hi
         </button>
     {% endif %}
     </div>
     {% if s and s.reason %}<span class="compat-reason">{{ s.reason }}</span>{% endif %}
+    <div class="thread-placeholder"></div>
 </div>
 {% else %}
 <p class="muted">No trips match those filters yet.</p>
@@ -214,43 +245,68 @@ REQUEST_ROW_TMPL = """
 
 MCP_RESULT_TMPL = """
 {% if result.isError %}
-  <div class="card"><p class="error">MCP call refused ({{ result.boundary }}): {{ result.content[0].text }}</p></div>
+<div class="card"><p class="error">MCP call refused ({{ result.boundary }}): {{ result.content[0].text }}</p></div>
 {% else %}
-  {% set data = result.structuredContent %}
-  <div class="card">
+{% set data = result.structuredContent %}
+<div class="card">
     <p class="muted">{{ result.content[0].text }}</p>
     {% for row in data.rows %}
-      <div class="trip-card__footer">
+    <div class="trip-card__footer">
         <strong>{{ row.destination }}</strong>
         <span class="muted"> &middot; {{ row.start_date }} &rarr; {{ row.end_date }} &middot; {{ row.travel_style }}</span>
-      </div>
+    </div>
     {% else %}
-      <p class="muted">No matches.</p>
+    <p class="muted">No matches.</p>
     {% endfor %}
-  </div>
+</div>
 {% endif %}
 """
 
 #rag tmpl
 RAG_RESULT_TMPL = """
 <div class="card">
-  <p><strong>{{ "AI Answer" if result.grounded else "No answer available" }}</strong></p>
-  <p>{{ result.answer }}</p>
-  <p class="muted">
+<p><strong>{{ "AI Answer" if result.grounded else "No answer available" }}</strong></p>
+<p>{{ result.answer }}</p>
+<p class="muted">
     Confidence: <span class="pill pill-{{ result.confidence }}">{{ result.confidence }}</span>
-  </p>
-  {% if result.citations %}
+</p>
+{% if result.citations %}
     <div class="chat-log">
-      {% for c in result.citations %}
+    {% for c in result.citations %}
         <p class="compat-reason">
-          [{{ c.number }}] {{ c.source }} &gt; {{ c.section }} &mdash; {{ c.excerpt }}
+        [{{ c.number }}] {{ c.source }} &gt; {{ c.section }} &mdash; {{ c.excerpt }}
         </p>
-      {% endfor %}
+    {% endfor %}
     </div>
-  {% endif %}
+{% endif %}
 </div>
 """
-
+#Chat temp
+CHAT_THREAD_TMPL = """
+<div class="thread-slot">
+<div class="chat-log" id="thread-{{ post_id }}-{{ other_id }}">
+    {% for msg in messages %}
+    <div class="chat-msg {{ 'me' if msg.is_mine else 'bot' }}">
+        <div class="who">{{ "You" if msg.is_mine else (msg.other_party_name or "Traveller " ~ msg.from_traveller_id) }}</div>
+        <div class="bubble">{{ msg.message }}</div>
+        <div class="muted" style="font-size:0.7rem">{{ msg.created_at }}</div>
+    </div>
+    {% else %}
+    <p class="chat-log__empty">No messages yet. Say hello!</p>
+    {% endfor %}
+</div>
+<form hx-post="/api/student-3/connect"
+        hx-target="closest .thread-slot"
+        hx-swap="outerHTML"
+        hx-on::after-request="this.reset()"
+        style="display:flex; gap:0.5rem; margin-top:0.5rem">
+    <input type="hidden" name="to_post_id" value="{{ post_id }}">
+    <input type="hidden" name="other_id" value="{{ other_id }}">
+    <input name="message" placeholder="Type a message..." required style="flex:1">
+    <button type="submit" class="btn-sm">Send</button>
+</form>
+</div>
+"""
 
 
 @app.get("/trips")
@@ -279,154 +335,168 @@ def my_trips():
 
 @app.post("/trips")
 def create_trip():
-   form = request.form
-   payload = {
-       "traveller_id": CURRENT_TRAVELLER_ID,
-       "destination": form.get("destination", ""),
-       "start_date": form.get("start_date", ""),
-       "end_date": form.get("end_date", ""),
-       "travel_style": form.get("travel_style", ""),
-       "note": form.get("note", ""),
-       "status": "open",
-   }
-   r = requests.post(f"{DB_SERVICE_URL}/trip_posts", json=payload, timeout=5)
-   if r.status_code >= 400:
-       return f'<p class="error">Could not post trip: {r.json().get("error", "unknown error")}</p>', 400
-   response = app.make_response('<p class="success">Trip posted! Check the Browse tab.</p>')
-   response.headers["HX-Trigger"] = "tripPosted"
-   return response
+    form = request.form
+    payload = {
+        "traveller_id": CURRENT_TRAVELLER_ID,
+        "destination": form.get("destination", ""),
+        "start_date": form.get("start_date", ""),
+        "end_date": form.get("end_date", ""),
+        "travel_style": form.get("travel_style", ""),
+        "note": form.get("note", ""),
+        "status": "open",
+    }
+    r = requests.post(f"{DB_SERVICE_URL}/trip_posts", json=payload, timeout=5)
+    if r.status_code >= 400:
+        return f'<p class="error">Could not post trip: {r.json().get("error", "unknown error")}</p>', 400
+    response = app.make_response('<p class="success">Trip posted! Check the Browse tab.</p>')
+    response.headers["HX-Trigger"] = "tripPosted"
+    return response
 @app.delete("/trips/<int:post_id>")
 def delete_trip(post_id):
-   r = requests.delete(f"{DB_SERVICE_URL}/trip_posts/{post_id}", timeout=5)
-   if r.status_code >= 400:
-       return f'<p class="error">{r.json().get("error", "Delete failed")}</p>', 400
-   return ""  # swap the card away entirely
+    r = requests.delete(f"{DB_SERVICE_URL}/trip_posts/{post_id}", timeout=5)
+    if r.status_code >= 400:
+        return f'<p class="error">{r.json().get("error", "Delete failed")}</p>', 400
+    return ""  # swap the card away entirely
 def _fetch_post_or_error(post_id):
-   r = requests.get(f"{DB_SERVICE_URL}/trip_posts/{post_id}", timeout=5)
-   if r.status_code >= 400:
-       return None, f'<p class="error">{r.json().get("error", "Trip post not found")}</p>'
-   return r.json(), None
+    r = requests.get(f"{DB_SERVICE_URL}/trip_posts/{post_id}", timeout=5)
+    if r.status_code >= 400:
+        return None, f'<p class="error">{r.json().get("error", "Trip post not found")}</p>'
+    return r.json(), None
 
 
 
 
 @app.get("/trips/<int:post_id>/edit")
 def edit_trip_form(post_id):
-   post, error_html = _fetch_post_or_error(post_id)
-   if error_html:
-       return error_html, 404
-   return render_template_string(EDIT_FORM_TMPL, post=post)
+    post, error_html = _fetch_post_or_error(post_id)
+    if error_html:
+        return error_html, 404
+    return render_template_string(EDIT_FORM_TMPL, post=post)
 
 
 
 
 @app.get("/trips/<int:post_id>/view")
 def view_trip_card(post_id):
-   post, error_html = _fetch_post_or_error(post_id)
-   if error_html:
-       return error_html, 404
-   return render_template_string(TRIP_CARD_TMPL, posts=[post], current_id=CURRENT_TRAVELLER_ID)
+    post, error_html = _fetch_post_or_error(post_id)
+    if error_html:
+        return error_html, 404
+    return render_template_string(TRIP_CARD_TMPL, posts=[post], current_id=CURRENT_TRAVELLER_ID)
 
 
 
 
 @app.put("/trips/<int:post_id>")
 def update_trip(post_id):
-   form = request.form
-   payload = {
-       "destination": form.get("destination", ""),
-       "start_date": form.get("start_date", ""),
-       "end_date": form.get("end_date", ""),
-       "travel_style": form.get("travel_style", ""),
-       "note": form.get("note", ""),
-   }
-   r = requests.put(f"{DB_SERVICE_URL}/trip_posts/{post_id}", json=payload, timeout=5)
-   if r.status_code >= 400:
-       return f'<p class="error">Could not update trip: {r.json().get("error", "unknown error")}</p>', 400
-   updated_post = r.json()
-   return render_template_string(TRIP_CARD_TMPL, posts=[updated_post], current_id=CURRENT_TRAVELLER_ID)
+    form = request.form
+    payload = {
+        "destination": form.get("destination", ""),
+        "start_date": form.get("start_date", ""),
+        "end_date": form.get("end_date", ""),
+        "travel_style": form.get("travel_style", ""),
+        "note": form.get("note", ""),
+    }
+    r = requests.put(f"{DB_SERVICE_URL}/trip_posts/{post_id}", json=payload, timeout=5)
+    if r.status_code >= 400:
+        return f'<p class="error">Could not update trip: {r.json().get("error", "unknown error")}</p>', 400
+    updated_post = r.json()
+    return render_template_string(TRIP_CARD_TMPL, posts=[updated_post], current_id=CURRENT_TRAVELLER_ID)
+
 
 @app.post("/connect")
 def say_hi():
-   to_post_id = request.form.get("to_post_id") or (request.get_json(silent=True) or {}).get("to_post_id")
-   payload = {
-       "from_traveller_id": CURRENT_TRAVELLER_ID,
-       "to_post_id": to_post_id,
-       "message": request.form.get("message", "Hi! Would love to join your trip."),
-       "status": "pending",
-   }
-   r = requests.post(f"{DB_SERVICE_URL}/connect_requests", json=payload, timeout=5)
-   if r.status_code >= 400:
-       return f'<p class="error">{r.json().get("error", "Could not send request")}</p>', 400
-   return '<button class="say-hi-btn" disabled>Requested</button>'
+    form_data = request.form or (request.get_json(silent=True) or {})
+    to_post_id = int(form_data.get("to_post_id"))
+    other_id = form_data.get("other_id")
+
+    payload = {
+        "from_traveller_id": CURRENT_TRAVELLER_ID,
+        "to_post_id": to_post_id,
+        "message": form_data.get("message", "Hi! Would love to join your trip."),
+        "status": "pending",
+    }
+    r = requests.post(f"{DB_SERVICE_URL}/connect_requests", json=payload, timeout=5)
+    if r.status_code >= 400:
+        return f'<p class="error">{r.json().get("error", "Could not send request")}</p>', 400
+
+    if other_id is None:
+        post = requests.get(f"{DB_SERVICE_URL}/trip_posts/{to_post_id}", timeout=5).json()
+        other_id = post["traveller_id"]
+    other_id = int(other_id)
+
+    return build_thread(to_post_id, other_id)
+
+
+
+
 @app.get("/connect/incoming")
 def incoming_requests():
-   r = requests.get(f"{DB_SERVICE_URL}/connect_requests", timeout=5)
-   r.raise_for_status()
-   all_reqs = r.json()
+    r = requests.get(f"{DB_SERVICE_URL}/connect_requests", timeout=5)
+    r.raise_for_status()
+    all_reqs = r.json()
 
 
-   posts_r = requests.get(f"{DB_SERVICE_URL}/trip_posts", params={"traveller_id": CURRENT_TRAVELLER_ID}, timeout=5)
-   my_posts = {p["post_id"]: p for p in posts_r.json()}
-   my_post_ids = set(my_posts.keys())
+    posts_r = requests.get(f"{DB_SERVICE_URL}/trip_posts", params={"traveller_id": CURRENT_TRAVELLER_ID}, timeout=5)
+    my_posts = {p["post_id"]: p for p in posts_r.json()}
+    my_post_ids = set(my_posts.keys())
 
 
-   incoming = [r_ for r_ in all_reqs if r_["to_post_id"] in my_post_ids]
+    incoming = [r_ for r_ in all_reqs if r_["to_post_id"] in my_post_ids]
 
 
-   for req in incoming:
-       traveller = get_traveller(req["from_traveller_id"])
-       req["other_party_name"] = traveller["full_name"] if traveller else None
-       req["destination"] = my_posts.get(req["to_post_id"], {}).get("destination")
+    for req in incoming:
+        traveller = get_traveller(req["from_traveller_id"])
+        req["other_party_name"] = traveller["full_name"] if traveller else None
+        req["destination"] = my_posts.get(req["to_post_id"], {}).get("destination")
 
 
-   return render_template_string(REQUEST_ROW_TMPL, requests=incoming, direction="incoming")
+    return render_template_string(REQUEST_ROW_TMPL, requests=incoming, direction="incoming")
 
 
 
-   for req in incoming:
-       traveller = get_traveller(req["from_traveller_id"])
-       req["sender_name"] = traveller["full_name"] if traveller else None
-       req["destination"] = my_posts.get(req["to_post_id"], {}).get("destination")
+    for req in incoming:
+        traveller = get_traveller(req["from_traveller_id"])
+        req["sender_name"] = traveller["full_name"] if traveller else None
+        req["destination"] = my_posts.get(req["to_post_id"], {}).get("destination")
 
 
-   return render_template_string(REQUEST_ROW_TMPL, requests=incoming, direction="incoming")
+    return render_template_string(REQUEST_ROW_TMPL, requests=incoming, direction="incoming")
 @app.get("/connect/outgoing")
 def outgoing_requests():
-   r = requests.get(
-       f"{DB_SERVICE_URL}/connect_requests",
-       params={"from_traveller_id": CURRENT_TRAVELLER_ID},
-       timeout=5,
-   )
-   r.raise_for_status()
-   outgoing = r.json()
+    r = requests.get(
+        f"{DB_SERVICE_URL}/connect_requests",
+        params={"from_traveller_id": CURRENT_TRAVELLER_ID},
+        timeout=5,
+    )
+    r.raise_for_status()
+    outgoing = r.json()
 
 
-   for req in outgoing:
-       post_r = requests.get(f"{DB_SERVICE_URL}/trip_posts/{req['to_post_id']}", timeout=5)
-       if post_r.status_code == 200:
-           post = post_r.json()
-           owner = get_traveller(post["traveller_id"])
-           req["other_party_name"] = owner["full_name"] if owner else None
-           req["destination"] = post["destination"]
-       else:
-           req["other_party_name"] = None
-           req["destination"] = None
+    for req in outgoing:
+        post_r = requests.get(f"{DB_SERVICE_URL}/trip_posts/{req['to_post_id']}", timeout=5)
+        if post_r.status_code == 200:
+            post = post_r.json()
+            owner = get_traveller(post["traveller_id"])
+            req["other_party_name"] = owner["full_name"] if owner else None
+            req["destination"] = post["destination"]
+        else:
+            req["other_party_name"] = None
+            req["destination"] = None
 
 
-   return render_template_string(REQUEST_ROW_TMPL, requests=outgoing, direction="outgoing")
+    return render_template_string(REQUEST_ROW_TMPL, requests=outgoing, direction="outgoing")
 
 
 
 
 @app.put("/connect/<int:request_id>")
 def update_request(request_id):
-   payload = request.get_json(silent=True) or dict(request.form)
-   r = requests.put(f"{DB_SERVICE_URL}/connect_requests/{request_id}", json=payload, timeout=5)
-   if r.status_code >= 400:
-       return f'<p class="error">{r.json().get("error", "Update failed")}</p>', 400
-   updated = [r.json()]
-   return render_template_string(REQUEST_ROW_TMPL, requests=updated, direction="incoming")
+    payload = request.get_json(silent=True) or dict(request.form)
+    r = requests.put(f"{DB_SERVICE_URL}/connect_requests/{request_id}", json=payload, timeout=5)
+    if r.status_code >= 400:
+        return f'<p class="error">{r.json().get("error", "Update failed")}</p>', 400
+    updated = [r.json()]
+    return render_template_string(REQUEST_ROW_TMPL, requests=updated, direction="incoming")
 
 
 
@@ -440,165 +510,165 @@ def withdraw_request(request_id):
 
 # --- AI Integration: match-suggest (Plan -> Act -> Observe -> Adapt) -------
 def build_match_prompt(my_post, candidates, question):
-   candidate_lines = "\n".join(
-       f'- post_id={c["post_id"]}: destination="{c["destination"]}", '
-       f'dates={c["start_date"]} to {c["end_date"]}, '
-       f'travel_style="{c["travel_style"]}", note="{c["note"]}"'
-       for c in candidates
-   )
-   return (
-       "You are a travel-companion matching assistant for a travel app. "
-       "Compare the user's own trip post against each candidate post below "
-       "and score how compatible they'd be as travel companions.\n\n"
-       f"User's question: {question}\n\n"
-       f"User's own post: destination=\"{my_post['destination']}\", "
-       f"dates={my_post['start_date']} to {my_post['end_date']}, "
-       f"travel_style=\"{my_post['travel_style']}\", note=\"{my_post['note']}\"\n\n"
-       f"Candidate posts:\n{candidate_lines}\n\n"
-       f"There are exactly {len(candidates)} candidate post(s) listed above. "
-       f"You MUST include exactly {len(candidates)} entries in your response "
-       "array, one per candidate, in the same order they were listed -- "
-       "do not skip any and do not return only your single favourite. "
-       "Score each candidate on destination overlap, date overlap, and "
-       "similarity of travel_style/note. Respond with ONLY a JSON array, "
-       "no other text, in this exact shape:\n"
-       '[{"post_id": <int>, "score": <int 0-100>, "reason": "<one short sentence>"}]'
-   )
+    candidate_lines = "\n".join(
+        f'- post_id={c["post_id"]}: destination="{c["destination"]}", '
+        f'dates={c["start_date"]} to {c["end_date"]}, '
+        f'travel_style="{c["travel_style"]}", note="{c["note"]}"'
+        for c in candidates
+    )
+    return (
+        "You are a travel-companion matching assistant for a travel app. "
+        "Compare the user's own trip post against each candidate post below "
+        "and score how compatible they'd be as travel companions.\n\n"
+        f"User's question: {question}\n\n"
+        f"User's own post: destination=\"{my_post['destination']}\", "
+        f"dates={my_post['start_date']} to {my_post['end_date']}, "
+        f"travel_style=\"{my_post['travel_style']}\", note=\"{my_post['note']}\"\n\n"
+        f"Candidate posts:\n{candidate_lines}\n\n"
+        f"There are exactly {len(candidates)} candidate post(s) listed above. "
+        f"You MUST include exactly {len(candidates)} entries in your response "
+        "array, one per candidate, in the same order they were listed -- "
+        "do not skip any and do not return only your single favourite. "
+        "Score each candidate on destination overlap, date overlap, and "
+        "similarity of travel_style/note. Respond with ONLY a JSON array, "
+        "no other text, in this exact shape:\n"
+        '[{"post_id": <int>, "score": <int 0-100>, "reason": "<one short sentence>"}]'
+    )
 def call_ollama_match(my_post, candidates, question):
-   prompt = build_match_prompt(my_post, candidates, question)
-   resp = requests.post(
-       f"{AI_MODE_URL}/recommend",
-       json={
-           "question": prompt,
-           "system": (
-               "You are a JSON API. Respond with ONLY valid JSON, "
-               "no markdown code fences, no explanation, no other text."
-           ),
-           "max_tokens": 500,
-       },
-       timeout=180,
-   )
-   resp.raise_for_status()
-   raw_text = resp.json()["answer"]
-   print(f"[ai-mode raw response] {raw_text!r}") 
-   parsed = json.loads(raw_text)
-   if isinstance(parsed, list):
-       matches = parsed
-   elif isinstance(parsed, dict):
-       list_values = [v for v in parsed.values() if isinstance(v, list)]
-       if list_values:
-           matches = list_values[0]
-       elif "post_id" in parsed:
-           matches = [parsed]
-       else:
-           raise ValueError(f"Unrecognised JSON shape from model: {parsed!r}")
-   else:
-       raise ValueError(f"Model did not return JSON array or object: {parsed!r}")
-   if not matches:
-       raise ValueError("Model returned an empty match list")
-   return matches
+    prompt = build_match_prompt(my_post, candidates, question)
+    resp = requests.post(
+        f"{AI_MODE_URL}/recommend",
+        json={
+            "question": prompt,
+            "system": (
+                "You are a JSON API. Respond with ONLY valid JSON, "
+                "no markdown code fences, no explanation, no other text."
+            ),
+            "max_tokens": 500,
+        },
+        timeout=180,
+    )
+    resp.raise_for_status()
+    raw_text = resp.json()["answer"]
+    print(f"[ai-mode raw response] {raw_text!r}") 
+    parsed = json.loads(raw_text)
+    if isinstance(parsed, list):
+        matches = parsed
+    elif isinstance(parsed, dict):
+        list_values = [v for v in parsed.values() if isinstance(v, list)]
+        if list_values:
+            matches = list_values[0]
+        elif "post_id" in parsed:
+            matches = [parsed]
+        else:
+            raise ValueError(f"Unrecognised JSON shape from model: {parsed!r}")
+    else:
+        raise ValueError(f"Model did not return JSON array or object: {parsed!r}")
+    if not matches:
+        raise ValueError("Model returned an empty match list")
+    return matches
 def extract_destination_hint(question, all_open_posts):
-   """
-   Returns the matching keyword itself (e.g. "iceland" or "vietnam"),
-   not a specific post's destination string -- candidate matching then
-   uses substring containment, so this one keyword correctly matches
-   every post whose destination mentions it, however that post's
-   destination happens to be formatted ("Reykjavik, Iceland" or just
-   "iceland").
-   """
-   if not question:
-       return None
-   question_lower = question.lower()
-   tokens = set()
-   for post in all_open_posts:
-       for part in post["destination"].split(","):
-           part = part.strip().lower()
-           if part:
-               tokens.add(part)
-   matched = [t for t in tokens if t in question_lower]
-   if not matched:
-       return None
-   return max(matched, key=len)  
+    """
+    Returns the matching keyword itself (e.g. "iceland" or "vietnam"),
+    not a specific post's destination string -- candidate matching then
+    uses substring containment, so this one keyword correctly matches
+    every post whose destination mentions it, however that post's
+    destination happens to be formatted ("Reykjavik, Iceland" or just
+    "iceland").
+    """
+    if not question:
+        return None
+    question_lower = question.lower()
+    tokens = set()
+    for post in all_open_posts:
+        for part in post["destination"].split(","):
+            part = part.strip().lower()
+            if part:
+                tokens.add(part)
+    matched = [t for t in tokens if t in question_lower]
+    if not matched:
+        return None
+    return max(matched, key=len)
 @app.post("/ai/match-suggest")
 def match_suggest():
-   """
-   PLAN:    read the user's own open post(s) + their free-text question,
+    """
+    PLAN:    read the user's own open post(s) + their free-text question,
             and try to detect a destination the question is actually about.
-   ACT:     fetch candidate posts from the db service, send both to the LLM.
-   OBSERVE: check whether the LLM returned any high-confidence matches.
-   ADAPT:   if none, widen the search (drop destination filter) and re-ask.
-   """
-   question = request.form.get("question", "")
-   my_posts_r = requests.get(
-       f"{DB_SERVICE_URL}/trip_posts",
-       params={"traveller_id": CURRENT_TRAVELLER_ID, "status": "open"},
-       timeout=5,
-   )
-   my_posts = my_posts_r.json()
-   if not my_posts:
-       return '<p class="chat-log__empty">Post a trip first so the AI has something to match against.</p>'
-   all_open_r = requests.get(
-       f"{DB_SERVICE_URL}/trip_posts", params={"status": "open"}, timeout=5
-   )
-   all_open_posts = all_open_r.json()
-   destination_hint = extract_destination_hint(question, all_open_posts)
-   if destination_hint:
-       hint_lower = destination_hint.lower()
-       matching_own_post = next(
-           (p for p in my_posts if hint_lower in p["destination"].lower()), None
-       )
-       my_post = matching_own_post or my_posts[0]
-       candidates = [
-           c for c in all_open_posts
-           if hint_lower in c["destination"].lower() and c["post_id"] != my_post["post_id"]
-       ]
-   else:
-       my_post = my_posts[0]
-       candidates = [
-           c for c in all_open_posts
-           if c["destination"] == my_post["destination"] and c["post_id"] != my_post["post_id"]
-       ]
-   adapted = False
-   if not candidates:
-       if destination_hint:
-           return (
-               f'<div class="card"><p>No one else has an open trip post to '
-               f'<strong>{destination_hint}</strong> right now. '
-               "Check back later, or try asking about a different destination.</p></div>"
-           )
-       adapted = True
-       candidates = [c for c in all_open_posts if c["post_id"] != my_post["post_id"]]
-   if not candidates:
-       return '<div class="card"><p>No other open trip posts to compare against yet.</p></div>'
-   candidates_by_id = {c["post_id"]: c for c in candidates}
-   try:
-       matches = call_ollama_match(my_post, candidates, question)
-   except (requests.RequestException, ValueError, json.JSONDecodeError, KeyError) as exc:
-       return (
-           f'<div class="card"><p class="error">AI request failed: {exc}. '
-           "Is Ollama running with the model pulled?</p></div>"
-       )
-   high_confidence = [m for m in matches if m.get("score", 0) >= 60]
-   widen_note = (
-       " Widened the search since no matches were found for your exact destination."
-       if adapted else ""
-   )
-   low_confidence_note = (
-       " No strong matches found — try widening your dates or travel style."
-       if not high_confidence else ""
-   )
-   rows = []
-   for m in sorted(matches, key=lambda x: x.get("score", 0), reverse=True):
-       candidate = candidates_by_id.get(m.get("post_id"))
-       if not candidate:
-           continue
-       rows.append(
-           f'<div class="chat-msg bot"><div class="who">Travel Mate AI</div>'
-           f'<div class="bubble"><strong>{candidate["destination"]}</strong> '
-           f'<span class="compat-score"><span class="compat-score__num">{m.get("score", "?")}%</span></span>'
-           f'<span class="compat-reason">{m.get("reason", "")}</span></div></div>'
-       )
-   return "".join(rows) + f'<p class="muted">{widen_note}{low_confidence_note}</p>'
+    ACT:     fetch candidate posts from the db service, send both to the LLM.
+    OBSERVE: check whether the LLM returned any high-confidence matches.
+    ADAPT:   if none, widen the search (drop destination filter) and re-ask.
+    """
+    question = request.form.get("question", "")
+    my_posts_r = requests.get(
+        f"{DB_SERVICE_URL}/trip_posts",
+        params={"traveller_id": CURRENT_TRAVELLER_ID, "status": "open"},
+        timeout=5,
+    )
+    my_posts = my_posts_r.json()
+    if not my_posts:
+        return '<p class="chat-log__empty">Post a trip first so the AI has something to match against.</p>'
+    all_open_r = requests.get(
+        f"{DB_SERVICE_URL}/trip_posts", params={"status": "open"}, timeout=5
+    )
+    all_open_posts = all_open_r.json()
+    destination_hint = extract_destination_hint(question, all_open_posts)
+    if destination_hint:
+        hint_lower = destination_hint.lower()
+        matching_own_post = next(
+            (p for p in my_posts if hint_lower in p["destination"].lower()), None
+        )
+        my_post = matching_own_post or my_posts[0]
+        candidates = [
+            c for c in all_open_posts
+            if hint_lower in c["destination"].lower() and c["post_id"] != my_post["post_id"]
+        ]
+    else:
+        my_post = my_posts[0]
+        candidates = [
+            c for c in all_open_posts
+            if c["destination"] == my_post["destination"] and c["post_id"] != my_post["post_id"]
+        ]
+    adapted = False
+    if not candidates:
+        if destination_hint:
+            return (
+                f'<div class="card"><p>No one else has an open trip post to '
+                f'<strong>{destination_hint}</strong> right now. '
+                "Check back later, or try asking about a different destination.</p></div>"
+            )
+        adapted = True
+        candidates = [c for c in all_open_posts if c["post_id"] != my_post["post_id"]]
+    if not candidates:
+        return '<div class="card"><p>No other open trip posts to compare against yet.</p></div>'
+    candidates_by_id = {c["post_id"]: c for c in candidates}
+    try:
+        matches = call_ollama_match(my_post, candidates, question)
+    except (requests.RequestException, ValueError, json.JSONDecodeError, KeyError) as exc:
+        return (
+            f'<div class="card"><p class="error">AI request failed: {exc}. '
+            "Is Ollama running with the model pulled?</p></div>"
+        )
+    high_confidence = [m for m in matches if m.get("score", 0) >= 60]
+    widen_note = (
+        " Widened the search since no matches were found for your exact destination."
+        if adapted else ""
+    )
+    low_confidence_note = (
+        " No strong matches found — try widening your dates or travel style."
+        if not high_confidence else ""
+    )
+    rows = []
+    for m in sorted(matches, key=lambda x: x.get("score", 0), reverse=True):
+        candidate = candidates_by_id.get(m.get("post_id"))
+        if not candidate:
+            continue
+        rows.append(
+            f'<div class="chat-msg bot"><div class="who">Travel Mate AI</div>'
+            f'<div class="bubble"><strong>{candidate["destination"]}</strong> '
+            f'<span class="compat-score"><span class="compat-score__num">{m.get("score", "?")}%</span></span>'
+            f'<span class="compat-reason">{m.get("reason", "")}</span></div></div>'
+        )
+    return "".join(rows) + f'<p class="muted">{widen_note}{low_confidence_note}</p>'
 # --- AI scoring for Browse cards (button-triggered) -
 
 
@@ -656,6 +726,8 @@ def ai_score_trips():
 
 @app.post("/mcp/find-mates")
 def mcp_find_mates():
+    if not MCP_ENABLED:
+        return '<div class="card"><p class="error">MCP integration is disabled in this environment.</p></div>', 503
     destination = request.form.get("destination", "")
     args = {"destination": destination} if destination else {}
     try:
@@ -667,6 +739,8 @@ def mcp_find_mates():
 # rag integration
 @app.post("/ai/ask-grounded")
 def ask_grounded():
+    if not RAG_ENABLED:
+        return '<div class="card"><p class="error">RAG integration is disabled in this environment.</p></div>', 503
     question = request.form.get("question", "")
     if not question.strip():
         return '<div class="card"><p class="error">Type a question first.</p></div>', 400

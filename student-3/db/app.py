@@ -1,34 +1,33 @@
 """Travel Mate database API (student-3, Tanishpreet Kour).
- 
+
 This service exclusively owns student3.db. Other backend/API microservices
 must call these endpoints and must not open the SQLite file directly.
 """
- 
+
 import sqlite3
- 
+
 from flask import Flask, jsonify, request
- 
+
 app = Flask(__name__)
- 
+
 DATABASE_NAME = "./data/student3.db"
- 
+
 POST_FIELDS = (
     "traveller_id", "destination", "start_date", "end_date",
     "travel_style", "note", "status",
 )
 REQUEST_FIELDS = ("from_traveller_id", "to_post_id", "message", "status")
- 
+
 VALID_POST_STATUSES = {"open", "matched", "closed"}
 VALID_REQUEST_STATUSES = {"pending", "accepted", "declined"}
- 
- 
+
 def get_db_connection():
     conn = sqlite3.connect(DATABASE_NAME)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
- 
- 
+
+
 def rows_to_json(rows):
     return [dict(row) for row in rows]
  
