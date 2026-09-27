@@ -213,6 +213,9 @@ REQUEST_ROW_TMPL = """
         <form hx-post="/api/student-3/connect" hx-target="closest .request-row" hx-swap="outerHTML"
             style="margin-top:0.5rem; display:flex; gap:0.5rem">
         <input type="hidden" name="to_post_id" value="{{ r.to_post_id }}">
+        {% if direction == "incoming" %}
+        <input type="hidden" name="other_id" value="{{ r.from_traveller_id }}">
+        {% endif %}
         <input name="message" placeholder="Send a reply..." required style="flex:1">
         <button type="submit" class="btn-sm">Reply</button>
         </form>
@@ -283,19 +286,37 @@ RAG_RESULT_TMPL = """
 """
 #Chat temp
 CHAT_THREAD_TMPL = """
-<div class="thread-slot">
-<div class="chat-log" id="thread-{{ post_id }}-{{ other_id }}">
+<div class="thread-slot" style="border:1px solid #ddd; border-radius:10px; padding:0.75rem; margin-top:0.75rem; background:#fafafa">
+    <div class="chat-log" id="thread-{{ post_id }}-{{ other_id }}"
+        style="max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem; padding-right:0.25rem">
     {% for msg in messages %}
-    <div class="chat-msg {{ 'me' if msg.is_mine else 'bot' }}">
-        <div class="who">{{ "You" if msg.is_mine else (msg.other_party_name or "Traveller " ~ msg.from_traveller_id) }}</div>
-        <div class="bubble">{{ msg.message }}</div>
-        <div class="muted" style="font-size:0.7rem">{{ msg.created_at }}</div>
-    </div>
-    {% else %}
-    <p class="chat-log__empty">No messages yet. Say hello!</p>
+        <div class="chat-msg {{ 'me' if msg.is_mine else 'bot' }}"
+            style="align-self:{{ 'flex-end' if msg.is_mine else 'flex-start' }}; max-width:75%">
+        <div class="who" style="font-size:0.7rem; color:#888">
+            {{ "You" if msg.is_mine else (msg.other_party_name or "Traveller " ~ msg.from_traveller_id) }}
+        </div>
+        <div class="bubble" style="padding:0.5rem 0.75rem; border-radius:12px;
+                background:{{ '#1e3a5f' if msg.is_mine else '#e9e9eb' }};
+                color:{{ '#fff' if msg.is_mine else '#111' }};
+                display:flex; align-items:center; gap:0.5rem">
+            <span>{{ msg.message }}</span>
+            {% if msg.is_mine %}
+            <button class="btn-sm"
+                    hx-delete="/api/student-3/connect/message/{{ msg.request_id }}/{{ post_id }}/{{ other_id }}"
+                    hx-target="closest .thread-slot" hx-swap="outerHTML"
+                    hx-confirm="Delete this message?"
+                    style="background:transparent; border:none; color:#ffb4b4; cursor:pointer; font-size:0.8rem">
+                ✕
+                </button>
+            {% endif %}
+            </div>
+            <div class="muted" style="font-size:0.65rem; margin-top:0.15rem">{{ msg.created_at }}</div>
+        </div>
+        {% else %}
+        <p class="chat-log__empty">No messages yet. Say hello!</p>
     {% endfor %}
-</div>
-<form hx-post="/api/student-3/connect"
+    </div>
+    <form hx-post="/api/student-3/connect"
         hx-target="closest .thread-slot"
         hx-swap="outerHTML"
         hx-on::after-request="this.reset()"
@@ -362,6 +383,14 @@ def _fetch_post_or_error(post_id):
     if r.status_code >= 400:
         return None, f'<p class="error">{r.json().get("error", "Trip post not found")}</p>'
     return r.json(), None
+
+#del the chat
+@app.delete("/connect/message/<int:request_id>/<int:post_id>/<int:other_id>")
+def delete_own_message(request_id, post_id, other_id):
+    r = requests.delete(f"{DB_SERVICE_URL}/connect_requests/{request_id}", timeout=5)
+    if r.status_code >= 400:
+        return f'<p class="error">{r.json().get("error", "Delete failed")}</p>', 400
+    return build_thread(post_id, other_id)
 
 
 
@@ -435,20 +464,16 @@ def incoming_requests():
     r.raise_for_status()
     all_reqs = r.json()
 
-
     posts_r = requests.get(f"{DB_SERVICE_URL}/trip_posts", params={"traveller_id": CURRENT_TRAVELLER_ID}, timeout=5)
     my_posts = {p["post_id"]: p for p in posts_r.json()}
     my_post_ids = set(my_posts.keys())
 
-
     incoming = [r_ for r_ in all_reqs if r_["to_post_id"] in my_post_ids]
-
 
     for req in incoming:
         traveller = get_traveller(req["from_traveller_id"])
         req["other_party_name"] = traveller["full_name"] if traveller else None
         req["destination"] = my_posts.get(req["to_post_id"], {}).get("destination")
-
 
     return render_template_string(REQUEST_ROW_TMPL, requests=incoming, direction="incoming")
 
