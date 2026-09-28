@@ -123,7 +123,7 @@ practical. One row each; add the measure, not just the aspiration._
 _Required: overall architecture diagram showing components, connections and the
 containerisation boundary._
 
-- [ ] `docs/diagrams/release-1-architecture.mmd` - **TODO**
+- [x] `docs/diagrams/release-1-architecture.mmd` (rendered: `docs/evidence/release-1-architecture.png`)
 - [ ] Updated repository structure (mirror the README tree)
 
 _Prose: what is containerised, what is not, and how the two halves connect._
@@ -135,7 +135,7 @@ _Prose: what is containerised, what is not, and how the two halves connect._
 _Required: a flow diagram covering frontend/backend interactions, the RAG
 retrieval and grounded-response process, and the MCP tool layer._
 
-- [ ] `docs/diagrams/mcp-rag-flow.mmd` - **TODO**
+- [x] `docs/diagrams/mcp-rag-flow.mmd` (rendered: `docs/evidence/mcp-rag-flow.png`)
 
 ### 5.1 Registered MCP tools
 

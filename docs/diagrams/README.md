@@ -16,6 +16,8 @@ export PNGs into `docs/evidence/` for the report.
 | `student-4-architecture.mmd` | Individual software architecture (student-4) |
 | `student-4-conceptual.mmd` | Data design - conceptual model (student-4) |
 | `student-4-erd.mmd` | Data design - entity-relationship diagram (student-4) |
+| `release-1-architecture.mmd` | Release 1 architecture, with the containerisation boundary (Release 1 report section 4) |
+| `mcp-rag-flow.mmd` | MCP and RAG interaction flow and registered tools (Release 1 report section 5) |
 
 Students 2, 3, 5: copy `student-1-architecture.mmd` and change the service
 names, ports, and tables to your own feature.
