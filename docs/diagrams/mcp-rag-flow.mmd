@@ -1,0 +1,91 @@
+%% MCP and RAG interaction flow - report section 5.
+%% Both paths start in a feature's frontend and go through that feature's own
+%% backend/API; the frontend never calls :5400 or :5500 directly. student-1 is
+%% used as the worked example; every feature follows the same shape.
+flowchart TB
+    UI["Feature frontend UI<br/>e.g. student-1 MCP tools / Ask (grounded) tab"]
+    API["Feature backend/API<br/>e.g. student-1-api<br/>mcp_client.py / rag_client.py"]
+    OFF{{"MCP_ENABLED / RAG_ENABLED<br/>false in CI"}}
+    DIS["'disabled in this environment'<br/>fragment - no call made"]
+
+    UI -->|"HTMX POST /api/student-1/ai/mcp (tool + arguments)<br/>or /api/student-1/ai/rag (question)"| API
+    API --> OFF
+    OFF -->|"disabled"| DIS
+
+    subgraph MCPL["MCP tool layer - shared MCP server :5400 (host)"]
+        direction TB
+        RPC["JSON-RPC 2.0<br/>tools/list | tools/call"]
+        B1{"registered?<br/>tool is in the registry"}
+        B2{"schema-checked?<br/>types, ranges, required,<br/>no undeclared arguments"}
+        B3{"allowlisted?<br/>target is the tool's<br/>declared database only"}
+        B4["read-only GET<br/>no write path exists"]
+        B5["capped<br/>truncate to the tool's row limit"]
+        OK["structuredContent<br/>tool, source, arguments,<br/>rows, row_count, truncated"]
+        REF["isError + boundary name<br/>e.g. schema-checked"]
+
+        RPC --> B1
+        B1 -->|"yes"| B2
+        B2 -->|"yes"| B3
+        B3 -->|"yes"| B4
+        B4 --> B5 --> OK
+        B1 -->|"no"| REF
+        B2 -->|"no"| REF
+        B3 -->|"no"| REF
+    end
+
+    subgraph TOOLS["Registered tools (owner -> database, row limit)"]
+        direction LR
+        T1["list_trips<br/>student-1 -> student-1-db, 20"]
+        T2["get_trip_itinerary<br/>student-1 -> student-1-db, 30<br/>requires trip_id"]
+        T3["search_places<br/>student-2 -> student-2-db, 20"]
+        T4["find_travel_mates<br/>student-3 -> student-3-db, 20"]
+        T5["lookup_destination_guide<br/>student-4 -> student-4-db, 20<br/>requires query"]
+        T6["search_flights<br/>student-5 -> student-5-db, 20"]
+    end
+
+    DBS[("Feature databases<br/>localhost:5201-5205")]
+
+    OFF -->|"MCP enabled<br/>host.docker.internal:5400"| RPC
+    B4 -.-> TOOLS
+    TOOLS -.-> DBS
+    B4 -->|"HTTP GET"| DBS
+
+    subgraph RAGL["RAG retrieval and grounded response - shared RAG server :5500 (host)"]
+        direction TB
+        ASK["POST /ask<br/>question, context, top_k=4"]
+        RET["BM25 retrieval<br/>31 chunks from 7 markdown sources"]
+        CONF{"confidence from<br/>retrieval scores"}
+        INS["insufficient<br/>top score below floor 2.5<br/>no model call, no citations"]
+        CAT["high: score >= 7.0, coverage >= 50%, 2+ passages<br/>medium: score >= 4.0, coverage >= 40%<br/>low: above floor 2.5"]
+        PROMPT["grounded prompt<br/>numbered retrieved passages<br/>+ live trip data labelled as<br/>context, never as a source"]
+        ANS["answer + citations<br/>source, section, score<br/>+ confidence category"]
+
+        ASK --> RET --> CONF
+        CONF -->|"nothing relevant"| INS
+        CONF -->|"relevant"| CAT --> PROMPT
+    end
+
+    KB[("Knowledge base<br/>project/*.md, travel/*.md")]
+    AM["AI-Mode :5300<br/>/recommend"]
+    OL["Ollama<br/>llama3.2"]
+
+    OFF -->|"RAG enabled<br/>host.docker.internal:5500"| ASK
+    RET --> KB
+    PROMPT --> AM -->|"local model call"| OL
+    OL -->|"generated answer"| ANS
+
+    BACK["Backend/API renders an HTML fragment for the frontend<br/>tool result as a table + raw structured result | refusal naming the boundary<br/>answer with sources + confidence pill | insufficient-context response"]
+    OK --> BACK
+    REF --> BACK
+    ANS --> BACK
+    INS --> BACK
+    DIS --> BACK
+
+    classDef boundary fill:#e5eefa,stroke:#1c3f6e,color:#0e1524
+    classDef good fill:#dcf5ea,stroke:#0d6b48,color:#0e1524
+    classDef bad fill:#fbe0de,stroke:#8f231c,color:#0e1524
+    classDef ai fill:#fdf0d5,stroke:#7a5a12,color:#0e1524
+    class B1,B2,B3,B4,B5,CONF,OFF boundary
+    class OK,ANS,BACK good
+    class REF,INS,DIS bad
+    class AM,OL ai

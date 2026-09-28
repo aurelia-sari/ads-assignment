@@ -1,0 +1,86 @@
+%% Release 1 software architecture - report section 4.
+%% The key structural fact is the containerisation boundary: everything inside
+%% "Docker Compose" is a compose service; everything under "Host" is not, and is
+%% started by ./scripts/ai_services.sh. Containers reach the host through
+%% host.docker.internal; host services reach containers through their published
+%% localhost ports.
+flowchart TB
+    Browser(["Browser"])
+
+    subgraph Compose["Docker Compose - containerised (docker-compose.yml)"]
+        direction TB
+        SF["shared-frontend<br/>nginx :8080<br/>home page, CSS theme,<br/>proxies /student-N/ and /api/student-N/"]
+
+        subgraph FE["Frontend microservices - nginx"]
+            direction LR
+            F1["student-1<br/>Trips & Itinerary<br/>:8081"]
+            F2["student-2<br/>Attractions & Dining<br/>:8082"]
+            F3["student-3<br/>Travel Mate<br/>:8083"]
+            F4["student-4<br/>Account & Guides<br/>:8084"]
+            F5["student-5<br/>Bookings & Budget<br/>:8085"]
+        end
+
+        subgraph API["Backend/API microservices - Flask"]
+            direction LR
+            A1["student-1-api<br/>:5101"]
+            A2["student-2-api<br/>:5102"]
+            A3["student-3-api<br/>:5103"]
+            A4["student-4-api<br/>:5104"]
+            A5["student-5-api<br/>:5105"]
+        end
+
+        subgraph DB["Database microservices - SQLite + Flask"]
+            direction LR
+            D1["student-1-db<br/>:5201"]
+            D2["student-2-db<br/>:5202"]
+            D3["student-3-db<br/>:5203"]
+            D4["student-4-db<br/>:5204"]
+            D5["student-5-db<br/>:5205"]
+        end
+
+        subgraph SharedSvc["Shared services"]
+            direction LR
+            SA["shared-api<br/>:5000<br/>traveller access API"]
+            SD["shared-db<br/>:5200<br/>travellers, users"]
+            MP["mailpit<br/>:8025 / :1025<br/>local email (student-4)"]
+        end
+    end
+
+    subgraph Host["Host - NOT containerised, NOT compose services (./scripts/ai_services.sh)<br/>backends reach these at host.docker.internal (bold arrows)"]
+        direction TB
+        AM["AI-Mode<br/>Flask :5300<br/>/chat, /recommend<br/>the only app path to the LLM<br/><i>AI_MODE_URL</i>"]
+        MCP["Shared MCP server<br/>:5400 JSON-RPC<br/>tools/list, tools/call<br/>6 registered read-only tools<br/><i>MCP_SERVER_URL</i>"]
+        RAG["Shared RAG server<br/>:5500<br/>/search, /ask<br/>BM25 over 7 markdown sources<br/><i>RAG_SERVER_URL</i>"]
+        KB[("Knowledge base<br/>rag-server/knowledge/*.md")]
+        LOOP["Shared agentic loop<br/>CLI: ./scripts/dev.sh loop<br/>modes: db, implementation,<br/>architecture, devops, mcp, rag"]
+        OL["Ollama :11434<br/>llama3.2"]
+    end
+
+    Browser --> SF
+    SF --> FE
+    FE -->|"HTMX requests via<br/>/api/student-N/"| API
+    API -->|"CRUD over HTTP"| DB
+    API -->|"traveller lookups"| SA
+    SA --> SD
+    A4 -.->|"SMTP"| MP
+
+    API ==> AM
+    API ==> MCP
+    API ==> RAG
+
+    MCP -->|"read-only GET<br/>localhost:5201-5205<br/>allowlisted target only"| DB
+    RAG --> KB
+    RAG -->|"grounded prompt<br/>/recommend"| AM
+    AM --> OL
+
+    LOOP -->|"MCP validation mode"| MCP
+    LOOP -->|"RAG validation mode"| RAG
+    LOOP -.->|"Release 0 modes:<br/>health, files, workflows"| API
+    LOOP -->|"review model"| OL
+
+    classDef host fill:#fdf0d5,stroke:#7a5a12,color:#0e1524
+    classDef container fill:#e5eefa,stroke:#1c3f6e,color:#0e1524
+    classDef store fill:#ffffff,stroke:#5b6b82,color:#0e1524
+    class AM,MCP,RAG,LOOP,OL host
+    class SF,F1,F2,F3,F4,F5,A1,A2,A3,A4,A5,D1,D2,D3,D4,D5,SA,SD,MP container
+    class KB store
