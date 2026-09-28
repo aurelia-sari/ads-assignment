@@ -130,10 +130,10 @@ TRIP_CARD_TMPL = """
     </div>
     <span class="pill pill-planned">{{ post.travel_style }}</span>
     </div>
-    <p class="trip-card__note">{{ post.note }}</p>
+        {% if post.note %}<p class="trip-card__note">{{ post.note }}</p>{% endif %}
     {% set s = (scores|default({})).get(post.post_id) %}
     <div class="trip-card__footer">
-    <span class="compat-score"><span class="compat-score__num">{% if s %}{{ s.score }}%{% else %}--{% endif %}</span></span>
+    {% if s %}<span class="compat-score"><span class="compat-score__num">{{ s.score }}%</span></span>{% endif %}
     {% if post.traveller_id == current_id %}
         <div style="display:flex; gap:0.5rem">
         <button class="btn-sm" hx-get="/api/student-3/trips/{{ post.post_id }}/edit"
