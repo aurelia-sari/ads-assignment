@@ -25,9 +25,11 @@ x-api-env: &api-env
   MCP_SERVER_URL: ${MCP_SERVER_URL:-http://host.docker.internal:5400}
   RAG_SERVER_URL: ${RAG_SERVER_URL:-http://host.docker.internal:5500}
   # CI runs the containerised microservices without the host-local AI services,
-  # so MCP and RAG are switched off there rather than left to time out against
-  # a host.docker.internal that has nothing behind it. The integration stays in
-  # the image; only the runtime path is disabled. Both default to on locally.
+  # so AI-Mode, MCP and RAG are switched off there rather than left to time out
+  # against a host.docker.internal that has nothing behind it. The integration
+  # stays in the image; only the runtime path is disabled. All default to on
+  # locally. (AI_MODE_ENABLED is honoured by student-1-api so far.)
+  AI_MODE_ENABLED: ${AI_MODE_ENABLED:-true}
   MCP_ENABLED: ${MCP_ENABLED:-true}
   RAG_ENABLED: ${RAG_ENABLED:-true}
   SHARED_API_URL: http://shared-api:5000

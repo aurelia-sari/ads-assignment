@@ -8,7 +8,7 @@ import requests
 from flask import Blueprint, request
 
 from services import ai_mode, database_api, shared_api
-from views.formatters import chat_exchange, error_fragment
+from views.formatters import ai_disabled_fragment, chat_exchange, error_fragment
 
 ai_chat_bp = Blueprint("ai_chat", __name__)
 
@@ -75,6 +75,8 @@ def chat():
     try:
         answer = ai_mode.chat(question, context=context)
         return chat_exchange(question, answer), 200
+    except ai_mode.AIModeDisabled:
+        return ai_disabled_fragment("AI-Mode"), 200
     except requests.HTTPError as exc:
         detail = exc.response.json().get("hint", exc.response.text) if exc.response is not None else str(exc)
         return error_fragment("AI-Mode could not answer that.", detail), 503
