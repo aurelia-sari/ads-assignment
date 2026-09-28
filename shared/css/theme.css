@@ -1435,3 +1435,171 @@ pre {
     font-size: 0.8rem;
     color: var(--color-navy-800);
 }
+
+/* --- Release 1: MCP and RAG panels --------------------------------------
+   New classes only, so no existing page changes. Built from the same tokens
+   as the rest of the app shell: cards, pills, radii and the navy/blue accent. */
+
+.panel-intro { margin-bottom: 1.1rem; }
+.panel-intro h3 {
+    font-family: var(--font-display);
+    color: var(--color-navy-900);
+    margin-bottom: 0.3rem;
+}
+.panel-intro p { max-width: 70ch; font-size: 0.92rem; line-height: 1.5; }
+
+/* Tool picker: one card per registered tool, so what a tool reads and how
+   much it may return is visible before it is run. */
+.tool-picker {
+    border: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.tool-option {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0.9rem 1rem;
+    border: 1.5px solid var(--color-slate-200);
+    border-radius: var(--radius-input);
+    background: var(--color-white);
+    cursor: pointer;
+    font-weight: 400;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.tool-option:hover { border-color: var(--color-sky-300); }
+
+.tool-option input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.tool-option:has(input:checked) {
+    border-color: var(--color-blue-500);
+    background: #f2f7fd;
+    box-shadow: 0 0 0 3px rgba(74, 131, 196, 0.12);
+}
+
+.tool-option:has(input:focus-visible) {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 2px;
+}
+
+.tool-option__name code {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--color-navy-900);
+}
+
+.tool-option__desc { font-size: 0.88rem; color: var(--color-ink-900); }
+
+.tool-option__meta {
+    font-size: 0.75rem;
+    color: var(--color-slate-500);
+    letter-spacing: 0.01em;
+}
+
+/* .form-grid sets display:grid, which would otherwise override [hidden]. */
+.tool-args[hidden] { display: none; }
+
+label .optional {
+    font-weight: 400;
+    color: var(--color-slate-500);
+    opacity: 0.8;
+    margin-left: 0.25rem;
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.result-area {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--color-slate-200);
+}
+
+.result-empty {
+    color: var(--color-slate-500);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1.5rem 1rem;
+    border: 1px dashed var(--color-slate-200);
+    border-radius: var(--radius-input);
+}
+
+.notice__meta {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    opacity: 0.85;
+}
+
+.trip-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.8rem 0;
+}
+
+.trip-summary strong {
+    font-family: var(--font-display);
+    color: var(--color-navy-900);
+    margin-right: 0.4rem;
+}
+
+.trip-summary .muted { font-size: 0.88rem; }
+
+.raw-result { margin-top: 0.9rem; }
+
+.raw-result summary {
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-slate-500);
+}
+
+.raw-result summary:hover { color: var(--color-navy-800); }
+.raw-result pre { margin-top: 0.5rem; max-height: 320px; overflow: auto; }
+
+/* Suggested questions for the grounded-answer tab. */
+.suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.suggestions__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-slate-500);
+    margin-right: 0.2rem;
+}
+
+.chip {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--color-slate-200);
+    border-radius: var(--radius-pill);
+    background: var(--color-white);
+    color: var(--color-navy-800);
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.chip:hover { border-color: var(--color-blue-500); background: #f2f7fd; }
+.chip--muted { color: var(--color-slate-500); border-style: dashed; }

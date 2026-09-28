@@ -11,7 +11,7 @@ these two endpoints on student-1-api, which is what the Release 1 requirement
 import requests
 from flask import Blueprint, request
 
-from services import database_api, mcp_client, rag_client
+from services import database_api, mcp_client, rag_client, shared_api
 from views.formatters import (
     ai_disabled_fragment,
     error_fragment,
@@ -58,7 +58,8 @@ def mcp_call():
             "./scripts/ai_services.sh up",
         ), 503
 
-    return mcp_result(tool, result), 200
+    # Traveller names come from the shared access API, as on the trips table.
+    return mcp_result(tool, result, shared_api.get_travellers()), 200
 
 
 @ai_tools_bp.post("/ai/rag")
