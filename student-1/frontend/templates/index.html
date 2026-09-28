@@ -103,74 +103,102 @@
             </div>
         </form>
     </section>
-</main>
-
     <!-- MCP tools (Release 1) --------------------------------------------- -->
     <section class="tab-panel card" id="panel-mcp">
-        <h3 style="margin-top:0">MCP tools</h3>
-        <p class="muted">
-            Calls the shared local MCP server through this feature's backend/API.
-            The server is not containerised - start it with
-            <code>./scripts/ai_services.sh up</code>. Each tool may only read
-            from the database service it declares, and arguments are checked
-            against the tool's registered schema before the call is made.
-        </p>
+        <div class="panel-intro">
+            <h3>MCP tools</h3>
+            <p class="muted">
+                Run a tool registered on the shared MCP server. The request goes
+                through this feature's backend/API; each tool can only read the
+                database it declares, and its arguments are checked against the
+                tool's schema before anything is read.
+            </p>
+        </div>
 
-        <form hx-post="/api/student-1/ai/mcp"
+        <form id="mcp-form"
+              hx-post="/api/student-1/ai/mcp"
               hx-target="#mcp-panel"
               hx-swap="innerHTML">
-            <div class="chat-options">
-                <label for="mcp-tool" style="margin:0">Tool</label>
-                <select id="mcp-tool" name="tool">
-                    <option value="list_trips">list_trips</option>
-                    <option value="get_trip_itinerary">get_trip_itinerary</option>
-                </select>
+            <fieldset class="tool-picker">
+                <legend class="sr-only-label">Tool</legend>
+                <label class="tool-option">
+                    <input type="radio" name="tool" value="list_trips" checked>
+                    <span class="tool-option__name"><code>list_trips</code></span>
+                    <span class="tool-option__desc">List trips, optionally filtered by destination or status.</span>
+                    <span class="tool-option__meta">reads student-1-db &middot; up to 20 rows</span>
+                </label>
+                <label class="tool-option">
+                    <input type="radio" name="tool" value="get_trip_itinerary">
+                    <span class="tool-option__name"><code>get_trip_itinerary</code></span>
+                    <span class="tool-option__desc">One trip with its day-by-day itinerary.</span>
+                    <span class="tool-option__meta">reads student-1-db &middot; up to 30 rows</span>
+                </label>
+            </fieldset>
 
-                <label for="mcp-destination" style="margin:0">Destination</label>
-                <input id="mcp-destination" type="text" name="destination"
-                       placeholder="e.g. Tokyo" autocomplete="off">
+            <!-- Only the chosen tool's arguments are shown and submitted. -->
+            <div class="form-grid tool-args" data-tool="list_trips">
+                <div>
+                    <label for="mcp-destination">Destination <span class="optional">optional</span></label>
+                    <input id="mcp-destination" type="text" name="destination"
+                           placeholder="e.g. Kyoto" autocomplete="off">
+                </div>
+                <div>
+                    <label for="mcp-status">Status <span class="optional">optional</span></label>
+                    <select id="mcp-status" name="status">
+                        <option value="">any status</option>
+                        <option value="planned">planned</option>
+                        <option value="booked">booked</option>
+                        <option value="completed">completed</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-grid tool-args" data-tool="get_trip_itinerary" hidden>
+                <div>
+                    <label for="mcp-trip-id">Trip ID</label>
+                    <input id="mcp-trip-id" type="number" name="trip_id" min="0"
+                           placeholder="e.g. 1" required disabled>
+                </div>
+            </div>
 
-                <label for="mcp-status" style="margin:0">Status</label>
-                <select id="mcp-status" name="status">
-                    <option value="">any</option>
-                    <option value="planned">planned</option>
-                    <option value="booked">booked</option>
-                    <option value="completed">completed</option>
-                </select>
-
-                <label for="mcp-trip-id" style="margin:0">Trip ID</label>
-                <input id="mcp-trip-id" type="number" name="trip_id" min="1"
-                       placeholder="for get_trip_itinerary">
-
+            <div class="form-actions">
                 <button type="submit">Run tool</button>
                 <span class="spinner">calling the MCP server...</span>
             </div>
         </form>
 
-        <div id="mcp-panel" style="margin-top:1rem">
-            <p class="muted">No tool has been run yet.</p>
+        <div id="mcp-panel" class="result-area">
+            <p class="result-empty">Choose a tool and run it. The structured result appears here.</p>
         </div>
     </section>
 
     <!-- RAG grounded answers (Release 1) ------------------------------------ -->
     <section class="tab-panel card" id="panel-rag">
-        <h3 style="margin-top:0">Ask NextStop (grounded)</h3>
-        <p class="muted">
-            Answers come from the shared local RAG server, which retrieves from
-            the NextStop knowledge base and answers only from what it retrieved.
-            Every answer shows its sources and a confidence category. A question
-            the knowledge base does not cover returns an insufficient-context
-            response instead of a guess - try
-            <strong>"what is the capital of Peru?"</strong> to see that path.
-        </p>
+        <div class="panel-intro">
+            <h3>Ask NextStop (grounded)</h3>
+            <p class="muted">
+                Answers come from the shared RAG server and use only passages it
+                retrieved from the NextStop knowledge base. Each answer lists its
+                sources and a confidence category. If nothing relevant is found,
+                you get an insufficient-context response instead of a guess.
+            </p>
+        </div>
+
+        <div class="suggestions" aria-label="Suggested questions">
+            <span class="suggestions__label">Try</span>
+            <button type="button" class="chip" data-question="How should I split a trip budget across days?">Splitting a trip budget</button>
+            <button type="button" class="chip" data-question="Can I change the destination of a booked trip?">Changing a booked trip</button>
+            <button type="button" class="chip" data-question="How many itinerary days does a three-night trip have?">Itinerary days</button>
+            <button type="button" class="chip chip--muted" data-question="What is the boiling point of tungsten?">An out-of-scope question</button>
+        </div>
 
         <div class="chat-log" id="rag-log">
             <div class="chat-log__empty" id="rag-empty">
-                Try <strong>"how should I split my trip budget?"</strong>
+                No questions yet. Pick a suggestion above or ask your own.
             </div>
         </div>
 
-        <form hx-post="/api/student-1/ai/rag"
+        <form id="rag-form"
+              hx-post="/api/student-1/ai/rag"
               hx-target="#rag-log"
               hx-swap="beforeend"
               hx-on::after-request="this.reset(); document.getElementById('rag-log').scrollTop = 99999">
@@ -182,12 +210,13 @@
                 <button type="submit">Ask</button>
             </div>
             <div class="chat-options">
-                <label for="rag-trip-id" style="margin:0">Ground in one trip (optional)</label>
+                <label for="rag-trip-id" style="margin:0">Include one of the trips as context (optional)</label>
                 <input id="rag-trip-id" type="number" name="trip_id" min="1" placeholder="trip ID">
                 <span class="spinner">retrieving, then answering locally...</span>
             </div>
         </form>
     </section>
+</main>
 
 <script>
 const buttons = Array.from(document.querySelectorAll(".tab-btn"));
@@ -244,6 +273,42 @@ clearButton.addEventListener("click", () => {
     chatLog.innerHTML = EMPTY_STATE;
     refreshClearButton();
     questionInput.focus();
+});
+
+// MCP: show and submit only the chosen tool's arguments. Disabled inputs are
+// not sent, so a hidden field can never reach the server's schema boundary.
+const mcpForm = document.getElementById("mcp-form");
+
+function showToolArgs() {
+    const tool = mcpForm.querySelector('input[name="tool"]:checked').value;
+    mcpForm.querySelectorAll(".tool-args").forEach((group) => {
+        const active = group.dataset.tool === tool;
+        group.hidden = !active;
+        group.querySelectorAll("input, select").forEach((field) => (field.disabled = !active));
+    });
+}
+
+mcpForm.addEventListener("change", (event) => {
+    if (event.target.name === "tool") showToolArgs();
+});
+showToolArgs();
+
+// RAG: a suggestion fills the question and asks it.
+const ragForm = document.getElementById("rag-form");
+const ragQuestion = document.getElementById("rag-question");
+
+document.querySelectorAll(".suggestions .chip").forEach((chip) =>
+    chip.addEventListener("click", () => {
+        ragQuestion.value = chip.dataset.question;
+        ragForm.requestSubmit();
+    })
+);
+
+document.body.addEventListener("htmx:afterSwap", (event) => {
+    if (event.target.id === "rag-log") {
+        const empty = document.getElementById("rag-empty");
+        if (empty) empty.remove();
+    }
 });
 
 const initial = window.location.hash.replace("#", "");

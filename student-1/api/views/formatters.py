@@ -3,6 +3,7 @@
 Everything user-supplied goes through escape() before it reaches the page.
 """
 
+import json
 from html import escape
 
 from services.shared_api import describe_traveller
@@ -284,25 +285,123 @@ def confidence_pill(confidence):
     return f"<span class='pill {css}'>confidence: {escape(confidence)}</span>"
 
 
-def mcp_result(tool_name, result):
+# Boundaries the server checks before it reads anything. `upstream` is the one
+# exception: the read happened and the database answered with an error.
+PRE_READ_BOUNDARIES = {"registered", "read-only", "allowlisted", "schema-checked"}
+
+# How known columns from the student-1 tools are labelled and ordered. Any
+# other key a tool returns still renders, after these, with a readable label.
+MCP_COLUMNS = [
+    ("trip_id", "ID"),
+    ("trip_name", "Trip"),
+    ("destination", "Destination"),
+    ("traveller_id", "Traveller"),
+    ("start_date", "Start"),
+    ("end_date", "End"),
+    ("budget_aud", "Budget"),
+    ("status", "Status"),
+]
+
+
+def _mcp_cell(key, value, travellers):
+    if key == "budget_aud" and isinstance(value, (int, float)):
+        return f"${value:,.0f}"
+    if key == "status":
+        return status_pill(str(value))
+    if key == "traveller_id":
+        return escape(describe_traveller(value, travellers))
+    return escape(str(value))
+
+
+def _mcp_rows_table(rows, travellers):
+    known = [(key, label) for key, label in MCP_COLUMNS if key in rows[0]]
+    extra = [
+        (key, key.replace("_", " ").capitalize())
+        for key in rows[0]
+        if key not in dict(MCP_COLUMNS) and not isinstance(rows[0][key], (dict, list))
+    ]
+    columns = known + extra
+    head = "".join(f"<th>{escape(label)}</th>" for _, label in columns)
+    body = "".join(
+        "<tr>"
+        + "".join(f"<td>{_mcp_cell(key, row.get(key, ''), travellers)}</td>" for key, _ in columns)
+        + "</tr>"
+        for row in rows
+    )
+    return f"<div class='table-wrap'><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
+
+
+def _mcp_itinerary(row, travellers):
+    """get_trip_itinerary returns one row holding a trip and its days."""
+    trip = row.get("trip", {})
+    days = row.get("days", [])
+    summary = (
+        "<div class='trip-summary'>"
+        f"<div><strong>{escape(trip.get('trip_name', ''))}</strong> "
+        f"{status_pill(trip.get('status', ''))}</div>"
+        f"<div class='muted'>{escape(trip.get('destination', ''))} &middot; "
+        f"{escape(trip.get('start_date', ''))} to {escape(trip.get('end_date', ''))} &middot; "
+        f"{_mcp_cell('budget_aud', trip.get('budget_aud'), travellers)} &middot; "
+        f"{_mcp_cell('traveller_id', trip.get('traveller_id'), travellers)}</div>"
+        "</div>"
+    )
+    if not days:
+        return summary + "<p class='muted'>This trip has no itinerary days yet.</p>"
+    body = "".join(
+        "<tr>"
+        f"<td>{day['day_number']}</td>"
+        f"<td>{escape(day['day_date'])}</td>"
+        f"<td>{escape(day['location'])}</td>"
+        f"<td style='white-space:normal'>{escape(day['activity'])}</td>"
+        f"<td class='muted' style='white-space:normal'>{escape(day.get('notes') or '')}</td>"
+        "</tr>"
+        for day in days
+    )
+    return summary + (
+        "<div class='table-wrap'><table>"
+        "<thead><tr><th>Day</th><th>Date</th><th>Location</th><th>Activity</th><th>Notes</th></tr></thead>"
+        f"<tbody>{body}</tbody></table></div>"
+    )
+
+
+def _mcp_raw(result):
+    """The structured result exactly as the MCP server returned it."""
+    return (
+        "<details class='raw-result'><summary>Structured result (JSON)</summary>"
+        f"<pre>{escape(json.dumps(result, indent=2))}</pre></details>"
+    )
+
+
+def mcp_result(tool_name, result, travellers=None):
     """Render one MCP tool result.
 
     A call refused at a tool boundary is shown as a refusal naming the boundary,
     not as a generic error. The boundary holding is the feature working, so the
     interface should say which one held rather than hiding it behind "failed".
     """
+    travellers = travellers or {}
+
     if result.get("isError"):
         boundary = result.get("boundary", "unknown")
         message = result.get("content", [{}])[0].get("text", "")
+        consequence = (
+            "Nothing was read from the database."
+            if boundary in PRE_READ_BOUNDARIES
+            else "The tool ran, but the database returned an error."
+        )
         return (
             "<div class='notice notice-error'>"
-            f"MCP refused this call at the <strong>{escape(boundary)}</strong> boundary."
+            f"MCP refused this call at the <strong>{escape(boundary)}</strong> boundary. "
+            f"{consequence}"
             "</div>"
             f"<pre>{escape(message)}</pre>"
+            + _mcp_raw(result)
         )
 
     structured = result.get("structuredContent", {})
     rows = structured.get("rows", [])
+    arguments = structured.get("arguments") or {}
+    shown_args = ", ".join(f"{key}={value}" for key, value in arguments.items()) or "no arguments"
 
     header = (
         "<div class='notice notice-ok'>"
@@ -310,24 +409,19 @@ def mcp_result(tool_name, result):
         f"{structured.get('row_count', 0)} row(s) from "
         f"<strong>{escape(str(structured.get('source', '')))}</strong>"
         + (" (truncated to the tool's row limit)" if structured.get("truncated") else "")
-        + "</div>"
+        + f"<span class='notice__meta'>called with {escape(shown_args)}</span>"
+        "</div>"
     )
 
     if not rows:
-        return header + "<p class='muted'>The tool ran and matched no records.</p>"
+        return header + "<p class='muted'>The tool ran and matched no records.</p>" + _mcp_raw(result)
 
-    # The registry returns differently shaped rows per tool, so the table is
-    # built from whatever keys the first row actually has rather than from a
-    # fixed column list.
-    columns = [key for key in rows[0] if not isinstance(rows[0][key], (dict, list))]
-    head = "".join(f"<th>{escape(str(column))}</th>" for column in columns)
-    body = "".join(
-        "<tr>"
-        + "".join(f"<td>{escape(str(row.get(column, '')))}</td>" for column in columns)
-        + "</tr>"
-        for row in rows
-    )
-    return header + f"<table class='data-table'><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+    if "trip" in rows[0] and "days" in rows[0]:
+        body = _mcp_itinerary(rows[0], travellers)
+    else:
+        body = _mcp_rows_table(rows, travellers)
+
+    return header + body + _mcp_raw(result)
 
 
 def rag_answer(question, result):
