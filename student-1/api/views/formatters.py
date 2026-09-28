@@ -374,11 +374,11 @@ def rag_answer(question, result):
 
 
 def ai_disabled_fragment(service):
-    """Shown when MCP or RAG is switched off, as it is during CI."""
+    """Shown when AI-Mode, MCP or RAG is switched off, as they are during CI."""
     return (
         "<div class='notice notice-error'>"
         f"{escape(service)} is disabled in this environment. "
         "The integration is present but its runtime path is switched off "
-        f"({escape(service.upper().replace(' ', '_'))}_ENABLED=false)."
+        f"({escape(service.upper().replace(' ', '_').replace('-', '_'))}_ENABLED=false)."
         "</div>"
     )
