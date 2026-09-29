@@ -1,0 +1,68 @@
+
+
+            <h3>
+                NextStop AI Recommendation
+            </h3>
+
+            <p class="muted">
+                Get AI-powered attraction and dining recommendations
+                based on available places.
+            </p>
+
+
+            <!-- =====================================================
+                AI QUESTION FORM
+                ===================================================== -->
+
+                <form
+                    id="ai-question-form"
+                    class="ai-question-form"
+                    onsubmit="submitAiRecommendation(event)">
+
+                <div class="form-grid">
+
+                    <div style="grid-column:1/-1">
+
+                        <label for="ai-question">
+                            Question
+                        </label>
+
+                        <input
+                            id="ai-question"
+                            name="question"
+                            type="text"
+                            required
+                            autocomplete="off"
+                            placeholder="e.g. Recommend one cheap restaurant.">
+
+                    </div>
+
+                </div>
+
+
+                <div class="ai-submit-row">
+
+                    <button type="submit">
+                        Get Recommendation
+                    </button>
+
+                    <span class="spinner">
+                        thinking...
+                    </span>
+
+                </div>
+
+            </form>
+
+
+            <!-- =====================================================
+                AI RESULT
+                ===================================================== -->
+
+            <div
+                id="recommendation-result"
+                aria-live="polite"
+                style="margin-top:2.5rem;">
+            </div>
+
+        

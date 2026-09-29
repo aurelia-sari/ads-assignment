@@ -1,0 +1,176 @@
+
+
+    <!-- =====================================================
+         PLACE LIST
+         ===================================================== -->
+    <section class="card">
+
+        <div
+            id="places-list"
+            hx-get="/api/student-2/places"
+            hx-trigger="load"
+            hx-swap="innerHTML">
+
+            <p class="muted">
+                Loading places...
+            </p>
+
+        </div>
+
+    </section>
+
+    <!-- =====================================================
+         ADD NEW PLACE
+         ===================================================== -->
+    <section class="card" style="margin-bottom:1.5rem;">
+
+        <h3 style="margin-bottom:1.5rem;">
+            Add New Place
+        </h3>
+
+        <form
+            hx-post="/api/student-2/places"
+            hx-target="#places-list"
+            hx-swap="innerHTML"
+            hx-on::after-request="
+                if(event.detail.successful){
+                    alert('Place added successfully.');
+                    this.reset();
+                }
+            ">
+
+            <div class="form-grid">
+
+                <div>
+                    <label>Name</label>
+                    <input
+                        name="name"
+                        required
+                        placeholder="Place name">
+                </div>
+
+                <div>
+                    <label>Category</label>
+                    <select name="category" required>
+                        <option value="attraction">Attraction</option>
+                        <option value="restaurant">Restaurant</option>
+                        <option value="activity">Activity</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Address</label>
+                    <input
+                        name="address"
+                        required
+                        placeholder="Address">
+                </div>
+
+                <div>
+                    <label>Rating</label>
+                    <input
+                        type="number"
+                        name="rating"
+                        min="0"
+                        max="5"
+                        step="0.1"
+                        placeholder="4.5">
+                </div>
+
+                <div>
+                    <label>Price Range</label>
+                    <select name="price_range">
+                        <option value="0">Free</option>
+                        <option value="10">A$10</option>
+                        <option value="30">A$30</option>
+                        <option value="50">A$50</option>
+                        <option value="70">A$70</option>
+                        <option value="100">A$100</option>
+                        <option value="200">A$200</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Opening Hours</label>
+                    <input
+                        name="opening_hours"
+                        placeholder="09:00-17:00">
+                </div>
+
+                <div style="grid-column:1/-1;">
+                    <label>Image URL</label>
+                    <input
+                        type="url"
+                        name="image_url"
+                        placeholder="https://example.com/photo.jpg">
+                </div>
+
+                <div style="grid-column:1/-1;">
+                    <label>Description</label>
+                    <textarea
+                        name="description"
+                        rows="3"
+                        placeholder="Short description"></textarea>
+                </div>
+
+            </div>
+
+            <button type="submit">
+                Add Place
+            </button>
+
+            <span class="spinner">
+                adding...
+            </span>
+
+        </form>
+
+    </section>
+
+
+    <!-- =====================================================
+         UPDATE PLACE
+         ===================================================== -->
+    <section class="card" style="margin-bottom:1.5rem;">
+
+        <h3 style="margin-bottom:1.5rem;">
+            Update Place
+        </h3>
+
+        <form
+            hx-get="/api/student-2/places/edit"
+            hx-target="#place-edit-form"
+            hx-swap="innerHTML">
+
+            <div class="form-grid">
+
+                <div>
+                    <label>Place ID</label>
+                    <input
+                        type="number"
+                        name="id"
+                        min="1"
+                        required
+                        placeholder="Enter Place ID">
+                </div>
+
+            </div>
+
+            <button type="submit">
+                Find Place
+            </button>
+
+            <span class="spinner">
+                loading...
+            </span>
+
+        </form>
+
+        <div
+            id="place-edit-form"
+            style="margin-top:2rem;">
+        </div>
+
+    </section>
+
+
