@@ -7,11 +7,17 @@ project spec.
 Also serves the frontend's index.html at "/" so you can test the whole
 feature from one URL locally: http://localhost:5103/
 """
+
+
+
 import json
 import os
 import itertools
 import requests
 from flask import Flask, jsonify, render_template_string, request, send_from_directory
+
+from agentic_loop.core.orchestrator import run as run_match_turn, score_candidates, LLM_ERRORS
+from views.ai_formatter import match_fragment
 app = Flask(__name__)
 DB_SERVICE_URL = os.environ.get("DB_SERVICE_URL", "http://localhost:5203")
 FRONTEND_DIR = os.environ.get("FRONTEND_DIR", "../frontend/templates") 
@@ -24,6 +30,7 @@ MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://localhost:5400")
 RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://localhost:5500")
 MCP_ENABLED = os.environ.get("MCP_ENABLED", "true").lower() == "true"
 RAG_ENABLED = os.environ.get("RAG_ENABLED", "true").lower() == "true"
+
 
 
 
@@ -103,7 +110,7 @@ def call_rag_ask(question, live_context=None):
     r.raise_for_status()
     return r.json()
 
-AI_MODE_URL = os.environ.get("AI_MODE_URL", "http://ai-mode:5300")
+#AI_MODE_URL = os.environ.get("AI_MODE_URL", "http://ai-mode:5300")
 # --- Serve the frontend (handy for local testing) --------------------------
 @app.get("/")
 def serve_index():
@@ -534,167 +541,15 @@ def withdraw_request(request_id):
     return "" 
 
 # --- AI Integration: match-suggest (Plan -> Act -> Observe -> Adapt) -------
-def build_match_prompt(my_post, candidates, question):
-    candidate_lines = "\n".join(
-        f'- post_id={c["post_id"]}: destination="{c["destination"]}", '
-        f'dates={c["start_date"]} to {c["end_date"]}, '
-        f'travel_style="{c["travel_style"]}", note="{c["note"]}"'
-        for c in candidates
-    )
-    return (
-        "You are a travel-companion matching assistant for a travel app. "
-        "Compare the user's own trip post against each candidate post below "
-        "and score how compatible they'd be as travel companions.\n\n"
-        f"User's question: {question}\n\n"
-        f"User's own post: destination=\"{my_post['destination']}\", "
-        f"dates={my_post['start_date']} to {my_post['end_date']}, "
-        f"travel_style=\"{my_post['travel_style']}\", note=\"{my_post['note']}\"\n\n"
-        f"Candidate posts:\n{candidate_lines}\n\n"
-        f"There are exactly {len(candidates)} candidate post(s) listed above. "
-        f"You MUST include exactly {len(candidates)} entries in your response "
-        "array, one per candidate, in the same order they were listed -- "
-        "do not skip any and do not return only your single favourite. "
-        "Score each candidate on destination overlap, date overlap, and "
-        "similarity of travel_style/note. Respond with ONLY a JSON array, "
-        "no other text, in this exact shape:\n"
-        '[{"post_id": <int>, "score": <int 0-100>, "reason": "<one short sentence>"}]'
-    )
-def call_ollama_match(my_post, candidates, question):
-    prompt = build_match_prompt(my_post, candidates, question)
-    resp = requests.post(
-        f"{AI_MODE_URL}/recommend",
-        json={
-            "question": prompt,
-            "system": (
-                "You are a JSON API. Respond with ONLY valid JSON, "
-                "no markdown code fences, no explanation, no other text."
-            ),
-            "max_tokens": 500,
-        },
-        timeout=180,
-    )
-    resp.raise_for_status()
-    raw_text = resp.json()["answer"]
-    print(f"[ai-mode raw response] {raw_text!r}") 
-    parsed = json.loads(raw_text)
-    if isinstance(parsed, list):
-        matches = parsed
-    elif isinstance(parsed, dict):
-        list_values = [v for v in parsed.values() if isinstance(v, list)]
-        if list_values:
-            matches = list_values[0]
-        elif "post_id" in parsed:
-            matches = [parsed]
-        else:
-            raise ValueError(f"Unrecognised JSON shape from model: {parsed!r}")
-    else:
-        raise ValueError(f"Model did not return JSON array or object: {parsed!r}")
-    if not matches:
-        raise ValueError("Model returned an empty match list")
-    return matches
-def extract_destination_hint(question, all_open_posts):
-    """
-    Returns the matching keyword itself (e.g. "iceland" or "vietnam"),
-    not a specific post's destination string -- candidate matching then
-    uses substring containment, so this one keyword correctly matches
-    every post whose destination mentions it, however that post's
-    destination happens to be formatted ("Reykjavik, Iceland" or just
-    "iceland").
-    """
-    if not question:
-        return None
-    question_lower = question.lower()
-    tokens = set()
-    for post in all_open_posts:
-        for part in post["destination"].split(","):
-            part = part.strip().lower()
-            if part:
-                tokens.add(part)
-    matched = [t for t in tokens if t in question_lower]
-    if not matched:
-        return None
-    return max(matched, key=len)
+# The loop itself is in agentic_loop/core/orchestrator.py.
 @app.post("/ai/match-suggest")
 def match_suggest():
-    """
-    PLAN:    read the user's own open post(s) + their free-text question,
-            and try to detect a destination the question is actually about.
-    ACT:     fetch candidate posts from the db service, send both to the LLM.
-    OBSERVE: check whether the LLM returned any high-confidence matches.
-    ADAPT:   if none, widen the search (drop destination filter) and re-ask.
-    """
     question = request.form.get("question", "")
-    my_posts_r = requests.get(
-        f"{DB_SERVICE_URL}/trip_posts",
-        params={"traveller_id": CURRENT_TRAVELLER_ID, "status": "open"},
-        timeout=5,
-    )
-    my_posts = my_posts_r.json()
-    if not my_posts:
-        return '<p class="chat-log__empty">Post a trip first so the AI has something to match against.</p>'
-    all_open_r = requests.get(
-        f"{DB_SERVICE_URL}/trip_posts", params={"status": "open"}, timeout=5
-    )
-    all_open_posts = all_open_r.json()
-    destination_hint = extract_destination_hint(question, all_open_posts)
-    if destination_hint:
-        hint_lower = destination_hint.lower()
-        matching_own_post = next(
-            (p for p in my_posts if hint_lower in p["destination"].lower()), None
-        )
-        my_post = matching_own_post or my_posts[0]
-        candidates = [
-            c for c in all_open_posts
-            if hint_lower in c["destination"].lower() and c["post_id"] != my_post["post_id"]
-        ]
-    else:
-        my_post = my_posts[0]
-        candidates = [
-            c for c in all_open_posts
-            if c["destination"] == my_post["destination"] and c["post_id"] != my_post["post_id"]
-        ]
-    adapted = False
-    if not candidates:
-        if destination_hint:
-            return (
-                f'<div class="card"><p>No one else has an open trip post to '
-                f'<strong>{destination_hint}</strong> right now. '
-                "Check back later, or try asking about a different destination.</p></div>"
-            )
-        adapted = True
-        candidates = [c for c in all_open_posts if c["post_id"] != my_post["post_id"]]
-    if not candidates:
-        return '<div class="card"><p>No other open trip posts to compare against yet.</p></div>'
-    candidates_by_id = {c["post_id"]: c for c in candidates}
     try:
-        matches = call_ollama_match(my_post, candidates, question)
-    except (requests.RequestException, ValueError, json.JSONDecodeError, KeyError) as exc:
-        return (
-            f'<div class="card"><p class="error">AI request failed: {exc}. '
-            "Is Ollama running with the model pulled?</p></div>"
-        )
-    high_confidence = [m for m in matches if m.get("score", 0) >= 60]
-    widen_note = (
-        " Widened the search since no matches were found for your exact destination."
-        if adapted else ""
-    )
-    low_confidence_note = (
-        " No strong matches found — try widening your dates or travel style."
-        if not high_confidence else ""
-    )
-    rows = []
-    for m in sorted(matches, key=lambda x: x.get("score", 0), reverse=True):
-        candidate = candidates_by_id.get(m.get("post_id"))
-        if not candidate:
-            continue
-        rows.append(
-            f'<div class="chat-msg bot"><div class="who">Travel Mate AI</div>'
-            f'<div class="bubble"><strong>{candidate["destination"]}</strong> '
-            f'<span class="compat-score"><span class="compat-score__num">{m.get("score", "?")}%</span></span>'
-            f'<span class="compat-reason">{m.get("reason", "")}</span></div></div>'
-        )
-    return "".join(rows) + f'<p class="muted">{widen_note}{low_confidence_note}</p>'
-# --- AI scoring for Browse cards (button-triggered) -
+        result = run_match_turn(question, CURRENT_TRAVELLER_ID)
+    except requests.RequestException as exc:
+        return f'<div class="card"><p class="error">Could not reach the database service: {exc}</p></div>', 502
+    return match_fragment(result)
 
 
 @app.post("/trips/ai-score")
@@ -733,11 +588,12 @@ def ai_score_trips():
             note = "No other open trips to compare yet."
         else:
             try:
-                matches = call_ollama_match(
-                    my_post, candidates, "General browsing compatibility check."
+                matches = score_candidates(
+                                    my_post, candidates, "General browsing compatibility check."
                 )
+
                 scores = {m["post_id"]: m for m in matches if "post_id" in m}
-            except (requests.RequestException, ValueError, json.JSONDecodeError, KeyError) as exc:
+            except LLM_ERRORS as exc:
                 note = f"AI scoring unavailable right now ({exc})."
 
     cards_html = render_template_string(

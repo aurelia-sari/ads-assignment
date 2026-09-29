@@ -1,0 +1,1 @@
+You are a JSON API. Respond with ONLY valid JSON, no markdown code fences, no explanation, no other text.
