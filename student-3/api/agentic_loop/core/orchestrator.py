@@ -1,12 +1,12 @@
 """Plan -> Act -> Observe -> Adapt loop for Travel Mate matching.
- 
+
 The code gathers the evidence; the LLM only scores what was fetched.
 """
- 
+
 import json
- 
+
 import requests
- 
+
 from agentic_loop.collectors.trip_collector import (
     collect_all_open_posts,
     collect_candidates,
@@ -15,11 +15,11 @@ from agentic_loop.collectors.trip_collector import (
 from agentic_loop.core.classifier import extract_destination_hint
 from services.ai_client import ask_ai
 from services.prompt_loader import load_prompt
- 
+
 HIGH_SCORE = 60
 LLM_ERRORS = (requests.RequestException, ValueError, json.JSONDecodeError, KeyError)
- 
- 
+    
+    
 def build_match_prompt(my_post, candidates, question):
     candidate_lines = "\n".join(
         f'- post_id={c["post_id"]}: destination="{c["destination"]}", '
@@ -45,8 +45,8 @@ def build_match_prompt(my_post, candidates, question):
         "no other text, in this exact shape:\n"
         '[{"post_id": <int>, "score": <int 0-100>, "reason": "<one short sentence>"}]'
     )
- 
- 
+    
+    
 def score_candidates(my_post, candidates, question, ask=ask_ai):
     """The only place the LLM is called. Returns a list of match dicts."""
     prompt = build_match_prompt(my_post, candidates, question)
@@ -68,22 +68,22 @@ def score_candidates(my_post, candidates, question, ask=ask_ai):
     if not matches:
         raise ValueError("Model returned an empty match list")
     return matches
- 
- 
+    
+    
 def run(question, traveller_id):
     """One matching turn. Returns a dict with a `status` the view renders."""
-    
-    # PLAN: 
+
+    # PLAN:
     my_posts = collect_my_open_posts(traveller_id)
     if not my_posts:
         return {"status": "no_own_post"}
     all_open = collect_all_open_posts()
     hint = extract_destination_hint(question, all_open)
- 
-    # ACT: 
+
+    # ACT:
     my_post, candidates = collect_candidates(my_posts, all_open, hint)
- 
-    # ADAPT 
+
+    # ADAPT
     adapted = False
     if not candidates:
         if hint:
@@ -92,17 +92,17 @@ def run(question, traveller_id):
         candidates = [c for c in all_open if c["post_id"] != my_post["post_id"]]
     if not candidates:
         return {"status": "no_candidates"}
- 
+
     try:
         matches = score_candidates(my_post, candidates, question)
     except LLM_ERRORS as exc:
         return {"status": "error", "error": str(exc)}
- 
-    # OBSERVE: 
+
+    # OBSERVE:
     high_confidence = [m for m in matches if m.get("score", 0) >= HIGH_SCORE]
     by_id = {c["post_id"]: c for c in candidates}
     ranked = sorted(matches, key=lambda m: m.get("score", 0), reverse=True)
- 
+
     return {
         "status": "ok",
         "matches": [(by_id[m["post_id"]], m) for m in ranked if m.get("post_id") in by_id],
