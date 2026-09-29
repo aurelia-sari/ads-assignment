@@ -1,0 +1,68 @@
+
+        <h3>RAG Recommendation</h3>
+        <p class="muted" id="rag-status">
+            Enable RAG to retrieve grounded travel knowledge and cited answers.
+        </p>
+
+        <section class="integration-toggle" aria-label="RAG mode">
+            <label class="mode-switch" for="rag-enabled">
+                <input id="rag-enabled" type="checkbox">
+                <span>RAG Enabled</span>
+            </label>
+            <strong class="mode-status" id="rag-mode-status">OFF</strong>
+        </section>
+
+        <section style="margin-top:2rem;" aria-labelledby="rag-knowledge-heading">
+            <h3 id="rag-knowledge-heading">Knowledge</h3>
+            <div class="ai-submit-row">
+                <button id="rag-refresh-knowledge" type="button" disabled aria-describedby="rag-status">Refresh Knowledge</button>
+            </div>
+        </section>
+
+        <section class="ai-question-form" aria-labelledby="rag-retrieve-heading">
+            <h3 id="rag-retrieve-heading">Retrieve Context</h3>
+            <label for="rag-query">Query</label>
+            <input id="rag-query" name="query" type="text" autocomplete="off" disabled
+                placeholder="e.g. affordable restaurants"
+                aria-describedby="rag-query-hint rag-status">
+            <p class="muted" id="rag-query-hint">Use a short retrieval phrase.</p>
+            <div class="ai-submit-row">
+                <button id="rag-retrieve-context" type="button" disabled aria-describedby="rag-status">Retrieve Context</button>
+            </div>
+        </section>
+
+        <section style="margin-top:2rem;" aria-labelledby="rag-context-heading">
+            <h3 id="rag-context-heading">Retrieved Context</h3>
+            <div id="rag-context" aria-live="polite">
+                <p class="muted">
+                    Retrieved context will appear here.
+                </p>
+            </div>
+        </section>
+
+        <section class="ai-question-form" aria-labelledby="rag-question-heading">
+            <h3 id="rag-question-heading">Grounded Question</h3>
+            <label for="rag-question">Question</label>
+            <input id="rag-question" name="question" type="text" autocomplete="off" disabled
+                placeholder="e.g. Which affordable restaurant matches my preferences?"
+                aria-describedby="rag-question-hint rag-status">
+            <p class="muted" id="rag-question-hint">
+                Ask a full question for a grounded answer.
+            </p>
+            <div class="ai-submit-row">
+                <button id="rag-answer-question" type="button" disabled aria-describedby="rag-status">Answer with Citations</button>
+            </div>
+        </section>
+
+        <section style="margin-top:2rem;" aria-labelledby="rag-answer-heading">
+            <h3 id="rag-answer-heading">Answer</h3>
+            <div id="rag-answer" aria-live="polite"><p class="muted">Ask a question to see a grounded answer.</p></div>
+        </section>
+        <section style="margin-top:2rem;" aria-labelledby="rag-confidence-heading">
+            <h3 id="rag-confidence-heading">Confidence</h3>
+            <div id="rag-confidence" aria-live="polite"><p class="muted">Confidence will appear with the answer.</p></div>
+        </section>
+        <section style="margin-top:2rem;" aria-labelledby="rag-sources-citations-heading">
+            <h3 id="rag-sources-citations-heading">Sources / Citations</h3>
+            <div id="rag-sources-citations" aria-live="polite"><p class="muted">Supporting sources will appear here.</p></div>
+        </section>

@@ -34,7 +34,31 @@ def run_recommendation(question):
     if "activities" in question_lower or "activity" in question_lower:
         candidates = [
             place for place in candidates
-            if place.get("category") == "activities"
+            if place.get("category") == "activity"
+        ]
+
+    # =========================================================
+    # City filtering
+    # =========================================================
+
+    supported_cities = (
+        "sydney",
+        "melbourne",
+        "brisbane",
+        "tokyo",
+        "osaka",
+        "sapporo",
+    )
+
+    requested_city = next(
+        (city for city in supported_cities if city in question_lower),
+        None,
+    )
+
+    if requested_city:
+        candidates = [
+            place for place in candidates
+            if requested_city in (place.get("address") or "").lower()
         ]
 
     # =========================================================

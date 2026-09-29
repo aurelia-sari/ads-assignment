@@ -11,7 +11,7 @@ from html import escape
 CATEGORY_OPTIONS = (
     "attraction",
     "restaurant",
-    "activities",
+    "activity",
 )
 
 PRICE_RANGE_OPTIONS = (

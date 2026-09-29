@@ -8,6 +8,25 @@ import json
 
 ai_mode_bp = Blueprint("ai_mode", __name__)
 
+SUPPORTED_CITIES = (
+    "Sydney",
+    "Melbourne",
+    "Brisbane",
+    "Tokyo",
+    "Osaka",
+    "Sapporo",
+)
+
+
+def _location_from_question(question):
+    """Return the supported city named in the question."""
+
+    question_lower = question.lower()
+    return next(
+        (city for city in SUPPORTED_CITIES if city.lower() in question_lower),
+        None,
+    )
+
 
 @ai_mode_bp.post("/ai/recommend")
 def recommend():
@@ -49,7 +68,7 @@ def recommend():
                 "user_id": user_id,
                 "question": question,
                 "preferences": None,
-                "location": "Sydney",
+                "location": _location_from_question(question),
                 "recommendation_result": json.dumps(
                     recommendation_data,
                     ensure_ascii=False,

@@ -27,7 +27,5 @@ def ask_ai(question, system=None, context=None, max_tokens=300):
     )
 
     response.raise_for_status()
-
     data = response.json()
-
     return data["answer"]

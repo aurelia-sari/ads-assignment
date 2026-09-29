@@ -26,6 +26,8 @@ from flask_cors import CORS
 
 from routes.normal_ui import normal_ui_bp
 from routes.ai_mode import ai_mode_bp
+from routes.mcp import mcp_bp
+from routes.rag import rag_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -46,6 +48,8 @@ app.config["AI_MODE_URL"] = os.getenv(
 # Blueprints
 app.register_blueprint(normal_ui_bp)
 app.register_blueprint(ai_mode_bp)
+app.register_blueprint(mcp_bp)
+app.register_blueprint(rag_bp)
 
 # Health
 @app.get("/health")

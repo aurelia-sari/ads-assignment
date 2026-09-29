@@ -41,7 +41,7 @@ PLACE_FIELDS = (
 
 PLACE_REQUIRED_FIELDS = ("name", "category", "address")
 
-VALID_CATEGORIES = {"attraction", "restaurant", "activities"}
+VALID_CATEGORIES = {"attraction", "restaurant", "activity"}
 
 
 def validate_place(payload, require_all=True):

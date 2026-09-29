@@ -343,6 +343,304 @@ PLACES = [
 ]
 
 
+# Additional places for Release 1 multi-city support.
+MULTI_CITY_PLACES = [
+    {
+        "external_place_id": None,
+        "name": "Tokyo Skytree",
+        "category": "attraction",
+        "address": "1-1-2 Oshiage, Sumida City, Tokyo 131-0045, Japan",
+        "latitude": 35.7101,
+        "longitude": 139.8107,
+        "rating": 4.6,
+        "opening_hours": "10:00-22:00",
+        "price_range": 30,
+        "description": "Observation tower with panoramic views across Tokyo.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "ICHIRAN Shibuya",
+        "category": "restaurant",
+        "address": "1-22-7 Jinnan, Shibuya City, Tokyo 150-0041, Japan",
+        "latitude": 35.6613,
+        "longitude": 139.6990,
+        "rating": 4.4,
+        "opening_hours": "10:00-06:00",
+        "price_range": 30,
+        "description": "Popular ramen restaurant known for individual dining booths.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "teamLab Planets Tokyo",
+        "category": "activity",
+        "address": "6-1-16 Toyosu, Koto City, Tokyo 135-0061, Japan",
+        "latitude": 35.6491,
+        "longitude": 139.7898,
+        "rating": 4.7,
+        "opening_hours": "08:00-22:00",
+        "price_range": 50,
+        "description": "Immersive digital art experience where visitors move through water and light.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Osaka Castle",
+        "category": "attraction",
+        "address": "1-1 Osakajo, Chuo Ward, Osaka 540-0002, Japan",
+        "latitude": 34.6873,
+        "longitude": 135.5262,
+        "rating": 4.5,
+        "opening_hours": "09:00-18:00",
+        "price_range": 10,
+        "description": "Historic castle museum surrounded by a large public park.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Dotonbori Imai Honten",
+        "category": "restaurant",
+        "address": "1-7-22 Dotonbori, Chuo Ward, Osaka 542-0071, Japan",
+        "latitude": 34.6687,
+        "longitude": 135.5030,
+        "rating": 4.3,
+        "opening_hours": "11:30-21:30",
+        "price_range": 30,
+        "description": "Long-running Osaka restaurant specialising in kitsune udon.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Universal Studios Japan",
+        "category": "activity",
+        "address": "2-1-33 Sakurajima, Konohana Ward, Osaka 554-0031, Japan",
+        "latitude": 34.6654,
+        "longitude": 135.4323,
+        "rating": 4.5,
+        "opening_hours": "See official schedule",
+        "price_range": 100,
+        "description": "Theme park with rides, shows and immersive entertainment areas.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Sapporo TV Tower",
+        "category": "attraction",
+        "address": "Odori Nishi 1-chome, Chuo Ward, Sapporo 060-0042, Japan",
+        "latitude": 43.0611,
+        "longitude": 141.3564,
+        "rating": 4.3,
+        "opening_hours": "09:00-22:00",
+        "price_range": 10,
+        "description": "Central Sapporo landmark with a panoramic observation deck.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Sapporo Beer Garden",
+        "category": "restaurant",
+        "address": "9-2-10 Kita 7 Higashi, Higashi Ward, Sapporo 065-0007, Japan",
+        "latitude": 43.0714,
+        "longitude": 141.3686,
+        "rating": 4.3,
+        "opening_hours": "11:30-21:00",
+        "price_range": 50,
+        "description": "Historic beer hall serving Hokkaido-style grilled lamb and local beer.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Shiroi Koibito Park",
+        "category": "activity",
+        "address": "2-11-36 Miyanosawa 2-jo, Nishi Ward, Sapporo 063-0052, Japan",
+        "latitude": 43.0887,
+        "longitude": 141.2710,
+        "rating": 4.4,
+        "opening_hours": "10:00-18:00",
+        "price_range": 10,
+        "description": "Chocolate-themed park with factory exhibits and hands-on workshops.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "NGV International",
+        "category": "attraction",
+        "address": "180 St Kilda Road, Melbourne VIC 3006, Australia",
+        "latitude": -37.8226,
+        "longitude": 144.9689,
+        "rating": 4.7,
+        "opening_hours": "10:00-17:00",
+        "price_range": 0,
+        "description": "Major public gallery presenting international art and design.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Chin Chin Melbourne",
+        "category": "restaurant",
+        "address": "125 Flinders Lane, Melbourne VIC 3000, Australia",
+        "latitude": -37.8158,
+        "longitude": 144.9708,
+        "rating": 4.4,
+        "opening_hours": "11:00-23:00",
+        "price_range": 50,
+        "description": "Bustling restaurant serving contemporary South-East Asian dishes.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Melbourne Skydeck",
+        "category": "activity",
+        "address": "7 Riverside Quay, Southbank, Melbourne VIC 3006, Australia",
+        "latitude": -37.8216,
+        "longitude": 144.9647,
+        "rating": 4.5,
+        "opening_hours": "12:00-21:00",
+        "price_range": 30,
+        "description": "High-rise observation experience with views over Melbourne.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Gallery of Modern Art",
+        "category": "attraction",
+        "address": "Stanley Place, South Brisbane QLD 4101, Australia",
+        "latitude": -27.4706,
+        "longitude": 153.0175,
+        "rating": 4.6,
+        "opening_hours": "10:00-17:00",
+        "price_range": 0,
+        "description": "Queensland gallery presenting modern and contemporary art.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Eat Street Northshore",
+        "category": "restaurant",
+        "address": "221D MacArthur Avenue, Hamilton, Brisbane QLD 4007, Australia",
+        "latitude": -27.4403,
+        "longitude": 153.0704,
+        "rating": 4.6,
+        "opening_hours": "Friday-Sunday evenings",
+        "price_range": 30,
+        "description": "Riverside food market with dining stalls and live entertainment.",
+        "image_url": None,
+    },
+    {
+        "external_place_id": None,
+        "name": "Story Bridge Adventure Climb",
+        "category": "activity",
+        "address": "5 Boundary Street, Brisbane City QLD 4000, Australia",
+        "latitude": -27.4638,
+        "longitude": 153.0357,
+        "rating": 4.8,
+        "opening_hours": "08:30-21:00",
+        "price_range": 100,
+        "description": "Guided climb offering elevated views over Brisbane and the river.",
+        "image_url": None,
+    },
+]
+
+MULTI_CITY_IMAGE_URLS = {
+    "Tokyo Skytree": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "ACvplmNEb0LF776bC1TBxdJ8JuTFZH66-1GWM0yy8j3zR4sJzr-Js8aaUgTAtN83"
+        "WmfRcvcm82pbM78dTEuKSq1ov50xsdBPXxHJ7Aak5ms-irM48iBqlGPpyj400YKVX"
+        "vpcW_ZOl1w1=w408-h725-k-no"
+    ),
+    "ICHIRAN Shibuya": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "ACvplmOORjiqUZ-bUNClDtHLwwafex_LN2ueQPMuvjigkS1Fphyp7AMrdS2C96gyz"
+        "2rI8_4W3WgYyHJoDBkodVxpiek6x8fuNwrybmydyjJoIJKuk5NerX85TCcyfY2JVC"
+        "ZAnFUI3Q_F=w408-h306-k-no"
+    ),
+    "teamLab Planets Tokyo": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "ACvplmM-f9eDBLgPG6RUMMgawoBiZrtBuX4VMNy87JM54XcN7aNYBqUSgiMXHKlo"
+        "SFSLfOsgrMNdQAMskKkwWA6wPzABGkJVpEqCW4Dlh-Rc74IT6FYLbfYqVI_oJscMp"
+        "nBFeysFkotEkA=w408-h272-k-no"
+    ),
+    "Osaka Castle": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLdinCddjsSnYM78xAQMprxWVcXwG6MikUVRVtaActzbnGnuvh0TY3uNkJ8im"
+        "HsX35cMhr8aaPkJdpPCbxJoTKcPv9GivCcSIYe7hrhZsB7rHKL4ngx0IW6ODXX9Ko"
+        "hCzdy6T8TdnDROOjNh=w408-h306-k-no"
+    ),
+    "Dotonbori Imai Honten": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLcw4U5fYbGFf7BE7qsn3RgWxLNwgFhxztjIVESUUEcoB0uQ-eHXJjB5f5xOF"
+        "MOp-Wz8zvbdWX0YxOy7qun6mmMGRJ-0Gd-_ReaYY0ybmKUIpgFdoVj9grM1l5I36E"
+        "OEXJ8VZdFfTnH8cH8=w408-h306-k-no"
+    ),
+    "Universal Studios Japan": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "ACvplmNCG4_WFeKehM3I9i0ynZ80txpohUHd_Pe6G14DU6UDNvRzapGAfnYsWLyhM"
+        "HckpW_sZztZOC48TeoSPt1vFEKn10tqXQDd4OVFNws8SCHwzHB4AcB6y27lS73NtY"
+        "yds9-0maaG=w408-h306-k-no"
+    ),
+    "Sapporo TV Tower": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLduMVPeX_jlGnmErXqSADMe3rU0y1xNVjaAr16xAoIITTSqfe47GI-zmi6Ri"
+        "4uNG7-5fgtaIrtO6rc-4t6BKJtMTfeB18EuwrbWtXeyEZiy2e4efuBre8UJWKomIZF"
+        "Lpx_79xg=w408-h544-k-no"
+    ),
+    "Sapporo Beer Garden": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLfU-vs2WAKo72F0uOrBCpzgRiHYJdoe6mlRU185whHZdmEcLg3twNM56R-91"
+        "qAu-bKe61xps7BgXp6c_fPEqKpTKqhYCswKJwexoFAcECgqrOSFvMwPv-gDx_sfbo6"
+        "Q-TPEMvJon53N_Z0U=w408-h306-k-no"
+    ),
+    "Shiroi Koibito Park": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "ACvplmNYayoyrGSelnfiqiyglGLxaajqdBTaEtCBjfLXOhjeagA99fON9iPKOIy8Pc"
+        "cY5K-UvMS1Y5-LqoN6KV34VTGexbr5Bvoh9oCRcTt_dmzungkOlrb_R4fzOIlM-CSH"
+        "3KMhuO7CGg=w408-h271-k-no"
+    ),
+    "NGV International": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLeljab6GOQ0m6udsAADIginTdNiIQXjz6RFaJBKyfkmLfdK7ILsQ88nHQiD6"
+        "zytRS5Rca8WvWZs9-D07NjHXowEaI2_kCnip1VT-7oUcQkYwKyM-2G76PBivG6Zvd"
+        "nx-xBl6qc=w408-h306-k-no"
+    ),
+    "Chin Chin Melbourne": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLfrLGTMNkbluDmQmGwYBS9j9f-vdvAtZ77HjtTTC7PjQGP2w21ljyegSZI6R"
+        "U8yTXPEPv77dueSVVxr_721fL9DrjSq9iumPFyaKo6dBTYeurePsAmk3y3Dd4oeUup"
+        "w3c3EYHgj=w408-h271-k-no"
+    ),
+    "Melbourne Skydeck": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "ACvplmNYNVAvekAP2Fk8MVC9wVSCgX-lt5SP_KA4_4tr4Ei1FMShHIxz22rEiaAQg0"
+        "ZUCsBnRqFNSYfhJoRK64XCxl005qlmtTAjpcsy1yUCLIYgXMy6h9KoSGCO1kxtzO5J"
+        "XnaIcVYktGaJwzsB=w408-h306-k-no"
+    ),
+    "Gallery of Modern Art": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLdvUoh79qR5TIgDTsaEm9TCbr5W1grjEDXGTjytoYtREUsQ10TEqXWCWSUjb"
+        "GW5q_oKBxkLBjKQFRVzeLysYPuDiIR212YQQHxPNR6JGfnXut1D8yGZspmG3NCcNP"
+        "6cdVrTYVwPsTjwdhdL=w408-h269-k-no"
+    ),
+    "Eat Street Northshore": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLdiPW_UHcIfLbhKLUSHhqbojODYXTeRtemlS3tbfFDfTm7TLADhoVyK7iwYex"
+        "BX9vYg0rKh5bN1nKn5Rn2-IG_xr4B7JCcBqyluUgzovuScO9bxb5XViloQIDLCqkW"
+        "S7b3sQ-1jYfSxSRub=w408-h307-k-no"
+    ),
+    "Story Bridge Adventure Climb": (
+        "https://lh3.googleusercontent.com/grass-cs/"
+        "AABkmLfJMYz6coyL3rzijwxt3IIfd-y_RlSpCzcxkT7f3n2NUUyjqpkGv-VnVRYho"
+        "H6wLDWvW1oPc06w9EXG-l2HbapkWMUgX8_o1HXyg3_1rpun7NSBUjJxxAfE7R6ONr"
+        "UI0lgZs3V_OGJLjDuS=w408-h272-k-no"
+    ),
+}
+
+for place in MULTI_CITY_PLACES:
+    place["image_url"] = MULTI_CITY_IMAGE_URLS[place["name"]]
+
+PLACES.extend(MULTI_CITY_PLACES)
+
+
 # ------------------------------------------------------------------
 # Database connection
 # ------------------------------------------------------------------
@@ -416,17 +714,27 @@ def create_schema(conn: sqlite3.Connection) -> None:
 # ------------------------------------------------------------------
 
 def seed_places(conn: sqlite3.Connection) -> None:
-    """Insert initial place records when the places table is empty."""
+    """Insert place records that are not already present."""
 
-    count = conn.execute(
-        "SELECT COUNT(*) AS count FROM places"
-    ).fetchone()["count"]
+    for name, image_url in MULTI_CITY_IMAGE_URLS.items():
+        conn.execute(
+            """
+            UPDATE places
+            SET image_url = ?
+            WHERE name = ?
+              AND (image_url IS NULL OR image_url = '')
+            """,
+            (image_url, name),
+        )
 
-    if count > 0:
-        print(f"places already contains {count} rows - skipping.")
-        return
-
+    existing_names = {
+        row["name"]
+        for row in conn.execute("SELECT name FROM places").fetchall()
+    }
+    inserted = 0
     for place in PLACES:
+        if place["name"] in existing_names:
+            continue
         conn.execute(
             """
             INSERT INTO places (
@@ -458,10 +766,12 @@ def seed_places(conn: sqlite3.Connection) -> None:
                 place["image_url"],
             ),
         )
+        existing_names.add(place["name"])
+        inserted += 1
 
     conn.commit()
 
-    print(f"Seeded {len(PLACES)} places.")
+    print(f"Seeded {inserted} new places ({len(existing_names)} total).")
 
 
 # ------------------------------------------------------------------

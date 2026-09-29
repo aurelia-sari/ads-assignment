@@ -77,8 +77,20 @@ def run_checks():
     # up from the database service by name.
     status, db_response = _call("GET", f"{DB_BASE}/places")
     expect(status == 200, "GET /places (database) returns 200")
+    seeded_rows = db_response.json()
+    for city in ("Tokyo", "Osaka", "Sapporo", "Melbourne", "Brisbane"):
+        city_rows = [
+            row for row in seeded_rows
+            if city.lower() in row.get("address", "").lower()
+        ]
+        expect(len(city_rows) == 3, f"{city} contains exactly three seeded places")
+        expect(
+            {row["category"] for row in city_rows}
+            == {"attraction", "restaurant", "activity"},
+            f"{city} contains one place in each category",
+        )
     place_id = next(
-        (row["id"] for row in db_response.json() if row["name"] == "Smoke Test Place"), None
+        (row["id"] for row in seeded_rows if row["name"] == "Smoke Test Place"), None
     )
     expect(place_id is not None, "created test place can be located by name")
 

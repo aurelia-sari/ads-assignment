@@ -1,0 +1,45 @@
+
+        <h3>MCP Place Search</h3>
+        <p class="muted" id="mcp-status">
+            Enable MCP to search places through the shared read-only tool.
+        </p>
+
+        <section class="integration-toggle" aria-label="MCP mode">
+            <label class="mode-switch" for="mcp-enabled">
+                <input id="mcp-enabled" type="checkbox">
+                <span>MCP Enabled</span>
+            </label>
+            <strong class="mode-status" id="mcp-mode-status">OFF</strong>
+        </section>
+
+        <section class="ai-question-form" aria-labelledby="mcp-tool-heading">
+            <h4 id="mcp-tool-heading">Place Search</h4>
+            <p class="tool-reference">MCP tool <code id="mcp-tool-name">search_places</code></p>
+
+            <div class="form-grid">
+                <div>
+                    <label for="mcp-category">Category</label>
+                    <input id="mcp-category" name="category" type="text" autocomplete="off" required disabled
+                        placeholder="e.g. restaurant" aria-describedby="mcp-status">
+                </div>
+
+                <div>
+                    <label for="mcp-name">Place Name (optional)</label>
+                    <input id="mcp-name" name="name" type="text" autocomplete="off" disabled
+                        placeholder="Enter a place name" aria-describedby="mcp-status">
+                </div>
+            </div>
+
+            <div class="ai-submit-row">
+                <button id="mcp-run-tool" type="button" disabled aria-describedby="mcp-status">Run Tool</button>
+            </div>
+        </section>
+
+        <section style="margin-top:2rem;" aria-labelledby="mcp-result-heading">
+            <h3 id="mcp-result-heading">Result</h3>
+            <div id="mcp-result" aria-live="polite">
+                <p class="muted">
+                    Enable MCP and run a place search.
+                </p>
+            </div>
+        </section>
