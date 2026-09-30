@@ -611,6 +611,7 @@ def mcp_find_mates():
         return '<div class="card"><p class="error">MCP integration is disabled in this environment.</p></div>', 503
     destination = request.form.get("destination", "")
     args = {"destination": destination} if destination else {}
+    args.setdefault("status", "open")
     try:
         result = call_mcp_tool("find_travel_mates", args)
     except (requests.RequestException, ValueError) as exc:

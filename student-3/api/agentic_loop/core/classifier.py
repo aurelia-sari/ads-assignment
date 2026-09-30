@@ -1,6 +1,6 @@
 """PLAN helper: work out which destination a question is about."""
- 
- 
+    
+    
 def extract_destination_hint(question, all_open_posts):
     """Return the matching keyword itself (e.g. "iceland"), not a specific
     post's destination string, so substring matching finds every post that
