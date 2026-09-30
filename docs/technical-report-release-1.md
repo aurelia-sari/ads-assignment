@@ -56,8 +56,18 @@ _One short subsection per student: what their feature gained._
 - **student-1 - Caroline Zhou (Trips & Itinerary)** - _draft below, use as the shape_
 - **student-2 - Kevin Kim (Attractions & Dining)** - _TODO_
 - **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
-- **student-4 - Aurelia Sari (Accounts & Guides)** - _TODO_
+- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers questions about accounts and guides with citations and a confidence badge. Sign-up, sign-in, the guide views and the Release 0 AI Assistant are unchanged.
 - **student-5 - Aung Ko Khaing (Bookings & Budget)** - _TODO_
+
+#### student-4 requirements
+
+| ID | Requirement |
+|----|-------------|
+| R4-1 | `POST /mcp/destination-guide` proxies `lookup_destination_guide` and returns the structured result, including boundary refusals |
+| R4-2 | `POST /rag/ask` returns the grounded answer, citations, confidence and the insufficient-context reply |
+| R4-3 | With `MCP_ENABLED` or `RAG_ENABLED` set to false, the endpoint returns a clear disabled response and makes no network call |
+| R4-4 | An unreachable server returns a clear unavailable response, never a crash. `GET /ai-tools/status` reports each server's state |
+| R4-5 | Release 0 guides, accounts and AI Assistant keep working, and CI runs with MCP and RAG disabled |
 
 ---
 
@@ -232,7 +242,7 @@ validation activity, and identifiable commits._
 | student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 wiring | _TODO: list_ |
 | student-2 Kevin Kim | _TODO_ | |
 | student-3 Tanishpreet Kour | _TODO_ | |
-| student-4 Aurelia Sari | _TODO_ | |
+| student-4 Aurelia Sari | Step 1 on `feature/student-4-mcp-rag-integration`. Added MCP and RAG clients, the proxy blueprint and HTML fragments in `student-4/api` | "Add MCP and RAG proxy endpoints for student 4" |
 | student-5 Aung Ko Khaing | _TODO_ | |
 
 ---
