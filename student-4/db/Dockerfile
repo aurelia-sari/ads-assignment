@@ -8,8 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY init_db.py .
 COPY app.py .
 
-RUN python init_db.py
-
 EXPOSE 5204
 
-CMD ["python", "app.py"]
+# Seed at start, not build, so a seed change also reaches an existing volume.
+CMD ["sh", "-c", "python init_db.py && exec python app.py"]
