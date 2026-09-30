@@ -42,8 +42,8 @@ jobs:
       - name: Byte-compile the student-4 source
         run: python -m compileall -q student-4
 
-      - name: Unit test the MCP and RAG disabled and unavailable paths
-        run: python -m pytest student-4/tests/test_ai_tools.py -q
+      - name: Unit test the MCP and RAG paths and the database seed
+        run: python -m pytest student-4/tests/test_ai_tools.py student-4/tests/test_init_db.py -q
 
       - name: Validate the shared Docker Compose configuration
         run: docker compose config --quiet

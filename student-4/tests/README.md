@@ -110,11 +110,17 @@ the verification link.
 test client and stubbed servers, so it needs no running services. It covers
 the disabled path, with a guard that fails on any network call, the
 unavailable path, input validation, a boundary refusal, a grounded answer and
-an insufficient-context reply. The workflow runs it before the Docker build.
+an insufficient-context reply.
+
+`test_init_db.py` runs `student-4/db/init_db.py` against a temporary
+directory. The seed runs at every container start, so it checks that a rerun
+is idempotent, destination ids stay fixed, saved chats survive, and chats for
+a removed destination are deleted. The workflow runs both files before the
+Docker build.
 
 ```bash
 python -m pip install -r student-4/tests/requirements.txt
-python -m pytest student-4/tests/test_ai_tools.py -q
+python -m pytest student-4/tests/test_ai_tools.py student-4/tests/test_init_db.py -q
 ```
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted

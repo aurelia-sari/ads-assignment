@@ -6,12 +6,16 @@ since a user's id and sign-in state are shared data every feature may need.
 This database owns the Travel Guides destinations: the cities a guide can be
 looked up for. The seed list mirrors the Australian cities already used as
 flight and hotel destinations in student-5 (Bookings & Budget).
+
+Runs at every container start, not at build time, so a seed change reaches an
+existing volume. It is safe to run repeatedly. Destination ids are fixed so
+saved chats keep pointing at the right city.
 """
 
 import os
 import sqlite3
 
-DATA_DIR = "/app/data"
+DATA_DIR = os.getenv("DATA_DIR", "/app/data")
 DATABASE_NAME = os.path.join(DATA_DIR, "student4.db")
 
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -79,7 +83,7 @@ CREATE TABLE IF NOT EXISTS safety_infos (
 """)
 
 # These hold real conversations, so unlike the guide tables above they are
-# never wiped on reinit, only created if missing.
+# never wiped on reinit. Only chats for a removed destination are deleted below.
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS guide_ai_chat_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,31 +119,47 @@ cursor.execute("DELETE FROM weather_infos")
 cursor.execute("DELETE FROM visa_requirements")
 cursor.execute("DELETE FROM transportation_infos")
 cursor.execute("DELETE FROM currency_infos")
-cursor.execute("DELETE FROM destinations")
 
+# Never reuse an id for a different city, or old chats would move to it.
 destinations = [
-    ("Australia", "Sydney", "New South Wales"),
-    ("Australia", "Melbourne", "Victoria"),
-    ("Australia", "Brisbane", "Queensland"),
-    ("Australia", "Perth", "Western Australia"),
-    ("Australia", "Adelaide", "South Australia"),
-    ("Australia", "Gold Coast", "Queensland"),
-    ("Australia", "Cairns", "Queensland"),
-    ("Australia", "Canberra", "Australian Capital Territory"),
-    ("Australia", "Hobart", "Tasmania"),
-    ("Australia", "Darwin", "Northern Territory"),
-    ("Australia", "Sunshine Coast", "Queensland"),
-    ("Australia", "Launceston", "Tasmania"),
-    ("Australia", "Alice Springs", "Northern Territory"),
+    (1, "Australia", "Sydney", "New South Wales"),
+    (2, "Australia", "Melbourne", "Victoria"),
+    (3, "Australia", "Brisbane", "Queensland"),
+    (4, "Australia", "Perth", "Western Australia"),
+    (5, "Australia", "Adelaide", "South Australia"),
+    (6, "Australia", "Gold Coast", "Queensland"),
+    (7, "Australia", "Cairns", "Queensland"),
+    (8, "Australia", "Canberra", "Australian Capital Territory"),
+    (9, "Australia", "Hobart", "Tasmania"),
+    (10, "Australia", "Darwin", "Northern Territory"),
+    (11, "Australia", "Sunshine Coast", "Queensland"),
+    (12, "Australia", "Launceston", "Tasmania"),
+    (13, "Australia", "Alice Springs", "Northern Territory"),
 ]
 
 cursor.executemany(
-    "INSERT INTO destinations (country, city, region) VALUES (?, ?, ?)",
+    "INSERT INTO destinations (id, country, city, region) VALUES (?, ?, ?, ?) "
+    "ON CONFLICT(id) DO UPDATE SET country = excluded.country, city = excluded.city, "
+    "region = excluded.region",
     destinations,
 )
 
+destination_ids = [destination[0] for destination in destinations]
+placeholders = ", ".join("?" for _ in destination_ids)
+cursor.execute(f"DELETE FROM destinations WHERE id NOT IN ({placeholders})", destination_ids)
+
+# Chats for a removed destination are already hidden from Past chats, so
+# delete them rather than leave orphan rows.
+cursor.execute(
+    "DELETE FROM guide_ai_chat_messages WHERE session_id IN ("
+    "SELECT id FROM guide_ai_chat_sessions "
+    "WHERE destination_id NOT IN (SELECT id FROM destinations))"
+)
+removed_chats = cursor.execute(
+    "DELETE FROM guide_ai_chat_sessions WHERE destination_id NOT IN (SELECT id FROM destinations)"
+).rowcount
+
 # Every seeded destination is in Australia, so they all share one currency.
-destination_ids = [row[0] for row in cursor.execute("SELECT id FROM destinations")]
 
 currency_infos = [
     (
@@ -212,7 +232,7 @@ def rental_copy(city):
     )
 
 transportation_infos = []
-for (country, city, region), destination_id in zip(destinations, destination_ids):
+for destination_id, country, city, region in destinations:
     for transport_type in TRANSPORT_TYPES_BY_CITY[city]:
         if transport_type == "flights":
             description, tips = flights_copy(city)
@@ -365,7 +385,7 @@ WEATHER_PROFILE_BY_CITY = {
 }
 
 weather_infos = []
-for (country, city, region), destination_id in zip(destinations, destination_ids):
+for destination_id, country, city, region in destinations:
     monthly_figures, best_visit_time = WEATHER_PROFILES[WEATHER_PROFILE_BY_CITY[city]]
     for month, (avg_temp, rainfall) in zip(MONTHS, monthly_figures):
         weather_infos.append((destination_id, month, avg_temp, rainfall, best_visit_time))
@@ -412,7 +432,7 @@ SAFETY_TIPS_BY_CITY = {
 
 safety_infos = [
     (destination_id, SAFETY_LEVEL, SAFETY_TIPS_BY_CITY[city])
-    for (country, city, region), destination_id in zip(destinations, destination_ids)
+    for destination_id, country, city, region in destinations
 ]
 
 cursor.executemany(
@@ -458,4 +478,4 @@ print(f"Tables: destinations ({len(destinations)} seed records), "
       f"weather_infos ({len(weather_infos)} seed records), "
       f"safety_infos ({len(safety_infos)} seed records), "
       f"feature_redirect_map ({len(feature_redirect_map)} seed records). "
-      "guide_ai_chat_sessions/guide_ai_chat_messages created empty.")
+      f"Saved chats kept, {removed_chats} for removed destinations deleted.")
