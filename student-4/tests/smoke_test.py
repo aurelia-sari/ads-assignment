@@ -7,7 +7,8 @@ own `users`/`access_logs`, see docs/technical-report.md 2.7 for why) and
 Mailpit (the local dev SMTP catcher), plus the Travel Guides destination
 search backed by student-4-db and the AI Assistant tab:
 
-    docker compose up -d student-4-db student-4-api shared-api shared-db mailpit ai-mode
+    ./scripts/ai_services.sh up    # optional, AI-Mode, MCP and RAG run on the host
+    docker compose up -d student-4-db student-4-api shared-api shared-db mailpit
     python3 student-4/tests/smoke_test.py
 
 Each run registers freshly-randomised emails, so re-running the script never
@@ -26,6 +27,11 @@ need a real answer from the model (grounded weather and transport questions,
 and the session history built from them) are skipped when ai-mode is not
 reachable, the same way run_frontend_guard_checks skips when the frontend
 containers are not running.
+
+The Release 1 MCP and RAG checks follow whatever GET /ai-tools/status
+reports. In CI both are disabled, so the disabled response is asserted.
+Locally with the host AI services running, the live tool call, a boundary
+refusal and the insufficient-context reply are asserted instead.
 """
 
 import os
@@ -379,6 +385,57 @@ def run_ai_assistant_checks():
     logout(ai_user_id)
 
 
+def run_mcp_rag_checks():
+    status, response = _call("GET", f"{API_BASE}/ai-tools/status")
+    expect(status == 200, "GET /ai-tools/status returns 200")
+    state = response.json()
+    expect(
+        set(state.values()) <= {"available", "disabled", "unavailable"},
+        f"status reports a known state for each server ({state})",
+    )
+
+    status, response = _call("POST", f"{API_BASE}/rag/ask", json={"question": ""})
+    expect(status == 400, "POST /rag/ask with an empty question returns 400")
+
+    status, response = _call(
+        "POST", f"{API_BASE}/mcp/destination-guide", json={"query": "Australia"}, timeout=40
+    )
+    if state["mcp"] == "disabled":
+        expect(status == 200, "MCP disabled, the proxy still returns 200")
+        expect(response.json().get("status") == "disabled", "MCP disabled response says disabled")
+    elif state["mcp"] == "unavailable":
+        expect(status == 503, "MCP unreachable returns 503, not a crash")
+        expect(response.json().get("status") == "unavailable", "MCP unreachable response says unavailable")
+    else:
+        structured = response.json()["result"]["structuredContent"]
+        expect(status == 200, "POST /mcp/destination-guide returns 200")
+        expect(structured["source"] == "student-4-db", "the MCP tool reads student-4-db")
+        expect(structured["row_count"] > 0, "the MCP tool finds Australian destinations")
+
+        status, response = _call(
+            "POST", f"{API_BASE}/mcp/destination-guide", json={"query": ""}, timeout=40
+        )
+        refused = response.json()["result"]
+        expect(refused.get("isError") is True, "an empty query is refused by MCP")
+        expect(refused.get("boundary") == "schema-checked", "the refusal names the schema-checked boundary")
+
+    # An off-corpus question never reaches the model, so it is fast even when enabled.
+    status, response = _call(
+        "POST", f"{API_BASE}/rag/ask", json={"question": "What is the capital of Peru?"}, timeout=40
+    )
+    if state["rag"] == "disabled":
+        expect(status == 200, "RAG disabled, the proxy still returns 200")
+        expect(response.json().get("status") == "disabled", "RAG disabled response says disabled")
+    elif state["rag"] == "unavailable":
+        expect(status == 503, "RAG unreachable returns 503, not a crash")
+    else:
+        body = response.json()
+        expect(status == 200, "POST /rag/ask returns 200")
+        expect(body.get("grounded") is False, "an off-topic question is not answered")
+        expect(body.get("confidence") == "insufficient", "the reply is insufficient context")
+        expect(body.get("citations") == [], "an insufficient-context reply cites nothing")
+
+
 def run_frontend_guard_checks():
     """Confirm the sign in gate is wired into the protected pages.
 
@@ -395,6 +452,10 @@ def run_frontend_guard_checks():
     expect(
         "verifySession" in landing.text,
         "landing page calls verifySession before showing its content",
+    )
+    expect(
+        "panel-mcp" in landing.text and "panel-rag" in landing.text,
+        "landing page has the MCP tools and Ask (grounded) tabs",
     )
 
     for page in (
@@ -758,6 +819,8 @@ def run_checks():
     # AI Assistant, best effort on the model-grounded checks since ai-mode
     # is optional for this script, see the module docstring.
     run_ai_assistant_checks()
+
+    run_mcp_rag_checks()
 
     # Frontend sign in gate, best effort since the frontend containers are
     # optional for this script, see the module docstring.

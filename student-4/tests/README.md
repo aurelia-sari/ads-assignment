@@ -86,6 +86,12 @@ It exercises the real flow end to end:
   checked for its one-time `justLoggedOut` sessionStorage gate,
   fails the smoke test instead of only showing up when someone clicks
   sign out.
+- **Release 1 MCP and RAG.** The checks follow `GET /ai-tools/status`. In
+  CI both servers are disabled, so the smoke test asserts the clear disabled
+  response. Locally, with `./scripts/ai_services.sh up`, it asserts a live
+  `lookup_destination_guide` call, a `schema-checked` boundary refusal for an
+  empty query, and the insufficient-context reply for an off-topic question.
+  The landing page is also checked for the MCP tools and Ask (grounded) tabs.
 
 Each run registers freshly-randomised email addresses, so it is safe to
 re-run without leaving stray state behind. There is deliberately no
@@ -98,6 +104,18 @@ verification email. Verified manually instead, `POST /auth/login` for an
 unverified account, then Mailpit's API confirms a new message arrives with
 the verification link.
 
+## Unit tests
+
+`test_ai_tools.py` exercises the MCP and RAG proxy endpoints with Flask's
+test client and stubbed servers, so it needs no running services. It covers
+the disabled path, with a guard that fails on any network call, the
+unavailable path, input validation, a boundary refusal, a grounded answer and
+an insufficient-context reply. The workflow runs it before the Docker build.
+
+```bash
+python -m pip install -r student-4/tests/requirements.txt
+python -m pytest student-4/tests/test_ai_tools.py -q
+```
+
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted
-unit testing. Unit tests for this feature
-belong in this directory.
+unit testing. Further unit tests for this feature belong in this directory.
