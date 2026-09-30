@@ -200,7 +200,7 @@ showing citations + confidence._
 | student-1 | ✅ captured | ✅ captured |
 | student-2 | ⬜ TODO | ⬜ TODO |
 | student-3 | ⬜ TODO | ⬜ TODO |
-| student-4 | ⬜ TODO | ⬜ TODO |
+| student-4 | ⬜ MCP Tools tab built, screenshot pending | ⬜ Ask (grounded) tab built, screenshot pending |
 | student-5 | ⬜ TODO | ⬜ TODO |
 
 ### 6.2 Local terminal validation
@@ -242,7 +242,7 @@ validation activity, and identifiable commits._
 | student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 wiring | _TODO: list_ |
 | student-2 Kevin Kim | _TODO_ | |
 | student-3 Tanishpreet Kour | _TODO_ | |
-| student-4 Aurelia Sari | Step 1 on `feature/student-4-mcp-rag-integration`. Added MCP and RAG clients, the proxy blueprint and HTML fragments in `student-4/api` | "Add MCP and RAG proxy endpoints for student 4" |
+| student-4 Aurelia Sari | On `feature/student-4-mcp-rag-integration`. Step 1 added MCP and RAG clients, the proxy blueprint and HTML fragments in `student-4/api`. Step 2 added the MCP Tools and Ask (grounded) tabs to `student-4/frontend` | "Add MCP and RAG proxy endpoints for student 4"<br>"Add MCP Tools and Ask (grounded) tabs for student 4" |
 | student-5 Aung Ko Khaing | _TODO_ | |
 
 ---

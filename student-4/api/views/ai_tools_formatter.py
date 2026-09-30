@@ -41,7 +41,8 @@ def _guide_link(row):
     return (
         f"<a href='#' hx-get='/api/student-4/guides/{int(row['id'])}' "
         "hx-target='#guides-results' hx-swap='innerHTML' "
-        "hx-on::after-request=\"activate('guides')\">Open guide</a>"
+        "hx-on::after-request=\"activate('guides')\" "
+        "style='color:var(--accent); font-weight:600'>Open guide</a>"
     )
 
 
@@ -89,7 +90,7 @@ def mcp_result_fragment(tool_name, result):
     )
     table = (
         "<div class='table-wrap'><table>"
-        "<thead><tr><th>ID</th><th>City</th><th>Region</th><th>Country</th><th></th></tr></thead>"
+        "<thead><tr><th>ID</th><th>City</th><th>Region</th><th>Country</th><th>Guide</th></tr></thead>"
         f"<tbody>{body}</tbody></table></div>"
     )
     return header + table + _raw(result)
@@ -101,11 +102,11 @@ def rag_answer_fragment(question, result):
         f"<div class='bubble'>{escape(question)}</div></div>"
     )
 
-    # The insufficient-context reply is kept plain on purpose, so it cannot be mistaken for an answer.
+    # The insufficient-context reply has no sources and no confidence pill, so it cannot be mistaken for an answer.
     if not result.get("grounded"):
         return question_html + (
-            "<div class='chat-msg bot'><div class='who'>Knowledge base</div><div class='bubble'>"
-            f"<div class='notice notice-error'>{escape(result.get('answer', ''))}</div>"
+            "<div class='chat-msg bot'><div class='who'>NextStop AI (grounded)</div><div class='bubble'>"
+            f"{escape(result.get('answer', ''))}"
             "<div class='citations'><span class='pill pill-cancelled'>insufficient context</span>"
             f"<p class='muted'>{escape(result.get('confidence_reason', ''))}</p></div>"
             "</div></div>"
@@ -121,7 +122,7 @@ def rag_answer_fragment(question, result):
     answer = escape(result.get("answer", "")).replace("\n", "<br>")
 
     return question_html + (
-        "<div class='chat-msg bot'><div class='who'>Knowledge base (grounded)</div><div class='bubble'>"
+        "<div class='chat-msg bot'><div class='who'>NextStop AI (grounded)</div><div class='bubble'>"
         f"{answer}"
         "<div class='citations'>"
         f"<span class='pill {pill}'>confidence: {escape(confidence)}</span>"
@@ -132,8 +133,13 @@ def rag_answer_fragment(question, result):
 
 
 def status_fragment(status):
-    def line(name, state):
+    def pill(name, state):
         tone = {"available": "pill-booked", "disabled": "pill-completed"}.get(state, "pill-cancelled")
-        return f"<span class='pill {tone}'>{escape(name)}: {escape(state)}</span> "
+        return f"<span class='pill {tone}'>{escape(name)} {escape(state)}</span>"
 
-    return "<p>" + line("MCP", status["mcp"]) + line("RAG", status["rag"]) + "</p>"
+    return (
+        "<div class='suggestions'><span class='suggestions__label'>Status</span>"
+        + pill("MCP", status["mcp"])
+        + pill("RAG", status["rag"])
+        + "</div>"
+    )
