@@ -56,7 +56,7 @@ _One short subsection per student: what their feature gained._
 - **student-1 - Caroline Zhou (Trips & Itinerary)** - _draft below, use as the shape_
 - **student-2 - Kevin Kim (Attractions & Dining)** - _TODO_
 - **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
-- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers questions about accounts and guides with citations and a confidence badge. Sign-up, sign-in, the guide views and the Release 0 AI Assistant are unchanged.
+- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers travel guide questions with citations and a confidence badge. Sign-up, sign-in, the guide views and the Release 0 AI Assistant are unchanged.
 - **student-5 - Aung Ko Khaing (Bookings & Budget)** - _TODO_
 
 #### student-4 requirements
@@ -184,6 +184,26 @@ model, because a small local model answers "high" almost unconditionally.
 | `low` | above the 2.5 relevance floor but below medium |
 | `insufficient` | nothing clears the relevance floor - no model call is made |
 
+### 5.4 student-4 integration
+
+```mermaid
+flowchart LR
+    subgraph Docker["Docker Compose"]
+        UI["student-4-frontend<br/>MCP tools, Ask (grounded)"] -->|"/api/student-4"| API["student-4-api<br/>ai_tools blueprint"]
+        DB[("student-4-db")]
+    end
+    subgraph Host["Host, not containerised"]
+        MCP["MCP server :5400<br/>lookup_destination_guide"]
+        RAG["RAG server :5500<br/>BM25, citations, confidence"]
+        AI["AI-Mode :5300, Ollama"]
+    end
+    API -->|"tools/call"| MCP -->|"GET /destinations"| DB
+    API -->|"POST /ask"| RAG --> AI
+    API -.->|"flag false"| OFF["Disabled response,<br/>no network call"]
+```
+
+The browser only ever calls student-4-api. When `MCP_ENABLED` or `RAG_ENABLED` is false, the endpoint returns a disabled response without making any network call. An unreachable server gives an unavailable notice. The Release 0 guides and accounts never depend on the host AI services.
+
 ---
 
 ## 6. Validation and results
@@ -265,6 +285,9 @@ surfaced:_
 | R1-A | The loop's OBSERVE step sometimes asserts facts not present in the collected evidence - one MCP run claimed `allow: get` appears in `nginx.conf`, which it never saw. The ACT evidence is collected by code and is accurate; the model's commentary drifts | Occasional | Low | Read ACT evidence as authoritative; OBSERVE is commentary. A larger review model reduces it | Caroline |
 | R1-B | BM25 retrieval matches terms, not meaning - a question phrased entirely in synonyms of the corpus wording can fall below the relevance floor and be refused despite being covered | Occasional | Medium | Confidence and the refusal are honest about it; an embedding retriever is the fix if it proves to matter | Caroline |
 | R1-C | The local AI services must be started separately from `docker compose up`. `dev.sh up` does it, but starting compose by hand leaves every AI path failing | Certain, by design | Low | Required by the brief - they cannot be compose services. Frontends show a clear unreachable notice naming the fix | Group |
+| R4-A | `lookup_destination_guide` matches city and country only, so a region such as "Queensland" returns no rows | Occasional | Low | The input hint suggests a city or country. Region search needs a student-4-db query change | Aurelia |
+| R4-B | The RAG knowledge for accounts and guides is hand-written, so it can drift from the code. It drifted once and was corrected in PR #32 | Occasional | Medium | Update the knowledge file with any feature change. The loop's RAG probes catch retrieval drift but not wrong facts | Aurelia |
+| R4-C | Release 0 guide endpoints return 503 error fragments, which HTMX does not swap, so a database outage shows nothing | Rare | Low | The Release 1 MCP and RAG endpoints return 200 notices to HTMX instead. The same fix can be applied to the guide endpoints | Aurelia |
 | R1-D | _TODO - add per-feature limitations_ | | | | |
 
 ---
