@@ -170,7 +170,7 @@ retrieval and grounded-response process, and the MCP tool layer._
 
 ### 5.3 RAG retrieval and grounding
 
-_Knowledge sources: 7 curated markdown files, 31 chunks. BM25, no embedding
+_Knowledge sources: 7 curated markdown files, 45 chunks. BM25, no embedding
 model - justify: explainable citations, instant start on 8 GB, no extra model
 dependency._
 
@@ -242,7 +242,7 @@ validation activity, and identifiable commits._
 | student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 wiring | _TODO: list_ |
 | student-2 Kevin Kim | _TODO_ | |
 | student-3 Tanishpreet Kour | _TODO_ | |
-| student-4 Aurelia Sari | On `feature/student-4-mcp-rag-integration`. Step 1 added MCP and RAG clients, the proxy blueprint and HTML fragments in `student-4/api`. Step 2 added the MCP Tools and Ask (grounded) tabs to `student-4/frontend`. Step 3 added unit tests, MCP and RAG smoke checks and a pytest step to `student-4.yml` | "Add MCP and RAG proxy endpoints for student 4"<br>"Add MCP Tools and Ask (grounded) tabs and align Travel Guides page styling for student 4"<br>"Add MCP and RAG tests and CI unit test step for student 4" |
+| student-4 Aurelia Sari | `feature/student-4-mcp-rag-integration` (PR #31) added the MCP and RAG proxy endpoints in `student-4/api`, the MCP Tools and Ask (grounded) tabs, 13 unit tests, MCP and RAG smoke checks and a pytest step in `student-4.yml`. `fix/rag-knowledge-accounts-guides` corrected the RAG knowledge for accounts and guides to match the real feature, with all 5 loop retrieval probes still hitting the expected source | "Add MCP and RAG proxy endpoints for student 4"<br>"Add MCP Tools and Ask (grounded) tabs and align Travel Guides page styling for student 4"<br>"Add MCP and RAG tests and CI unit test step for student 4"<br>"Correct RAG knowledge for accounts and travel guides" |
 | student-5 Aung Ko Khaing | _TODO_ | |
 
 ---
