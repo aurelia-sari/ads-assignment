@@ -106,7 +106,7 @@ def call_rag_ask(question, live_context=None):
     payload = {"question": question}
     if live_context:
         payload["context"] = live_context
-    r = requests.post(f"{RAG_SERVER_URL}/ask", json=payload, timeout=60)
+    r = requests.post(f"{RAG_SERVER_URL}/ask", json=payload, timeout=180)
     r.raise_for_status()
     return r.json()
 
