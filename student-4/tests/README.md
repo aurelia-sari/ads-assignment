@@ -149,7 +149,9 @@ month tabs that leave the live block alone, the default month in each city's
 own timezone, the disabled path with a guard that fails on any network call,
 a timeout and six kinds of bad response, the cache, keeping the last good
 forecast, the weather code labels, and the AI Assistant quoting the same
-figures as the page or being told not to describe current weather.
+figures as the page or being told not to describe current weather. When a
+question names a month, an answer using another month's figures is rejected,
+and a second failure quotes that month's guide figures.
 
 `test_currency_validation.py` replaces the model with scripted answers. It
 checks that a currency answer contradicting the guide's payment advice is

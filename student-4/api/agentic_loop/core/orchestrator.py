@@ -11,7 +11,7 @@ from agentic_loop.collectors import guide_collector
 from agentic_loop.core import currency_request
 from agentic_loop.core.classifier import classify_intent
 from agentic_loop.core.validator import validate_answer
-from agentic_loop.pipelines.guide_chat_pipeline import GUIDE_SOURCE_PATH, run_guide_chat
+from agentic_loop.pipelines.guide_chat_pipeline import GUIDE_SOURCE_PATH, guide_fallback, run_guide_chat
 from services import exchange_rates
 
 GUIDE_TOPICS = "currency, transportation, visa, weather and safety"
@@ -183,16 +183,11 @@ def run(question, resolve_destination):
     if retry_validation["valid"]:
         return {"intent": intent, "answer": retry_result["answer"], "adapted": False}
 
-    # The guide's own payment advice is short and always correct, so it is
-    # quoted instead of asking the traveller to rephrase.
-    currency = guide_collector.collect_currency(destination["id"]) if intent == "currency" else None
-    if currency:
-        return {
-            "intent": intent,
-            "answer": f"Here is what the guide says for {destination_label}. {currency['exchange_tips']}",
-            "adapted": True,
-            "redirect_path": GUIDE_SOURCE_PATH,
-        }
+    # Where the guide has a short exact answer, such as the payment advice or
+    # a named month's figures, it is quoted instead of asking to rephrase.
+    fallback = guide_fallback(intent, question, destination)
+    if fallback:
+        return {"intent": intent, "answer": fallback, "adapted": True, "redirect_path": GUIDE_SOURCE_PATH}
 
     return {
         "intent": intent,
