@@ -238,6 +238,7 @@ services:
       MAILPIT_PORT: 1025
       MAIL_FROM: no-reply@nextstop.local
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      GUIDES_LIVE_DATA: ${GUIDES_LIVE_DATA:-true}
     depends_on:
       - student-4-db
       # Cross-feature reads: user accounts and access logs come from the shared access API

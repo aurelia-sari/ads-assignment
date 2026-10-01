@@ -42,8 +42,13 @@ jobs:
       - name: Byte-compile the student-4 source
         run: python -m compileall -q student-4
 
-      - name: Unit test the MCP and RAG paths, the database seed and the AI fallbacks
-        run: python -m pytest student-4/tests/test_ai_tools.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py -q
+      - name: Unit test the MCP and RAG paths, live rates, the database seed and the AI fallbacks
+        run: >-
+          python -m pytest -q
+          student-4/tests/test_ai_tools.py
+          student-4/tests/test_exchange_rates.py
+          student-4/tests/test_init_db.py
+          student-4/tests/test_orchestrator.py
 
       - name: Validate the shared Docker Compose configuration
         run: docker compose config --quiet
@@ -63,9 +68,12 @@ jobs:
         # both are disabled here. The shared MCP and RAG servers are not
         # containerised, so they do not exist on a CI runner - leaving
         # them enabled would mean every AI path waits for a timeout.
+        # Live exchange rates are switched off too, so CI never depends on
+        # the internet.
         env:
           MCP_ENABLED: 'false'
           RAG_ENABLED: 'false'
+          GUIDES_LIVE_DATA: 'false'
         run: |
           docker compose up -d \
             shared-frontend \

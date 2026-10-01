@@ -27,11 +27,14 @@ from werkzeug.security import generate_password_hash
 
 from routes.ai_chat import ai_chat_bp
 from routes.ai_tools import ai_tools_bp
+from routes.live_guides import live_guides_bp
+from views.live_guides_formatter import live_rates_placeholder
 
 app = Flask(__name__)
 CORS(app)
 app.register_blueprint(ai_chat_bp)
 app.register_blueprint(ai_tools_bp)
+app.register_blueprint(live_guides_bp)
 
 DB_SERVICE_URL = os.getenv("DB_SERVICE_URL", "http://student-4-db:5204")
 SHARED_API_URL = os.getenv("SHARED_API_URL", "http://shared-api:5000")
@@ -171,7 +174,7 @@ def destinations_table(destinations, query):
     rows = "".join(destination_row(d) for d in destinations)
     return f"<div>{rows}</div>"
 
-def currency_subsection(info):
+def currency_subsection(destination_id, info):
     if info is None:
         return "<h4 style='margin:1.75rem 0 0.15rem 0'>Currency</h4><p class='muted'>No currency information yet.</p>"
 
@@ -179,6 +182,7 @@ def currency_subsection(info):
         "<h4 style='margin:1.75rem 0 0.15rem 0'>Currency</h4>"
         f"<p style='margin:0'>{escape(info['currency_code'])}, the {escape(info['currency_name'])}. "
         f"{escape(info['exchange_tips'])}</p>"
+        + live_rates_placeholder(destination_id)
     )
 
 TRANSPORT_TYPE_LABELS = {
@@ -335,7 +339,7 @@ def destination_detail(destination, currency, transportation, visa, weather, saf
     return (
         back_link
         + heading
-        + currency_subsection(currency)
+        + currency_subsection(destination["id"], currency)
         + transportation_section(destination["id"], transportation, None)
         + visa_section(destination["id"], visa, None)
         + weather_section(destination["id"], weather, None)
@@ -443,11 +447,11 @@ def guide_currency(destination_id):
         return error_fragment(DB_DOWN, exc), 503
 
     if response.status_code == 404:
-        return currency_subsection(None), 200
+        return currency_subsection(destination_id, None), 200
     if response.status_code != 200:
         return error_fragment(DB_DOWN), 503
 
-    return currency_subsection(response.json()), 200
+    return currency_subsection(destination_id, response.json()), 200
 
 @app.get("/guides/<int:destination_id>/safety")
 def guide_safety(destination_id):

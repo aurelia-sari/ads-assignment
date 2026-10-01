@@ -4,7 +4,8 @@ safety, unrelated, or other:<feature_name>.
 """
 
 GUIDE_CATEGORY_KEYWORDS = {
-    "currency": ["currency", "money", "exchange rate", "cash", "aud", "dollar", "jpy", "yen", "afford", "cost of"],
+    "currency": ["currency", "money", "exchange rate", "cash", "aud", "dollar", "jpy", "yen", "euro", "pound",
+                 "usd", "gbp", "afford", "cost of"],
     "weather": ["weather", "temperature", "rain", "rainfall", "climate", "forecast", "season", "hot", "cold", "snow"],
     "visa": ["visa", "passport", "entry requirement", "nationality", "immigration", "enter the country"],
     "transport": ["transport", "metro", "subway", "train", "shinkansen", "taxi", "rental", "getting around",

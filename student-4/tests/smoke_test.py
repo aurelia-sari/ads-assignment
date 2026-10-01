@@ -424,6 +424,42 @@ def run_ai_assistant_checks():
     logout(ai_user_id)
 
 
+def run_live_rate_checks(sydney_id, tokyo_id):
+    """CI sets GUIDES_LIVE_DATA=false, so there the disabled note is checked.
+    Locally the real Frankfurter rates are checked, or the unavailable note
+    if the internet is down."""
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}/currency/live", timeout=30)
+    state = response.json().get("status")
+    expect(state in ("ok", "disabled", "unavailable"), f"live rates report a known state ({state})")
+
+    if state == "disabled":
+        expect(status == 200, "live rates switched off still return 200")
+        html = _call(
+            "GET", f"{API_BASE}/guides/{sydney_id}/currency/live", headers={"HX-Request": "true"}
+        )[1].text
+        expect("switched off" in html, "the page says live rates are switched off")
+        return
+
+    if state == "unavailable":
+        expect(status == 503, "unreachable live rates return 503, not a crash")
+        html = _call(
+            "GET", f"{API_BASE}/guides/{sydney_id}/currency/live", headers={"HX-Request": "true"}
+        )[1].text
+        expect("could not be loaded" in html, "the page falls back to a clear note")
+        return
+
+    lines = response.json()["lines"]
+    expect(any(line.startswith("1 USD = ") and line.endswith(" AUD") for line in lines),
+           "Sydney shows the US dollar in Australian dollars")
+    expect(any(line.startswith("100 JPY = ") for line in lines), "Sydney shows the yen per 100")
+
+    status, response = _call("GET", f"{API_BASE}/guides/{tokyo_id}/currency/live", timeout=30)
+    expect(
+        any(line.startswith("1 AUD = ") and line.endswith(" JPY") for line in response.json().get("lines", [])),
+        "Tokyo shows the Australian dollar in yen",
+    )
+
+
 def run_mcp_rag_checks():
     status, response = _call("GET", f"{API_BASE}/ai-tools/status")
     expect(status == 200, "GET /ai-tools/status returns 200")
@@ -728,6 +764,11 @@ def run_checks():
     expect(status == 200, f"GET /guides/{sydney_id}/currency returns 200")
     expect("Currency" in response.text, "currency fragment has a Currency subheading")
     expect("AUD" in response.text, "currency fragment names the Australian Dollar code")
+    expect(
+        f"/guides/{sydney_id}/currency/live" in response.text,
+        "the currency section loads live rates separately, after the guide renders",
+    )
+    run_live_rate_checks(sydney_id, tokyo_id)
 
     status, response = _call("GET", f"{API_BASE}/guides/999999999/currency")
     expect(status == 200, "GET /guides/<unknown id>/currency still returns 200")
