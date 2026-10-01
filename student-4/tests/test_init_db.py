@@ -77,6 +77,38 @@ def test_every_destination_has_a_real_timezone(seeded):
         ZoneInfo(zone)
 
 
+def test_kansai_cities_have_their_own_jma_weather(seeded):
+    _, conn = seeded
+    rows = conn.execute(
+        "SELECT d.city, w.month, w.avg_temp, w.rainfall FROM weather_infos w "
+        "JOIN destinations d ON d.id = w.destination_id WHERE d.city IN ('Osaka', 'Kyoto', 'Nara')"
+    ).fetchall()
+    by_city = {}
+    for city, month, avg_temp, rainfall in rows:
+        by_city.setdefault(city, {})[month] = (avg_temp, rainfall)
+    assert by_city["Kyoto"]["July"] == (32, 224)
+    assert by_city["Osaka"]["September"] == (30, 153)
+    assert by_city["Nara"]["August"] == (33, 128)
+    assert len({tuple(sorted(months.items())) for months in by_city.values()}) == 3
+
+
+@pytest.mark.parametrize("city, month, figures", [
+    ("Sydney", "July", (18, 80)),
+    ("Melbourne", "June", (15, 50)),
+    ("Brisbane", "February", (30, 182)),
+    ("Perth", "July", (19, 147)),
+    ("Cairns", "February", (32, 476)),
+])
+def test_australian_cities_use_bureau_of_meteorology_averages(seeded, city, month, figures):
+    _, conn = seeded
+    row = conn.execute(
+        "SELECT w.avg_temp, w.rainfall FROM weather_infos w JOIN destinations d ON d.id = w.destination_id "
+        "WHERE d.city = ? AND w.month = ?",
+        (city, month),
+    ).fetchone()
+    assert row == figures
+
+
 def test_currency_follows_the_country(seeded):
     _, conn = seeded
     codes = dict(conn.execute(

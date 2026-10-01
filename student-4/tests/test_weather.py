@@ -17,8 +17,11 @@ import requests
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
 
 from app import app  # noqa: E402
+from agentic_loop.collectors import guide_collector  # noqa: E402
+from agentic_loop.core import orchestrator  # noqa: E402
 from agentic_loop.core.validator import validate_answer  # noqa: E402
-from agentic_loop.pipelines.guide_chat_pipeline import gather_guide_facts  # noqa: E402
+from agentic_loop.pipelines import guide_chat_pipeline  # noqa: E402
+from agentic_loop.pipelines.guide_chat_pipeline import gather_guide_facts, months_named, weather_checks  # noqa: E402
 from services import weather  # noqa: E402
 
 HTMX = {"HX-Request": "true"}
@@ -319,3 +322,79 @@ def test_ai_is_told_not_to_describe_current_weather_when_none_is_available(open_
     assert "do not describe current conditions or a forecast" in context
     assert "Now:" not in context
     assert fact_tokens == ["20", "22", "68", "77"]
+
+
+# A named month's figures only
+
+@pytest.mark.parametrize("question, named", [
+    ("What is the weather like in Nara in August?", {"August"}),
+    ("Is Kyoto hot in July or Aug?", {"July", "August"}),
+    ("How warm is Osaka in May?", {"May"}),
+    ("May I ask about the weather in Tokyo?", set()),
+    ("Is the market in Cairns hot?", set()),
+])
+def test_months_named_in_a_question(question, named):
+    assert months_named(question) == named
+
+
+def test_another_months_figures_are_rejected(open_meteo_calls):
+    question = "What is the weather like in Sydney in September?"
+    context, fact_tokens, _ = gather_guide_facts("weather", 1)
+    checks = weather_checks(question, context)
+    assert validate_answer("In September the high is about 20C with 68mm of rain.", fact_tokens, **checks)["valid"]
+    assert validate_answer("Right now it is 19C, and September averages 20C.", fact_tokens, **checks)["valid"]
+    assert validate_answer("In September the high is about 20C with 77mm of rain.", fact_tokens, **checks) == {
+        "valid": False, "reason": "unknown_figure"}
+
+
+def test_a_question_without_a_month_keeps_the_original_check(open_meteo_calls):
+    context, _, _ = gather_guide_facts("weather", 1)
+    assert weather_checks("When is the best time to visit Sydney?", context) == {}
+
+
+NARA = {"id": 18, "country": "Japan", "city": "Nara", "region": "Nara Prefecture",
+        "latitude": 34.6851, "longitude": 135.8048, "timezone": "Asia/Tokyo"}
+NARA_MONTHS = [
+    {"month": "July", "avg_temp": 32, "rainfall": 174, "best_visit_time": "July is hot and humid."},
+    {"month": "August", "avg_temp": 33, "rainfall": 128, "best_visit_time": "August is hot and humid."},
+]
+
+
+@pytest.fixture
+def nara_model(monkeypatch):
+    """Scripted model answers for a Nara weather question, with live weather off."""
+    monkeypatch.setattr(weather, "LIVE_DATA_ENABLED", False)
+    monkeypatch.setattr(guide_collector, "collect_redirect_map", lambda: [])
+    monkeypatch.setattr(guide_collector, "collect_destinations", lambda: [NARA])
+    monkeypatch.setattr(guide_collector, "collect_destination", lambda destination_id: NARA)
+    monkeypatch.setattr(guide_collector, "collect_weather", lambda destination_id: NARA_MONTHS)
+    answers = []
+    monkeypatch.setattr(guide_chat_pipeline, "ask_ai", lambda question, system, context: answers.pop(0))
+    return answers
+
+
+def ask_nara(question):
+    return orchestrator.run(question, lambda: NARA)
+
+
+def test_august_given_julys_rainfall_is_retried(nara_model):
+    nara_model.extend([
+        "In August Nara averages 33C with about 174mm of rainfall.",
+        "In August Nara averages 33C with about 128mm of rainfall.",
+    ])
+    result = ask_nara("What is the weather like in Nara in August?")
+    assert result["adapted"] is False
+    assert "128mm" in result["answer"]
+
+
+def test_two_wrong_month_answers_fall_back_to_the_guide_figures(nara_model):
+    nara_model.extend([
+        "In August Nara averages 33C with about 174mm of rainfall.",
+        "August in Nara is about 32C with 174mm of rain.",
+    ])
+    result = ask_nara("What is the weather like in Nara in August?")
+    assert result["adapted"] is True
+    assert result["answer"] == (
+        "Here is what the guide says for Nara, Japan. The average daytime high in August "
+        "is about 33°C, with around 128mm of rainfall."
+    )

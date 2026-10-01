@@ -41,6 +41,62 @@ def currency_checks(context):
     return {"forbidden": forbidden, "known_figures": figures_in(context)}
 
 
+MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+# "May" counts only after words like "in", since it is also a verb.
+MONTH_NAMED = re.compile(
+    r"\b(january|jan|february|feb|march|mar|april|apr|june|jun|july|jul|august|aug"
+    r"|september|sept|sep|october|oct|november|nov|december|dec)\b"
+    r"|\b(?:in|during|for|of|early|late|mid)\s+(may)\b",
+    re.IGNORECASE,
+)
+MONTH_LINE = re.compile(r"^- (\w+): average daytime high")
+
+
+def months_named(question):
+    named = set()
+    for match in MONTH_NAMED.finditer(question):
+        prefix = (match.group(1) or match.group(2)).lower()
+        named.add(next(month for month in MONTHS if month.lower().startswith(prefix)))
+    return named
+
+
+def weather_checks(question, context):
+    """When the question names a month, the answer may only quote that
+    month's figures or the live weather, not another month's, as in August
+    being given July's rainfall."""
+    named = months_named(question)
+    if not named:
+        return {}
+    allowed = [
+        line for line in context.splitlines()
+        if not (MONTH_LINE.match(line) and MONTH_LINE.match(line).group(1) not in named)
+    ]
+    return {"known_figures": figures_in("\n".join(allowed))}
+
+
+def guide_fallback(intent, question, destination):
+    """The guide's own text for a question the model failed twice. Returns
+    None when there is no short exact answer to quote."""
+    text = None
+    if intent == "currency":
+        info = guide_collector.collect_currency(destination["id"])
+        text = info and info["exchange_tips"]
+    elif intent == "weather":
+        named = months_named(question)
+        text = " ".join(
+            f"The average daytime high in {item['month']} is about {item['avg_temp']:g}°C, "
+            f"with around {item['rainfall']:g}mm of rainfall."
+            for item in guide_collector.collect_weather(destination["id"])
+            if item["month"] in named
+        )
+    if not text:
+        return None
+    return f"Here is what the guide says for {destination['city']}, {destination['country']}. {text}"
+
+
 def _weather_active_month(items, timezone_name):
     current_month = weather.local_month(timezone_name)
     matching = [item for item in items if item["month"] == current_month]
@@ -178,5 +234,9 @@ def run_guide_chat(question, intent, destination):
 
     answer = ask_ai(question=question, system=system_prompt, context=full_context)
 
-    checks = currency_checks(full_context) if intent == "currency" else {}
+    checks = {}
+    if intent == "currency":
+        checks = currency_checks(full_context)
+    elif intent == "weather":
+        checks = weather_checks(question, full_context)
     return {"answer": answer, "has_data": True, "fact_tokens": fact_tokens, "checks": checks}

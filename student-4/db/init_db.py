@@ -421,44 +421,51 @@ MONTHS = [
     "July", "August", "September", "October", "November", "December",
 ]
 
-# Average daily high (Celsius) and rainfall (mm) per month, rounded from
-# long-term averages. Japanese figures follow the JMA 1991 to 2020 normals.
-# Osaka, Kyoto and Nara share one profile since their figures differ by
-# about a degree.
+KANSAI_BEST_VISIT = (
+    "Late March to early April and November are the most popular months, for cherry "
+    "blossom and autumn leaves. July and August are hot and humid."
+)
+
+# Average daily high (Celsius) and rainfall (mm) per month, rounded from each
+# city's long-term station averages. Australian figures are Bureau of
+# Meteorology averages for Sydney Observatory Hill (1991 to 2020), Melbourne
+# CBD (1991 to 2015), Brisbane City (1999 to 2024), Perth Metro (1993 to 2020)
+# and Cairns Aero (1991 to 2020). Japanese figures are each city's JMA 1991 to
+# 2020 normals.
 WEATHER_PROFILES = {
     "sydney": (
         [
-            (26, 100), (26, 110), (25, 130), (22, 120), (19, 130), (17, 130),
-            (16, 100), (17, 80), (19, 70), (21, 80), (23, 90), (25, 80),
+            (27, 91), (27, 132), (26, 118), (24, 114), (21, 101), (18, 142),
+            (18, 80), (19, 75), (22, 63), (23, 68), (24, 91), (26, 73),
         ],
         "September to November and March to May bring warm days without summer humidity.",
     ),
     "melbourne": (
         [
-            (26, 47), (26, 47), (24, 42), (20, 55), (17, 56), (14, 50),
-            (14, 47), (15, 51), (17, 57), (20, 60), (22, 64), (24, 59),
+            (27, 44), (27, 50), (25, 39), (21, 53), (18, 44), (15, 50),
+            (15, 40), (16, 47), (18, 55), (21, 56), (23, 63), (25, 61),
         ],
         "March to May and November bring mild days, but the weather can change quickly "
         "within a single day.",
     ),
-    "subtropical": (
+    "brisbane": (
         [
-            (29, 140), (29, 150), (27, 120), (25, 80), (22, 70), (20, 60),
-            (19, 50), (20, 40), (23, 40), (25, 70), (27, 90), (28, 110),
+            (30, 141), (30, 182), (29, 129), (27, 61), (25, 70), (22, 57),
+            (22, 30), (24, 35), (26, 30), (27, 86), (28, 100), (30, 140),
         ],
         "April to October has warm days, lower humidity and less rain than summer.",
     ),
-    "mediterranean": (
+    "perth": (
         [
-            (30, 10), (30, 15), (28, 20), (24, 40), (21, 80), (18, 120),
-            (17, 120), (18, 90), (19, 60), (22, 40), (25, 20), (28, 15),
+            (31, 17), (32, 13), (30, 20), (26, 36), (22, 86), (20, 127),
+            (19, 147), (19, 123), (21, 79), (24, 40), (27, 24), (30, 9),
         ],
-        "September to November and March to May bring warm days with little rain.",
+        "March to April and October to November bring warm days with little rain.",
     ),
-    "tropical_wet_dry": (
+    "cairns": (
         [
-            (31, 400), (31, 380), (30, 320), (29, 150), (28, 60), (26, 30),
-            (26, 20), (27, 20), (28, 30), (30, 50), (31, 120), (31, 250),
+            (32, 389), (32, 476), (31, 367), (30, 178), (28, 81), (27, 43),
+            (26, 36), (27, 27), (29, 28), (30, 63), (31, 85), (32, 186),
         ],
         "May to October, the dry season, has sunny days and much less rain than summer.",
     ),
@@ -470,13 +477,26 @@ WEATHER_PROFILES = {
         "Late March to May and October to November are mild, with cherry blossom in spring "
         "and autumn leaves in November. June and early July are the rainy season.",
     ),
-    "kansai": (
+    "osaka": (
         [
-            (9, 50), (10, 63), (14, 105), (20, 110), (25, 145), (28, 195),
-            (32, 185), (34, 115), (29, 165), (23, 115), (17, 70), (12, 55),
+            (10, 47), (11, 61), (14, 103), (20, 102), (25, 137), (28, 185),
+            (32, 174), (34, 113), (30, 153), (24, 136), (18, 73), (12, 56),
         ],
-        "Late March to early April and November are the most popular months, for cherry "
-        "blossom and autumn leaves. July and August are hot and humid.",
+        KANSAI_BEST_VISIT,
+    ),
+    "kyoto": (
+        [
+            (9, 53), (10, 65), (14, 106), (20, 117), (25, 151), (28, 200),
+            (32, 224), (34, 154), (29, 179), (23, 143), (17, 74), (12, 57),
+        ],
+        KANSAI_BEST_VISIT,
+    ),
+    "nara": (
+        [
+            (9, 52), (10, 63), (14, 105), (20, 99), (25, 139), (28, 184),
+            (32, 174), (33, 128), (29, 159), (23, 135), (17, 71), (12, 57),
+        ],
+        KANSAI_BEST_VISIT,
     ),
     "hokkaido": (
         [
@@ -491,13 +511,13 @@ WEATHER_PROFILES = {
 WEATHER_PROFILE_BY_CITY = {
     "Sydney": "sydney",
     "Melbourne": "melbourne",
-    "Brisbane": "subtropical",
-    "Perth": "mediterranean",
-    "Cairns": "tropical_wet_dry",
+    "Brisbane": "brisbane",
+    "Perth": "perth",
+    "Cairns": "cairns",
     "Tokyo": "tokyo",
-    "Osaka": "kansai",
-    "Kyoto": "kansai",
-    "Nara": "kansai",
+    "Osaka": "osaka",
+    "Kyoto": "kyoto",
+    "Nara": "nara",
     "Sapporo": "hokkaido",
 }
 
