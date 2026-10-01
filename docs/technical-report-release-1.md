@@ -239,7 +239,7 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 
 | Workflow | Run link |
 |----------|----------|
-| student-1.yml | ⬜ TODO |
+| student-1.yml | ✅ [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP and RAG disabled |
 | student-2.yml | ⬜ TODO |
 | student-3.yml | ⬜ TODO |
 | student-4.yml | ⬜ Run link pending. Runs 13 pytest unit tests, then the smoke test asserts the disabled response for both servers |
@@ -259,11 +259,33 @@ validation activity, and identifiable commits._
 
 | Student | Contribution | Commits |
 |---------|-------------|---------|
-| student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 wiring | _TODO: list_ |
+| student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 MCP/RAG integration, CI disable switches, architecture diagrams | See 7.1 |
 | student-2 Kevin Kim | _TODO_ | |
 | student-3 Tanishpreet Kour | _TODO_ | |
 | student-4 Aurelia Sari | `feature/student-4-mcp-rag-integration` (PR #31) added the MCP and RAG proxy endpoints in `student-4/api`, the MCP Tools and Ask (grounded) tabs, 13 unit tests, MCP and RAG smoke checks and a pytest step in `student-4.yml`. `fix/rag-knowledge-accounts-guides` corrected the RAG knowledge for accounts and guides to match the real feature, with all 5 loop retrieval probes still hitting the expected source | "Add MCP and RAG proxy endpoints for student 4"<br>"Add MCP Tools and Ask (grounded) tabs and align Travel Guides page styling for student 4"<br>"Add MCP and RAG tests and CI unit test step for student 4"<br>"Correct RAG knowledge for accounts and travel guides" |
 | student-5 Aung Ko Khaing | _TODO_ | |
+
+### 7.1 student-1 - Caroline Zhou (Trips & Itinerary)
+
+Merged to `main` through four pull requests. PR #26 was squash-merged; its
+individual commits remain on the `release-1/shared-mcp-rag` branch.
+
+| Date | Area | Work | Commit |
+|------|------|------|--------|
+| 11 Sep | Group | Shared MCP server (:5400): six read-only tools over JSON-RPC, boundary enforcement. Shared RAG server (:5500): BM25 retrieval, citations, score-derived confidence, insufficient-context response | [`a486755`](https://github.com/aurelia-sari/ads-assignment/commit/a486755) |
+| 11 Sep | Group | Agentic loop MCP and RAG validation modes; AI-Mode, MCP, RAG and loop moved out of compose onto the host | [`ba7adbf`](https://github.com/aurelia-sari/ads-assignment/commit/ba7adbf) |
+| 11 Sep | Group + feature | MCP and RAG disabled in CI via `MCP_ENABLED`/`RAG_ENABLED`; removed ai-mode service dropped from all five workflows | [`ead51a8`](https://github.com/aurelia-sari/ads-assignment/commit/ead51a8) |
+| 11 Sep | Feature | student-1 frontend reaches MCP and RAG only through student-1-api: MCP tools and Ask (grounded) tabs | [`8e17d3a`](https://github.com/aurelia-sari/ads-assignment/commit/8e17d3a) |
+| 11 Sep | Group | Release 1 topology in the README; loop runs in both modes captured as evidence; this report's scaffold | [`e819bda`](https://github.com/aurelia-sari/ads-assignment/commit/e819bda), [`6d348d5`](https://github.com/aurelia-sari/ads-assignment/commit/6d348d5), [`a9c15d2`](https://github.com/aurelia-sari/ads-assignment/commit/a9c15d2) |
+| 11 Sep | Merge | PR #26 - all of the above | [`0bc3317`](https://github.com/aurelia-sari/ads-assignment/commit/0bc3317) |
+| 28 Sep | Feature | `AI_MODE_ENABLED` switch so AI-Mode is also disabled in CI, as the brief requires (PR #27) | [`45b6510`](https://github.com/aurelia-sari/ads-assignment/commit/45b6510) |
+| 28 Sep | Feature + validation | MCP and RAG tabs redesigned; panels moved inside the page shell; `get_trip_itinerary` result fixed; terminal validation of MCP and RAG, backend responses, CRUD smoke test and frontend screenshots captured (PR #28) | [`a925637`](https://github.com/aurelia-sari/ads-assignment/commit/a925637) |
+| 28 Sep | Group | Release 1 architecture and MCP/RAG flow diagrams (PR #29) | [`5534cde`](https://github.com/aurelia-sari/ads-assignment/commit/5534cde) |
+
+**Validation evidence:** `docs/evidence/release1-terminal-validation.md`,
+`docs/evidence/student-1-*.png`, `docs/evidence/agentic-loop-release1-mcp-mode.md`,
+`docs/evidence/agentic-loop-release1-rag-mode.md`. Passing `student-1.yml` run
+with AI-Mode, MCP and RAG disabled: [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872).
 
 ---
 
