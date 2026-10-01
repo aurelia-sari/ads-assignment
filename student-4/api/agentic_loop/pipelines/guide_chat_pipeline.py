@@ -2,12 +2,43 @@
 model (student-4, Aurelia Sari).
 """
 
+import re
+
 from agentic_loop.collectors import guide_collector
+from agentic_loop.core.validator import figures_in
 from services import exchange_rates, weather
 from services.ai_client import ask_ai
 from services.prompt_loader import load_prompt
 
 GUIDE_SOURCE_PATH = "/student-4/#guides"
+
+# Claims about paying that the model has made against the guide, such as
+# "you do not need cash in Sydney" or "cards work almost everywhere in Kyoto".
+NO_CASH_NEEDED = re.compile(
+    r"\b(do not|don't|won't|will not|never) (really |usually |generally )?need (any |to carry )?cash"
+    r"|\bno need (for|to carry) cash|\bcashless|\bcash is not (needed|necessary)",
+    re.IGNORECASE,
+)
+CARDS_EVERYWHERE = re.compile(
+    r"\bcards? (are|is) (accepted|taken) (almost |nearly |pretty much )?everywhere"
+    r"|\bcards? works? (almost |nearly |pretty much )?everywhere"
+    r"|\bpay(ing)? by card (almost |nearly |pretty much )?everywhere",
+    re.IGNORECASE,
+)
+GUIDE_SAYS_CARRY_CASH = re.compile(r"carry (a little |some )?cash|cash is (still )?common", re.IGNORECASE)
+GUIDE_SAYS_CARDS_EVERYWHERE = re.compile(r"cards are accepted almost everywhere", re.IGNORECASE)
+
+
+def currency_checks(context):
+    """Stricter checks for a currency answer, read from the same context the
+    model was given. It must not contradict the guide's payment advice, and
+    must not quote a figure, such as a rate, that the context does not hold."""
+    forbidden = []
+    if GUIDE_SAYS_CARRY_CASH.search(context):
+        forbidden.append(NO_CASH_NEEDED)
+    if not GUIDE_SAYS_CARDS_EVERYWHERE.search(context):
+        forbidden.append(CARDS_EVERYWHERE)
+    return {"forbidden": forbidden, "known_figures": figures_in(context)}
 
 
 def _weather_active_month(items, timezone_name):
@@ -147,4 +178,5 @@ def run_guide_chat(question, intent, destination):
 
     answer = ask_ai(question=question, system=system_prompt, context=full_context)
 
-    return {"answer": answer, "has_data": True, "fact_tokens": fact_tokens}
+    checks = currency_checks(full_context) if intent == "currency" else {}
+    return {"answer": answer, "has_data": True, "fact_tokens": fact_tokens, "checks": checks}

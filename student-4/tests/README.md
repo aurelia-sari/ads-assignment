@@ -151,11 +151,19 @@ a timeout and six kinds of bad response, the cache, keeping the last good
 forecast, the weather code labels, and the AI Assistant quoting the same
 figures as the page or being told not to describe current weather.
 
-The workflow runs all six files before the Docker build.
+`test_currency_validation.py` replaces the model with scripted answers. It
+checks that a currency answer contradicting the guide's payment advice is
+rejected, such as "you do not need cash in Sydney" or "cards work almost
+everywhere in Kyoto", that a rate missing from the context is rejected, that
+correct answers still pass, and that a second failed answer quotes the
+guide's own tip. It also checks that card and ATM questions count as
+currency questions.
+
+The workflow runs all seven files before the Docker build.
 
 ```bash
 python -m pip install -r student-4/tests/requirements.txt
-python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_currency_request.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py student-4/tests/test_weather.py
+python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_currency_request.py student-4/tests/test_currency_validation.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py student-4/tests/test_weather.py
 ```
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted
