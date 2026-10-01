@@ -168,6 +168,7 @@ def test_month_tab_swaps_only_the_typical_conditions(client, open_meteo_calls):
     html = client.get("/guides/1/weather?month=September").get_data(as_text=True)
     assert html.startswith("<div id='weather-months'>")
     assert "average daytime high in September" in html
+    assert "Long-term station averages" in html
     assert "weather/live" not in html
     assert open_meteo_calls == []
 

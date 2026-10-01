@@ -318,6 +318,7 @@ def weather_months(destination_id, items, active_month, timezone_name):
         f"<strong>{active_item['avg_temp']:g}°C</strong>, with around "
         f"<strong>{active_item['rainfall']:g}mm</strong> of rainfall.</p>"
         + f"<p class='muted'>{escape(active_item['best_visit_time'])}</p>"
+        + "<p class='muted wx-note'>Long-term station averages for each month, not live readings.</p>"
         + "</div>"
     )
 
