@@ -205,6 +205,8 @@ def gather_guide_facts(intent, destination_id):
         # isn't the current (default) month, so every month's figures are
         # valid facts, not just the active one.
         fact_tokens = [f"{item['avg_temp']:g}" for item in items] + [f"{item['rainfall']:g}" for item in items]
+        # A best time to visit answer may quote no figure at all.
+        fact_tokens += _distinctive_words(active["best_visit_time"])
         live_context, live_tokens = _live_weather_facts(destination)
         return f"{context}\n{live_context}", fact_tokens + live_tokens, True
 
