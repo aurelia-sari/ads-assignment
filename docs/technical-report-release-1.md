@@ -53,7 +53,7 @@ host.docker.internal in one direction, localhost in the other._
 
 _One short subsection per student: what their feature gained._
 
-- **student-1 - Caroline Zhou (Trips & Itinerary)** - _draft below, use as the shape_
+- **student-1 - Caroline Zhou (Trips & Itinerary)** - Trips & Itinerary reaches the shared MCP and RAG servers only through student-1-api. The MCP tools tab runs `list_trips` and `get_trip_itinerary` against student-1-db and shows boundary refusals by name. The Ask (grounded) tab answers trip-planning questions with citations and a confidence category, or an insufficient-context response. AI-Mode can now be switched off with `AI_MODE_ENABLED`, like MCP and RAG, so CI runs with all three disabled. Trip and itinerary CRUD and the Release 0 AI assistant are unchanged.
 - **student-2 - Kevin Kim (Attractions & Dining)** - _TODO_
 - **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
 - **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers travel guide questions with citations and a confidence badge. Sign-up, sign-in, the guide views and the Release 0 AI Assistant are unchanged.
@@ -247,8 +247,15 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 
 ### 6.5 Deployment via the Release 0 docker-compose.yml
 
-_Show compose still deploys all 18 containers, and that the backends carry the
-MCP/RAG connection configuration while neither is a compose service._
+`docker compose up` deploys 19 containers: the 18 application containers
+(shared frontend, API and database, plus each feature's frontend, backend/API
+and database) and `mailpit`, student-4's local email service. AI-Mode, the MCP
+server, the RAG server and the agentic loop do not appear in
+`docker compose config --services`. Every backend/API gets `AI_MODE_URL`,
+`MCP_SERVER_URL` and `RAG_SERVER_URL`, all pointing at `host.docker.internal`,
+from the shared `x-api-env` block, extending the connection approach Release 0
+used for AI-Mode. Evidence: `docs/evidence/release1-terminal-validation.md`
+section 5.
 
 ---
 
@@ -310,7 +317,8 @@ surfaced:_
 | R4-A | `lookup_destination_guide` matches city and country only, so a region such as "Queensland" returns no rows | Occasional | Low | The input hint suggests a city or country. Region search needs a student-4-db query change | Aurelia |
 | R4-B | The RAG knowledge for accounts and guides is hand-written, so it can drift from the code. It drifted once and was corrected in PR #32 | Occasional | Medium | Update the knowledge file with any feature change. The loop's RAG probes catch retrieval drift but not wrong facts | Aurelia |
 | R4-C | Release 0 guide endpoints return 503 error fragments, which HTMX does not swap, so a database outage shows nothing | Rare | Low | The Release 1 MCP and RAG endpoints return 200 notices to HTMX instead. The same fix can be applied to the guide endpoints | Aurelia |
-| R1-D | _TODO - add per-feature limitations_ | | | | |
+| R1-D | When a trip id is passed as live context, the small local model (llama3.2) sometimes cites an unrelated retrieved passage and leaves a stray citation marker, though the same question without a trip answers correctly | Occasional | Low | Live context is labelled separately from the cited passages. Ask without a trip for general questions; a larger model reduces it | Caroline |
+| R1-E | The local model occasionally replies that it cannot answer even though relevant passages were retrieved and cited (1 in 7 runs of the same question in testing). Retrieval and confidence are computed by code and stay correct; only the generated text varies | Occasional | Low | Asking again normally succeeds. A lower temperature or a larger model would reduce it | Caroline |
 
 ---
 
