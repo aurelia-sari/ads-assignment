@@ -4,8 +4,9 @@ User accounts and access logs live in shared-db (see shared/db/init_db.py)
 since a user's id and sign-in state are shared data every feature may need.
 
 This database owns the Travel Guides destinations: the cities a guide can be
-looked up for. The seed list mirrors the Australian cities already used as
-flight and hotel destinations in student-5 (Bookings & Budget).
+looked up for. The five Australian and five Japanese cities are the ones the
+other features already use, so a traveller can move between features for the
+same city.
 
 Runs at every container start, not at build time, so a seed change reaches an
 existing volume. It is safe to run repeatedly. Destination ids are fixed so
@@ -28,7 +29,9 @@ CREATE TABLE IF NOT EXISTS destinations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     country TEXT NOT NULL,
     city TEXT NOT NULL,
-    region TEXT NOT NULL
+    region TEXT NOT NULL,
+    latitude REAL,
+    longitude REAL
 )
 """)
 
@@ -48,7 +51,8 @@ CREATE TABLE IF NOT EXISTS transportation_infos (
     destination_id INTEGER NOT NULL REFERENCES destinations(id),
     type TEXT NOT NULL,
     description TEXT NOT NULL,
-    tips TEXT NOT NULL
+    tips TEXT NOT NULL,
+    bookable INTEGER NOT NULL DEFAULT 0
 )
 """)
 
@@ -67,6 +71,7 @@ CREATE TABLE IF NOT EXISTS weather_infos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     destination_id INTEGER NOT NULL REFERENCES destinations(id),
     month TEXT NOT NULL,
+    -- The average daily high, not the daily mean.
     avg_temp REAL NOT NULL,
     rainfall REAL NOT NULL,
     best_visit_time TEXT NOT NULL
@@ -113,6 +118,17 @@ CREATE TABLE IF NOT EXISTS feature_redirect_map (
 )
 """)
 
+# CREATE TABLE IF NOT EXISTS leaves an existing volume's tables as they were,
+# so columns added after Release 1 are added here.
+def add_column_if_missing(table, column, definition):
+    columns = {row[1] for row in cursor.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+add_column_if_missing("destinations", "latitude", "REAL")
+add_column_if_missing("destinations", "longitude", "REAL")
+add_column_if_missing("transportation_infos", "bookable", "INTEGER NOT NULL DEFAULT 0")
+
 cursor.execute("DELETE FROM feature_redirect_map")
 cursor.execute("DELETE FROM safety_infos")
 cursor.execute("DELETE FROM weather_infos")
@@ -121,26 +137,25 @@ cursor.execute("DELETE FROM transportation_infos")
 cursor.execute("DELETE FROM currency_infos")
 
 # Never reuse an id for a different city, or old chats would move to it.
+# Ids 5, 6 and 8 to 13 belonged to Australian cities removed after Release 1.
 destinations = [
-    (1, "Australia", "Sydney", "New South Wales"),
-    (2, "Australia", "Melbourne", "Victoria"),
-    (3, "Australia", "Brisbane", "Queensland"),
-    (4, "Australia", "Perth", "Western Australia"),
-    (5, "Australia", "Adelaide", "South Australia"),
-    (6, "Australia", "Gold Coast", "Queensland"),
-    (7, "Australia", "Cairns", "Queensland"),
-    (8, "Australia", "Canberra", "Australian Capital Territory"),
-    (9, "Australia", "Hobart", "Tasmania"),
-    (10, "Australia", "Darwin", "Northern Territory"),
-    (11, "Australia", "Sunshine Coast", "Queensland"),
-    (12, "Australia", "Launceston", "Tasmania"),
-    (13, "Australia", "Alice Springs", "Northern Territory"),
+    (1, "Australia", "Sydney", "New South Wales", -33.8688, 151.2093),
+    (2, "Australia", "Melbourne", "Victoria", -37.8136, 144.9631),
+    (3, "Australia", "Brisbane", "Queensland", -27.4698, 153.0251),
+    (4, "Australia", "Perth", "Western Australia", -31.9523, 115.8613),
+    (7, "Australia", "Cairns", "Queensland", -16.9186, 145.7781),
+    (14, "Japan", "Tokyo", "Tokyo", 35.6762, 139.6503),
+    (15, "Japan", "Osaka", "Osaka", 34.6937, 135.5023),
+    (16, "Japan", "Sapporo", "Hokkaido", 43.0618, 141.3545),
+    (17, "Japan", "Kyoto", "Kyoto", 35.0116, 135.7681),
+    (18, "Japan", "Nara", "Nara", 34.6851, 135.8048),
 ]
 
 cursor.executemany(
-    "INSERT INTO destinations (id, country, city, region) VALUES (?, ?, ?, ?) "
+    "INSERT INTO destinations (id, country, city, region, latitude, longitude) "
+    "VALUES (?, ?, ?, ?, ?, ?) "
     "ON CONFLICT(id) DO UPDATE SET country = excluded.country, city = excluded.city, "
-    "region = excluded.region",
+    "region = excluded.region, latitude = excluded.latitude, longitude = excluded.longitude",
     destinations,
 )
 
@@ -159,17 +174,25 @@ removed_chats = cursor.execute(
     "DELETE FROM guide_ai_chat_sessions WHERE destination_id NOT IN (SELECT id FROM destinations)"
 ).rowcount
 
-# Every seeded destination is in Australia, so they all share one currency.
-
-currency_infos = [
-    (
-        destination_id,
+CURRENCY_BY_COUNTRY = {
+    "Australia": (
         "AUD",
         "Australian Dollar",
         "Cards are accepted almost everywhere. Carry a little cash for small "
         "regional towns and markets. One AUD equals 100 cents.",
-    )
-    for destination_id in destination_ids
+    ),
+    "Japan": (
+        "JPY",
+        "Japanese Yen",
+        "Cash is still common, especially at small restaurants, shrines and "
+        "local shops. Most convenience store ATMs accept foreign cards. The yen "
+        "has no smaller unit in everyday use.",
+    ),
+}
+
+currency_infos = [
+    (destination_id, *CURRENCY_BY_COUNTRY[country])
+    for destination_id, country, *_ in destinations
 ]
 
 cursor.executemany(
@@ -178,136 +201,209 @@ cursor.executemany(
     currency_infos,
 )
 
-# Which transport modes each city actually has, so the frontend never has to
-# a mode and a booking button a city does not offer.
+# Which transport modes each city actually has, so the frontend never shows
+# a mode a city does not offer. Kyoto and Nara have no airport.
 TRANSPORT_TYPES_BY_CITY = {
     "Sydney": ["flights", "metro", "train", "taxi", "rental"],
     "Melbourne": ["flights", "metro", "train", "taxi", "rental"],
     "Brisbane": ["flights", "metro", "train", "taxi", "rental"],
     "Perth": ["flights", "metro", "train", "taxi", "rental"],
-    "Adelaide": ["flights", "metro", "train", "taxi", "rental"],
-    "Gold Coast": ["flights", "metro", "taxi", "rental"],
-    "Canberra": ["flights", "metro", "taxi", "rental"],
-    "Cairns": ["flights", "taxi", "rental"],
-    "Hobart": ["flights", "taxi", "rental"],
-    "Darwin": ["flights", "taxi", "rental"],
-    "Sunshine Coast": ["flights", "taxi", "rental"],
-    "Launceston": ["flights", "taxi", "rental"],
-    "Alice Springs": ["flights", "taxi", "rental"],
+    "Cairns": ["flights", "train", "taxi", "rental"],
+    "Tokyo": ["flights", "metro", "train", "taxi", "rental"],
+    "Osaka": ["flights", "metro", "train", "taxi", "rental"],
+    "Sapporo": ["flights", "metro", "train", "taxi", "rental"],
+    "Kyoto": ["metro", "train", "taxi", "rental"],
+    "Nara": ["train", "taxi", "rental"],
 }
 
-# Gold Coast and Canberra have light rail rather than a full metro network.
-LIGHT_RAIL_CITIES = {"Gold Coast", "Canberra"}
+# Only these cities have flights in student-5 (Bookings & Budget), so only
+# their Flights tab shows a Book flights button.
+FLIGHT_BOOKABLE_CITIES = {"Sydney", "Melbourne", "Brisbane", "Perth", "Cairns"}
 
-def flights_copy(city):
+AIRPORTS_BY_CITY = {
+    "Tokyo": "Haneda and Narita airports",
+    "Osaka": "Kansai and Itami airports",
+    "Sapporo": "New Chitose Airport",
+}
+
+# Train services differ too much between cities for one shared sentence.
+TRAIN_COPY_BY_CITY = {
+    "Cairns": (
+        "The Spirit of Queensland runs between Cairns and Brisbane, and the Kuranda "
+        "Scenic Railway climbs into the rainforest.",
+        "Reserve seats ahead for long distance trips, especially on weekends and public holidays.",
+    ),
+    "Tokyo": (
+        "Shinkansen bullet trains leave Tokyo Station for Kyoto, Osaka and other major "
+        "cities, and JR and private lines cover the wider Tokyo area.",
+        "Reserve shinkansen seats ahead for busy holiday periods such as Golden Week and New Year.",
+    ),
+    "Osaka": (
+        "Shinkansen trains stop at Shin-Osaka, and JR and private lines connect Osaka "
+        "with Kyoto, Nara and Kansai Airport.",
+        "Reserve shinkansen seats ahead for busy holiday periods such as Golden Week and New Year.",
+    ),
+    "Sapporo": (
+        "JR limited express trains connect Sapporo with New Chitose Airport and other "
+        "Hokkaido cities. The shinkansen does not reach Sapporo yet.",
+        "Snow can delay trains from December to February, so leave extra time.",
+    ),
+    "Kyoto": (
+        "Shinkansen trains stop at Kyoto Station, and the Haruka express runs to Kansai "
+        "Airport. Kyoto has no airport of its own, so most visitors fly into Kansai or "
+        "Itami in Osaka.",
+        "Buses near popular temples get very crowded, so trains are often quicker.",
+    ),
+    "Nara": (
+        "Kintetsu and JR trains connect Nara with Kyoto and Osaka in under an hour. Nara "
+        "has no airport or shinkansen station, so most visitors fly into Kansai or Itami "
+        "in Osaka.",
+        "Most sights are within walking distance of Kintetsu Nara Station.",
+    ),
+}
+
+def flights_copy(city, country):
+    if country == "Japan":
+        return (
+            f"{city} is served by {AIRPORTS_BY_CITY[city]}, with domestic and international flights.",
+            "Check airport train and bus times before a late arrival, since the last "
+            "connection into the city can leave early.",
+        )
     return (
         f"Regular domestic flights connect {city} to the major Australian airports.",
         "Book early for the best fares and arrive at least 60 minutes before a domestic flight.",
     )
 
-def metro_copy(city, light_rail):
-    network = "light rail line" if light_rail else "metro and suburban train network"
+def metro_copy(city, country):
+    if country == "Japan":
+        return (
+            f"{city} has a subway network that covers the main sights and stations.",
+            "A rechargeable IC card such as Suica or ICOCA works on the subway, trains "
+            "and buses, and in many convenience stores.",
+        )
     return (
-        f"{city} has a {network} connecting the city centre with the surrounding suburbs.",
+        f"{city} has a metro and suburban train network connecting the city centre with "
+        "the surrounding suburbs.",
         "Buy a reloadable transit card at the airport or a station for the cheapest fares.",
     )
 
 def train_copy(city):
+    if city in TRAIN_COPY_BY_CITY:
+        return TRAIN_COPY_BY_CITY[city]
     return (
         f"Regional and interstate trains connect {city} with nearby cities and towns.",
         "Reserve seats ahead for long distance trips, especially on weekends and public holidays.",
     )
 
-def taxi_copy(city):
+def taxi_copy(city, country):
+    if country == "Japan":
+        return (
+            f"Taxis are easy to find at stations and taxi ranks throughout {city}. The "
+            "rear doors open and close automatically.",
+            "Taxi apps such as GO work in the big cities, but rideshare services are limited in Japan.",
+        )
     return (
         f"Taxis and rideshare services operate throughout {city} and are easy to find near the "
         "airport and the city centre.",
         "Rideshare apps often work out cheaper than a metered taxi for short trips.",
     )
 
-def rental_copy(city):
+def rental_copy(city, country):
+    if country == "Japan":
+        return (
+            f"Rental cars are available near {city}'s main stations and are most useful for "
+            "trips outside the city.",
+            "Japan drives on the left. Most visitors need an International Driving Permit, "
+            "and some licences need an official Japanese translation instead.",
+        )
     return (
         f"Rental cars are available at {city} airport and in the city centre for exploring at your own pace.",
         "An international licence and a credit card are required for most rental car bookings.",
     )
 
 transportation_infos = []
-for destination_id, country, city, region in destinations:
+for destination_id, country, city, *_ in destinations:
     for transport_type in TRANSPORT_TYPES_BY_CITY[city]:
         if transport_type == "flights":
-            description, tips = flights_copy(city)
+            description, tips = flights_copy(city, country)
         elif transport_type == "metro":
-            description, tips = metro_copy(city, light_rail=city in LIGHT_RAIL_CITIES)
+            description, tips = metro_copy(city, country)
         elif transport_type == "train":
             description, tips = train_copy(city)
         elif transport_type == "taxi":
-            description, tips = taxi_copy(city)
+            description, tips = taxi_copy(city, country)
         else:
-            description, tips = rental_copy(city)
-        transportation_infos.append((destination_id, transport_type, description, tips))
+            description, tips = rental_copy(city, country)
+        bookable = int(transport_type == "flights" and city in FLIGHT_BOOKABLE_CITIES)
+        transportation_infos.append((destination_id, transport_type, description, tips, bookable))
 
 cursor.executemany(
-    "INSERT INTO transportation_infos (destination_id, type, description, tips) VALUES (?, ?, ?, ?)",
+    "INSERT INTO transportation_infos (destination_id, type, description, tips, bookable) "
+    "VALUES (?, ?, ?, ?, ?)",
     transportation_infos,
 )
 
-# Visa rules are set by Australia's immigration system, not by which city a
-# traveller lands in, so every destination shares the same set of
-# nationalities and requirements.
-VISA_INFO_BY_NATIONALITY = [
-    (
-        "Australia",
-        "Not required",
-        "Australian citizens do not need a visa to enter their own country.",
-    ),
-    (
-        "New Zealand",
-        "Visa on arrival",
-        "New Zealand passport holders are granted a Special Category Visa on arrival, "
-        "allowing a stay of up to three months.",
-    ),
-    (
-        "United Kingdom",
-        "Electronic visa (eVisitor)",
-        "Apply online for a free eVisitor visa before you travel. It usually allows "
-        "stays of up to three months per visit.",
-    ),
-    (
-        "Germany",
-        "Electronic visa (eVisitor)",
-        "Apply online for a free eVisitor visa before you travel. It usually allows "
-        "stays of up to three months per visit.",
-    ),
-    (
-        "United States",
-        "Electronic travel authority (ETA)",
-        "Apply through the official app for an ETA before you travel. There is a "
-        "small service fee and it usually allows stays of up to three months per visit.",
-    ),
-    (
-        "Singapore",
-        "Electronic travel authority (ETA)",
-        "Apply through the official app for an ETA before you travel. There is a "
-        "small service fee and it usually allows stays of up to three months per visit.",
-    ),
-    (
-        "China",
-        "Visa required in advance",
-        "Apply for a visitor visa before you travel. Processing can take several "
-        "weeks, so apply well ahead of your trip.",
-    ),
-    (
-        "Indonesia",
-        "Visa required in advance",
-        "Apply for a visitor visa before you travel. Processing can take several "
-        "weeks, so apply well ahead of your trip.",
-    ),
-]
+# Visa rules are set by each country's immigration system, not by the city a
+# traveller lands in, so every city in a country shares one list. The rules
+# are indicative and change over time.
+ETA_NOTES = (
+    "Apply through the official app for an ETA before you travel. There is a "
+    "small service fee and it usually allows stays of up to three months per visit."
+)
+EVISITOR_NOTES = (
+    "Apply online for a free eVisitor visa before you travel. It usually allows "
+    "stays of up to three months per visit."
+)
+AUSTRALIA_VISA_REQUIRED_NOTES = (
+    "Apply for a visitor visa before you travel. Processing can take several "
+    "weeks, so apply well ahead of your trip."
+)
+
+VISA_INFO_BY_COUNTRY = {
+    "Australia": [
+        ("Australia", "Not required",
+         "Australian citizens do not need a visa to enter their own country."),
+        ("New Zealand", "Visa on arrival",
+         "New Zealand passport holders are granted a Special Category Visa on arrival, "
+         "allowing a stay of up to three months."),
+        ("United Kingdom", "Electronic visa (eVisitor)", EVISITOR_NOTES),
+        ("Germany", "Electronic visa (eVisitor)", EVISITOR_NOTES),
+        ("United States", "Electronic travel authority (ETA)", ETA_NOTES),
+        ("Singapore", "Electronic travel authority (ETA)", ETA_NOTES),
+        ("Japan", "Electronic travel authority (ETA)", ETA_NOTES),
+        ("China", "Visa required in advance", AUSTRALIA_VISA_REQUIRED_NOTES),
+        ("Indonesia", "Visa required in advance", AUSTRALIA_VISA_REQUIRED_NOTES),
+    ],
+    "Japan": [
+        ("Japan", "Not required",
+         "Japanese citizens do not need a visa to enter their own country."),
+        ("Australia", "Visa exempt",
+         "Australian passport holders can visit Japan for tourism for up to 90 days without a visa."),
+        ("New Zealand", "Visa exempt",
+         "New Zealand passport holders can visit Japan for tourism for up to 90 days without a visa."),
+        ("United Kingdom", "Visa exempt",
+         "British passport holders can visit Japan for tourism for up to 90 days without a visa. "
+         "The stay can be extended to six months at an immigration office."),
+        ("Germany", "Visa exempt",
+         "German passport holders can visit Japan for tourism for up to 90 days without a visa. "
+         "The stay can be extended to six months at an immigration office."),
+        ("United States", "Visa exempt",
+         "United States passport holders can visit Japan for tourism for up to 90 days without a visa."),
+        ("Singapore", "Visa exempt",
+         "Singapore passport holders can visit Japan for tourism for up to 30 days without a visa."),
+        ("China", "Visa required in advance",
+         "Apply for a visitor visa through a Japanese embassy or an approved agency before you "
+         "travel. Allow several weeks for processing."),
+        ("Indonesia", "Visa waiver registration",
+         "Holders of an Indonesian ePassport can register for a visa waiver before travel and "
+         "stay up to 15 days. Other passport holders need a visa in advance."),
+    ],
+}
 
 visa_requirements = [
     (destination_id, nationality, requirement_type, notes)
-    for destination_id in destination_ids
-    for nationality, requirement_type, notes in VISA_INFO_BY_NATIONALITY
+    for destination_id, country, *_ in destinations
+    for nationality, requirement_type, notes in VISA_INFO_BY_COUNTRY[country]
 ]
 
 cursor.executemany(
@@ -321,22 +417,25 @@ MONTHS = [
     "July", "August", "September", "October", "November", "December",
 ]
 
-# Average temperature (Celsius) and rainfall (mm) per month, Southern
-# Hemisphere seasons, grouped by climate rather than repeated per city.
+# Average daily high (Celsius) and rainfall (mm) per month, rounded from
+# long-term averages. Japanese figures follow the JMA 1991 to 2020 normals.
+# Osaka, Kyoto and Nara share one profile since their figures differ by
+# about a degree.
 WEATHER_PROFILES = {
-    "mild_temperate": (
+    "sydney": (
         [
             (26, 100), (26, 110), (25, 130), (22, 120), (19, 130), (17, 130),
             (16, 100), (17, 80), (19, 70), (21, 80), (23, 90), (25, 80),
         ],
         "September to November and March to May bring warm days without summer humidity.",
     ),
-    "cool_temperate": (
+    "melbourne": (
         [
-            (17, 45), (17, 40), (16, 50), (14, 55), (11, 55), (9, 55),
-            (8, 55), (9, 50), (11, 55), (13, 60), (14, 55), (16, 50),
+            (26, 47), (26, 47), (24, 42), (20, 55), (17, 56), (14, 50),
+            (14, 47), (15, 51), (17, 57), (20, 60), (22, 64), (24, 59),
         ],
-        "December to February has the warmest and driest weather for outdoor activities.",
+        "March to May and November bring mild days, but the weather can change quickly "
+        "within a single day.",
     ),
     "subtropical": (
         [
@@ -359,33 +458,47 @@ WEATHER_PROFILES = {
         ],
         "May to October, the dry season, has sunny days and much less rain than summer.",
     ),
-    "arid": (
+    "tokyo": (
         [
-            (36, 40), (35, 45), (32, 30), (27, 15), (22, 15), (19, 15),
-            (19, 10), (22, 10), (27, 10), (31, 20), (33, 30), (35, 40),
+            (10, 60), (11, 57), (14, 116), (19, 134), (24, 140), (26, 168),
+            (30, 156), (31, 155), (28, 225), (22, 235), (17, 96), (12, 58),
         ],
-        "May to September has mild days and cold nights, avoiding the extreme summer heat.",
+        "Late March to May and October to November are mild, with cherry blossom in spring "
+        "and autumn leaves in November. June and early July are the rainy season.",
+    ),
+    "kansai": (
+        [
+            (9, 50), (10, 63), (14, 105), (20, 110), (25, 145), (28, 195),
+            (32, 185), (34, 115), (29, 165), (23, 115), (17, 70), (12, 55),
+        ],
+        "Late March to early April and November are the most popular months, for cherry "
+        "blossom and autumn leaves. July and August are hot and humid.",
+    ),
+    "hokkaido": (
+        [
+            (0, 108), (0, 92), (5, 78), (12, 55), (18, 56), (22, 60),
+            (25, 91), (26, 127), (23, 142), (16, 110), (9, 114), (2, 115),
+        ],
+        "June to August is mild and fairly dry for sightseeing. December to February "
+        "brings heavy snow, good skiing and the Sapporo Snow Festival in February.",
     ),
 }
 
 WEATHER_PROFILE_BY_CITY = {
-    "Sydney": "mild_temperate",
-    "Melbourne": "mild_temperate",
-    "Adelaide": "mild_temperate",
-    "Canberra": "cool_temperate",
-    "Hobart": "cool_temperate",
-    "Launceston": "cool_temperate",
+    "Sydney": "sydney",
+    "Melbourne": "melbourne",
     "Brisbane": "subtropical",
-    "Gold Coast": "subtropical",
-    "Sunshine Coast": "subtropical",
     "Perth": "mediterranean",
     "Cairns": "tropical_wet_dry",
-    "Darwin": "tropical_wet_dry",
-    "Alice Springs": "arid",
+    "Tokyo": "tokyo",
+    "Osaka": "kansai",
+    "Kyoto": "kansai",
+    "Nara": "kansai",
+    "Sapporo": "hokkaido",
 }
 
 weather_infos = []
-for destination_id, country, city, region in destinations:
+for destination_id, country, city, *_ in destinations:
     monthly_figures, best_visit_time = WEATHER_PROFILES[WEATHER_PROFILE_BY_CITY[city]]
     for month, (avg_temp, rainfall) in zip(MONTHS, monthly_figures):
         weather_infos.append((destination_id, month, avg_temp, rainfall, best_visit_time))
@@ -396,10 +509,11 @@ cursor.executemany(
     weather_infos,
 )
 
-# Use Australia's official government travel advisory for the whole country
-# one safety level, so only the tips vary, by what actually differs city to
-# city (surf, wildlife, heat, weather).
+# Australia's Smartraveller advisory currently gives Japan its lowest level,
+# the same level used here for Australia, so only the tips vary by city.
 SAFETY_LEVEL = "Exercise normal safety precautions"
+
+EARTHQUAKE_TIP = "Earthquakes can happen at any time, so learn the exit routes where you stay."
 
 SAFETY_TIPS_BY_CITY = {
     "Sydney": "Take care of surf conditions and rips at ocean beaches. Watch your "
@@ -410,29 +524,23 @@ SAFETY_TIPS_BY_CITY = {
                 "levels are high for most of the year.",
     "Perth": "Summer heat can be intense, so stay hydrated and use sun protection. "
              "Ocean currents can be strong at unpatrolled beaches.",
-    "Adelaide": "Summer heatwaves can be extreme, so stay hydrated and avoid the "
-                "midday sun. Take care crossing tram tracks in the city centre.",
-    "Gold Coast": "Swim between the flags at patrolled beaches, since surf conditions "
-                  "can be strong. Use sun protection year round.",
     "Cairns": "Do not swim in the ocean during stinger season without a protective "
               "suit. Only swim in patrolled, netted areas.",
-    "Canberra": "Winters can be cold with occasional frost, so pack warm clothing. "
-                "Watch for wildlife on roads at dawn and dusk.",
-    "Hobart": "Weather can turn cold and wet quickly, even in summer, so pack layers. "
-              "Take care on unmarked bushwalking trails.",
-    "Darwin": "Do not swim in rivers, waterholes or the ocean without checking for "
-              "crocodile warnings. The wet season brings heavy storms.",
-    "Sunshine Coast": "Swim between the flags at patrolled beaches, since surf "
-                       "conditions can be strong. Use sun protection year round.",
-    "Launceston": "Weather can turn cold and wet quickly, even in summer, so pack "
-                  "layers. Take care on unmarked bushwalking trails.",
-    "Alice Springs": "Carry plenty of water and tell someone your plans before remote "
-                      "bushwalks. Summer heat can be extreme, so avoid the midday sun.",
+    "Tokyo": f"{EARTHQUAKE_TIP} In nightlife areas such as Kabukicho and Roppongi, watch "
+             "for drink spiking and inflated bar bills.",
+    "Osaka": f"{EARTHQUAKE_TIP} Typhoons are most likely from August to October, so check "
+             "the forecast before day trips.",
+    "Sapporo": "Footpaths and roads are icy in winter, so wear shoes with good grip. Check "
+               "avalanche warnings before skiing off the marked runs.",
+    "Kyoto": "Summer heat can be intense, so stay hydrated. Popular temples and lanes get "
+             "very crowded, so watch your belongings and follow the no photography signs in Gion.",
+    "Nara": "The park deer are wild and can bite or butt when they expect food, so do not "
+            f"tease them. {EARTHQUAKE_TIP}",
 }
 
 safety_infos = [
     (destination_id, SAFETY_LEVEL, SAFETY_TIPS_BY_CITY[city])
-    for destination_id, country, city, region in destinations
+    for destination_id, country, city, *_ in destinations
 ]
 
 cursor.executemany(

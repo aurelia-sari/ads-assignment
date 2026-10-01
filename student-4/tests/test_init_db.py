@@ -52,9 +52,72 @@ def seeded(tmp_path):
 def test_destinations_get_fixed_ids(seeded):
     _, conn = seeded
     ids = dict(conn.execute("SELECT city, id FROM destinations"))
-    assert ids["Sydney"] == 1
-    assert ids["Melbourne"] == 2
-    assert ids["Alice Springs"] == 13
+    assert ids == {
+        "Sydney": 1, "Melbourne": 2, "Brisbane": 3, "Perth": 4, "Cairns": 7,
+        "Tokyo": 14, "Osaka": 15, "Sapporo": 16, "Kyoto": 17, "Nara": 18,
+    }
+
+
+def test_every_destination_has_coordinates(seeded):
+    _, conn = seeded
+    missing = conn.execute(
+        "SELECT city FROM destinations WHERE latitude IS NULL OR longitude IS NULL"
+    ).fetchall()
+    assert missing == []
+
+
+def test_currency_follows_the_country(seeded):
+    _, conn = seeded
+    codes = dict(conn.execute(
+        "SELECT d.city, c.currency_code FROM currency_infos c JOIN destinations d ON d.id = c.destination_id"
+    ))
+    assert codes["Sydney"] == "AUD"
+    assert codes["Tokyo"] == "JPY"
+
+
+def test_only_student_5_cities_can_book_flights(seeded):
+    _, conn = seeded
+    bookable = {row[0] for row in conn.execute(
+        "SELECT d.city FROM transportation_infos t JOIN destinations d ON d.id = t.destination_id "
+        "WHERE t.bookable = 1"
+    )}
+    assert bookable == {"Sydney", "Melbourne", "Brisbane", "Perth", "Cairns"}
+    assert conn.execute(
+        "SELECT COUNT(*) FROM transportation_infos WHERE bookable = 1 AND type != 'flights'"
+    ).fetchone()[0] == 0
+
+
+def test_cities_without_an_airport_have_no_flights_tab(seeded):
+    _, conn = seeded
+    types = {row[0] for row in conn.execute(
+        "SELECT t.type FROM transportation_infos t JOIN destinations d ON d.id = t.destination_id "
+        "WHERE d.city = 'Nara'"
+    )}
+    assert types == {"train", "taxi", "rental"}
+
+
+def test_seed_upgrades_a_release_1_database(tmp_path):
+    # The shape an existing student_4_db_data volume has before this change.
+    conn = sqlite3.connect(tmp_path / "student4.db")
+    conn.executescript("""
+        CREATE TABLE destinations (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            country TEXT NOT NULL, city TEXT NOT NULL, region TEXT NOT NULL);
+        CREATE TABLE transportation_infos (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            destination_id INTEGER NOT NULL, type TEXT NOT NULL,
+            description TEXT NOT NULL, tips TEXT NOT NULL);
+        INSERT INTO destinations VALUES (1, 'Australia', 'Sydney', 'New South Wales');
+        INSERT INTO destinations VALUES (13, 'Australia', 'Alice Springs', 'Northern Territory');
+    """)
+    conn.commit()
+    conn.close()
+
+    conn = run_seed(tmp_path)
+    cities = dict(conn.execute("SELECT id, city FROM destinations"))
+    bookable = conn.execute("SELECT COUNT(*) FROM transportation_infos WHERE bookable = 1").fetchone()[0]
+    conn.close()
+    assert cities[1] == "Sydney"
+    assert 13 not in cities
+    assert bookable == 5
 
 
 def test_reseed_is_idempotent(seeded):
