@@ -56,8 +56,18 @@ _One short subsection per student: what their feature gained._
 - **student-1 - Caroline Zhou (Trips & Itinerary)** - _draft below, use as the shape_
 - **student-2 - Kevin Kim (Attractions & Dining)** - _TODO_
 - **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
-- **student-4 - Aurelia Sari (Accounts & Guides)** - _TODO_
+- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers travel guide questions with citations and a confidence badge. Sign-up, sign-in, the guide views and the Release 0 AI Assistant are unchanged.
 - **student-5 - Aung Ko Khaing (Bookings & Budget)** - _TODO_
+
+#### student-4 requirements
+
+| ID | Requirement |
+|----|-------------|
+| R4-1 | `POST /mcp/destination-guide` proxies `lookup_destination_guide` and returns the structured result, including boundary refusals |
+| R4-2 | `POST /rag/ask` returns the grounded answer, citations, confidence and the insufficient-context reply |
+| R4-3 | With `MCP_ENABLED` or `RAG_ENABLED` set to false, the endpoint returns a clear disabled response and makes no network call |
+| R4-4 | An unreachable server returns a clear unavailable response, never a crash. `GET /ai-tools/status` reports each server's state |
+| R4-5 | Release 0 guides, accounts and AI Assistant keep working, and CI runs with MCP and RAG disabled |
 
 ---
 
@@ -160,7 +170,7 @@ retrieval and grounded-response process, and the MCP tool layer._
 
 ### 5.3 RAG retrieval and grounding
 
-_Knowledge sources: 7 curated markdown files, 31 chunks. BM25, no embedding
+_Knowledge sources: 7 curated markdown files, 45 chunks. BM25, no embedding
 model - justify: explainable citations, instant start on 8 GB, no extra model
 dependency._
 
@@ -173,6 +183,26 @@ model, because a small local model answers "high" almost unconditionally.
 | `medium` | top score >= 4.0 **and** coverage >= 40% |
 | `low` | above the 2.5 relevance floor but below medium |
 | `insufficient` | nothing clears the relevance floor - no model call is made |
+
+### 5.4 student-4 integration
+
+```mermaid
+flowchart LR
+    subgraph Docker["Docker Compose"]
+        UI["student-4-frontend<br/>MCP tools, Ask (grounded)"] -->|"/api/student-4"| API["student-4-api<br/>ai_tools blueprint"]
+        DB[("student-4-db")]
+    end
+    subgraph Host["Host, not containerised"]
+        MCP["MCP server :5400<br/>lookup_destination_guide"]
+        RAG["RAG server :5500<br/>BM25, citations, confidence"]
+        AI["AI-Mode :5300, Ollama"]
+    end
+    API -->|"tools/call"| MCP -->|"GET /destinations"| DB
+    API -->|"POST /ask"| RAG --> AI
+    API -.->|"flag false"| OFF["Disabled response,<br/>no network call"]
+```
+
+The browser only ever calls student-4-api. When `MCP_ENABLED` or `RAG_ENABLED` is false, the endpoint returns a disabled response without making any network call. An unreachable server gives an unavailable notice. The Release 0 guides and accounts never depend on the host AI services.
 
 ---
 
@@ -190,7 +220,7 @@ showing citations + confidence._
 | student-1 | ✅ captured | ✅ captured |
 | student-2 | ⬜ TODO | ⬜ TODO |
 | student-3 | ⬜ TODO | ⬜ TODO |
-| student-4 | ⬜ TODO | ⬜ TODO |
+| student-4 | ⬜ MCP Tools tab built, screenshot pending | ⬜ Ask (grounded) tab built, screenshot pending |
 | student-5 | ⬜ TODO | ⬜ TODO |
 
 ### 6.2 Local terminal validation
@@ -212,7 +242,7 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 | student-1.yml | ⬜ TODO |
 | student-2.yml | ⬜ TODO |
 | student-3.yml | ⬜ TODO |
-| student-4.yml | ⬜ TODO |
+| student-4.yml | ⬜ Run link pending. Runs 13 pytest unit tests, then the smoke test asserts the disabled response for both servers |
 | student-5.yml | ⬜ TODO |
 
 ### 6.5 Deployment via the Release 0 docker-compose.yml
@@ -232,7 +262,7 @@ validation activity, and identifiable commits._
 | student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 wiring | _TODO: list_ |
 | student-2 Kevin Kim | _TODO_ | |
 | student-3 Tanishpreet Kour | _TODO_ | |
-| student-4 Aurelia Sari | _TODO_ | |
+| student-4 Aurelia Sari | `feature/student-4-mcp-rag-integration` (PR #31) added the MCP and RAG proxy endpoints in `student-4/api`, the MCP Tools and Ask (grounded) tabs, 13 unit tests, MCP and RAG smoke checks and a pytest step in `student-4.yml`. `fix/rag-knowledge-accounts-guides` corrected the RAG knowledge for accounts and guides to match the real feature, with all 5 loop retrieval probes still hitting the expected source | "Add MCP and RAG proxy endpoints for student 4"<br>"Add MCP Tools and Ask (grounded) tabs and align Travel Guides page styling for student 4"<br>"Add MCP and RAG tests and CI unit test step for student 4"<br>"Correct RAG knowledge for accounts and travel guides" |
 | student-5 Aung Ko Khaing | _TODO_ | |
 
 ---
@@ -255,6 +285,9 @@ surfaced:_
 | R1-A | The loop's OBSERVE step sometimes asserts facts not present in the collected evidence - one MCP run claimed `allow: get` appears in `nginx.conf`, which it never saw. The ACT evidence is collected by code and is accurate; the model's commentary drifts | Occasional | Low | Read ACT evidence as authoritative; OBSERVE is commentary. A larger review model reduces it | Caroline |
 | R1-B | BM25 retrieval matches terms, not meaning - a question phrased entirely in synonyms of the corpus wording can fall below the relevance floor and be refused despite being covered | Occasional | Medium | Confidence and the refusal are honest about it; an embedding retriever is the fix if it proves to matter | Caroline |
 | R1-C | The local AI services must be started separately from `docker compose up`. `dev.sh up` does it, but starting compose by hand leaves every AI path failing | Certain, by design | Low | Required by the brief - they cannot be compose services. Frontends show a clear unreachable notice naming the fix | Group |
+| R4-A | `lookup_destination_guide` matches city and country only, so a region such as "Queensland" returns no rows | Occasional | Low | The input hint suggests a city or country. Region search needs a student-4-db query change | Aurelia |
+| R4-B | The RAG knowledge for accounts and guides is hand-written, so it can drift from the code. It drifted once and was corrected in PR #32 | Occasional | Medium | Update the knowledge file with any feature change. The loop's RAG probes catch retrieval drift but not wrong facts | Aurelia |
+| R4-C | Release 0 guide endpoints return 503 error fragments, which HTMX does not swap, so a database outage shows nothing | Rare | Low | The Release 1 MCP and RAG endpoints return 200 notices to HTMX instead. The same fix can be applied to the guide endpoints | Aurelia |
 | R1-D | _TODO - add per-feature limitations_ | | | | |
 
 ---

@@ -12,23 +12,59 @@ from agentic_loop.core.classifier import classify_intent
 from agentic_loop.core.validator import validate_answer
 from agentic_loop.pipelines.guide_chat_pipeline import GUIDE_SOURCE_PATH, run_guide_chat
 
-UNRELATED_MESSAGE = (
-    "I can only help with a destination's currency, transportation, visa, "
-    "weather and safety guide. Ask me about one of those, naming a city."
-)
+GUIDE_TOPICS = "currency, transportation, visa, weather and safety"
 
-NO_CITY_MESSAGE = "Which city would you like to know about? Try naming one, like Sydney or Cairns."
+
+def _join(items):
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _coverage():
+    """Names every seeded city by country, read from the database so it
+    always matches the guides that exist."""
+    by_country = {}
+    destinations = guide_collector.collect_destinations()
+    for destination in sorted(destinations, key=lambda d: (d["country"], d["city"])):
+        by_country.setdefault(destination["country"], []).append(destination["city"])
+    return _join([f"{country} ({_join(cities)})" for country, cities in by_country.items()]) if by_country else ""
+
+
+def unrelated_message():
+    coverage = _coverage()
+    where = f" for {coverage}" if coverage else ""
+    return f"I can only help with the {GUIDE_TOPICS} guide{where}. Ask me about one of those, naming a city."
+
+
+# Also covers a city or country without a guide, since an unknown place
+# name cannot be told apart from no place name at all.
+def no_city_message():
+    coverage = _coverage()
+    if not coverage:
+        return "Which city would you like to know about?"
+    return f"I only have guides for {coverage}. Which of these cities would you like to know about?"
 
 
 def run(question, resolve_destination):
-    """resolve_destination is only called for a guide-category question,
-    since other intents (another feature, unrelated) need no destination.
+    """resolve_destination is not called for another feature's question,
+    since a redirect needs no destination.
     """
     redirect_map = guide_collector.collect_redirect_map()
     intent, redirect_row = classify_intent(question, redirect_map)
 
     if intent == "unrelated":
-        return {"intent": intent, "answer": UNRELATED_MESSAGE, "adapted": False}
+        # A bare city name, often a reply to the no city prompt, starts a
+        # session for that city so the follow up topic question uses it.
+        destination = resolve_destination()
+        if destination is not None and destination["city"].lower() in question.lower():
+            return {
+                "intent": intent,
+                "answer": (
+                    f"What would you like to know about {destination['city']}, "
+                    f"{destination['country']}? I can help with its {GUIDE_TOPICS}."
+                ),
+                "adapted": True,
+            }
+        return {"intent": intent, "answer": unrelated_message(), "adapted": False}
 
     if intent.startswith("other:"):
         feature_name = redirect_row["feature_name"]
@@ -42,7 +78,7 @@ def run(question, resolve_destination):
 
     destination = resolve_destination()
     if destination is None:
-        return {"intent": intent, "answer": NO_CITY_MESSAGE, "adapted": True}
+        return {"intent": intent, "answer": no_city_message(), "adapted": True}
 
     destination_label = f"{destination['city']}, {destination['country']}"
     result = run_guide_chat(question, intent, destination)

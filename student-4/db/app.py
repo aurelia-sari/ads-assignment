@@ -61,7 +61,7 @@ def list_destinations():
 def get_destination(destination_id):
     conn = get_db_connection()
     row = conn.execute(
-        "SELECT id, country, city, region FROM destinations WHERE id = ?",
+        "SELECT id, country, city, region, latitude, longitude FROM destinations WHERE id = ?",
         (destination_id,),
     ).fetchone()
     conn.close()
@@ -90,7 +90,7 @@ def get_currency(destination_id):
 def get_transportation(destination_id):
     conn = get_db_connection()
     rows = conn.execute(
-        "SELECT type, description, tips FROM transportation_infos "
+        "SELECT type, description, tips, bookable FROM transportation_infos "
         "WHERE destination_id = ? ORDER BY id",
         (destination_id,),
     ).fetchall()

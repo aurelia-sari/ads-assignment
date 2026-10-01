@@ -25,16 +25,18 @@ docker compose up -d student-4-db student-4-api shared-api shared-db mailpit stu
 
 It exercises the real flow end to end:
 
-- **Travel Guides.** `GET /guides` lists the seeded Australian destinations
-  and supports searching by city or country, with a not-found placeholder
+- **Travel Guides.** `GET /guides` lists the five Australian and five
+  Japanese destinations and supports searching by city or country, with a
+  not-found placeholder
   for an unmatched search. `GET /guides/<id>` returns the destination's
   detail view (a back-to-list link, then a Currency, Transportation, Visa,
   Weather and Safety subsection). `GET /guides/<id>/transportation?type=`,
   `/visa?nationality=` and `/weather?month=` switch the active tab within
   each subsection, confirming a city only shows the transport modes it
-  actually has (e.g. Alice Springs has no metro or train tab), that picking
-  a transport mode shows a booking button only for flights (the only mode
-  student-5 can actually book), that no visa nationality is selected by
+  actually has (e.g. Nara has no metro or flights tab), that a booking
+  button shows only on the Flights tab of a city student-5 can book (so not
+  for Japan), that each country has its own currency and visa rules, that no
+  visa nationality is selected by
   default since it cannot be guessed, and that the weather tab defaults to
   the current month. `GET /guides/<id>/safety` and the other per-destination
   endpoints return a graceful not-found message, not an error, for an
@@ -86,6 +88,12 @@ It exercises the real flow end to end:
   checked for its one-time `justLoggedOut` sessionStorage gate,
   fails the smoke test instead of only showing up when someone clicks
   sign out.
+- **Release 1 MCP and RAG.** The checks follow `GET /ai-tools/status`. In
+  CI both servers are disabled, so the smoke test asserts the clear disabled
+  response. Locally, with `./scripts/ai_services.sh up`, it asserts a live
+  `lookup_destination_guide` call, a `schema-checked` boundary refusal for an
+  empty query, and the insufficient-context reply for an off-topic question.
+  The landing page is also checked for the MCP tools and Ask (grounded) tabs.
 
 Each run registers freshly-randomised email addresses, so it is safe to
 re-run without leaving stray state behind. There is deliberately no
@@ -98,6 +106,30 @@ verification email. Verified manually instead, `POST /auth/login` for an
 unverified account, then Mailpit's API confirms a new message arrives with
 the verification link.
 
+## Unit tests
+
+`test_ai_tools.py` exercises the MCP and RAG proxy endpoints with Flask's
+test client and stubbed servers, so it needs no running services. It covers
+the disabled path, with a guard that fails on any network call, the
+unavailable path, input validation, a boundary refusal, a grounded answer and
+an insufficient-context reply.
+
+`test_init_db.py` runs `student-4/db/init_db.py` against a temporary
+directory. The seed runs at every container start, so it checks that a rerun
+is idempotent, destination ids stay fixed, saved chats survive, chats for a
+removed destination are deleted, and an older database gains the new
+columns. It also checks per-country currency, coordinates, and which cities
+can book flights.
+
+`test_orchestrator.py` stubs the database and checks the AI Assistant's
+replies that need no model. A city without a guide gets the list of cities
+that have one, and a bare city name asks which topic. The workflow runs all
+three files before the Docker build.
+
+```bash
+python -m pip install -r student-4/tests/requirements.txt
+python -m pytest student-4/tests/test_ai_tools.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py -q
+```
+
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted
-unit testing. Unit tests for this feature
-belong in this directory.
+unit testing. Further unit tests for this feature belong in this directory.

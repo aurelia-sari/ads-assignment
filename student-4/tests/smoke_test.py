@@ -7,7 +7,8 @@ own `users`/`access_logs`, see docs/technical-report.md 2.7 for why) and
 Mailpit (the local dev SMTP catcher), plus the Travel Guides destination
 search backed by student-4-db and the AI Assistant tab:
 
-    docker compose up -d student-4-db student-4-api shared-api shared-db mailpit ai-mode
+    ./scripts/ai_services.sh up    # optional, AI-Mode, MCP and RAG run on the host
+    docker compose up -d student-4-db student-4-api shared-api shared-db mailpit
     python3 student-4/tests/smoke_test.py
 
 Each run registers freshly-randomised emails, so re-running the script never
@@ -26,6 +27,11 @@ need a real answer from the model (grounded weather and transport questions,
 and the session history built from them) are skipped when ai-mode is not
 reachable, the same way run_frontend_guard_checks skips when the frontend
 containers are not running.
+
+The Release 1 MCP and RAG checks follow whatever GET /ai-tools/status
+reports. In CI both are disabled, so the disabled response is asserted.
+Locally with the host AI services running, the live tool call, a boundary
+refusal and the insufficient-context reply are asserted instead.
 """
 
 import os
@@ -315,10 +321,49 @@ def run_ai_assistant_checks():
     expect(no_city.get("intent") == "weather", "the topic is still classified without a city")
     expect(no_city.get("adapted") is True, "a missing city is an adapted response")
     expect(no_city.get("session_id") is None, "no session is created when no city is named")
+    expect("Tokyo" in no_city.get("answer", ""), "the no city prompt lists the Japanese cities too")
+
+    status, response = ai_guide_chat("How's the weather in Alice Springs?", user_id=ai_user_id)
+    unknown = response.json()
+    expect(
+        "Australia (" in unknown.get("answer", "") and "Japan (" in unknown.get("answer", ""),
+        "a city without a guide gets the list of cities that have one",
+    )
+    expect(unknown.get("session_id") is None, "a city without a guide starts no session")
+
+    status, response = ai_guide_chat("Alice Springs", user_id=ai_user_id)
+    expect(
+        "Sydney" in response.json().get("answer", ""),
+        "a bare place name without a guide also lists the cities that have one",
+    )
+
+    status, response = ai_guide_chat("Tokyo", user_id=ai_user_id)
+    bare_city = response.json()
+    expect(
+        bare_city.get("answer", "").startswith("What would you like to know about Tokyo"),
+        "a bare city name asks which topic",
+    )
+    bare_city_session = bare_city.get("session_id")
+    expect(bare_city_session is not None, "a bare city name starts a session for that city")
+
+    status, response = ai_guide_chat("How much yen should I carry?", user_id=ai_user_id)
+    expect(response.json().get("intent") == "currency", "asking about yen is a currency question")
+
+    status, response = ai_guide_chat("Is the shinkansen worth it?", user_id=ai_user_id)
+    expect(response.json().get("intent") == "transport", "asking about the shinkansen is a transport question")
 
     if not ai_mode_reachable():
+        _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{bare_city_session}")
         print("  skip  ai-mode is not running, skipping the model-grounded AI Assistant checks")
         return
+
+    status, response = ai_guide_chat(
+        "What's the weather like?", user_id=ai_user_id, session_id=bare_city_session
+    )
+    expect(response.json().get("intent") == "weather", "the follow up topic is classified")
+    status, response = _call("GET", f"{API_BASE}/ai/guide-chat/session/{bare_city_session}")
+    expect(response.json().get("city") == "Tokyo", "the follow up stays on the city named before")
+    _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{bare_city_session}")
 
     status, response = ai_guide_chat(
         "What is the weather like in Cairns in July?", user_id=ai_user_id
@@ -379,6 +424,57 @@ def run_ai_assistant_checks():
     logout(ai_user_id)
 
 
+def run_mcp_rag_checks():
+    status, response = _call("GET", f"{API_BASE}/ai-tools/status")
+    expect(status == 200, "GET /ai-tools/status returns 200")
+    state = response.json()
+    expect(
+        set(state.values()) <= {"available", "disabled", "unavailable"},
+        f"status reports a known state for each server ({state})",
+    )
+
+    status, response = _call("POST", f"{API_BASE}/rag/ask", json={"question": ""})
+    expect(status == 400, "POST /rag/ask with an empty question returns 400")
+
+    status, response = _call(
+        "POST", f"{API_BASE}/mcp/destination-guide", json={"query": "Australia"}, timeout=40
+    )
+    if state["mcp"] == "disabled":
+        expect(status == 200, "MCP disabled, the proxy still returns 200")
+        expect(response.json().get("status") == "disabled", "MCP disabled response says disabled")
+    elif state["mcp"] == "unavailable":
+        expect(status == 503, "MCP unreachable returns 503, not a crash")
+        expect(response.json().get("status") == "unavailable", "MCP unreachable response says unavailable")
+    else:
+        structured = response.json()["result"]["structuredContent"]
+        expect(status == 200, "POST /mcp/destination-guide returns 200")
+        expect(structured["source"] == "student-4-db", "the MCP tool reads student-4-db")
+        expect(structured["row_count"] > 0, "the MCP tool finds Australian destinations")
+
+        status, response = _call(
+            "POST", f"{API_BASE}/mcp/destination-guide", json={"query": ""}, timeout=40
+        )
+        refused = response.json()["result"]
+        expect(refused.get("isError") is True, "an empty query is refused by MCP")
+        expect(refused.get("boundary") == "schema-checked", "the refusal names the schema-checked boundary")
+
+    # An off-corpus question never reaches the model, so it is fast even when enabled.
+    status, response = _call(
+        "POST", f"{API_BASE}/rag/ask", json={"question": "What is the capital of Peru?"}, timeout=40
+    )
+    if state["rag"] == "disabled":
+        expect(status == 200, "RAG disabled, the proxy still returns 200")
+        expect(response.json().get("status") == "disabled", "RAG disabled response says disabled")
+    elif state["rag"] == "unavailable":
+        expect(status == 503, "RAG unreachable returns 503, not a crash")
+    else:
+        body = response.json()
+        expect(status == 200, "POST /rag/ask returns 200")
+        expect(body.get("grounded") is False, "an off-topic question is not answered")
+        expect(body.get("confidence") == "insufficient", "the reply is insufficient context")
+        expect(body.get("citations") == [], "an insufficient-context reply cites nothing")
+
+
 def run_frontend_guard_checks():
     """Confirm the sign in gate is wired into the protected pages.
 
@@ -395,6 +491,10 @@ def run_frontend_guard_checks():
     expect(
         "verifySession" in landing.text,
         "landing page calls verifySession before showing its content",
+    )
+    expect(
+        "panel-mcp" in landing.text and "panel-rag" in landing.text,
+        "landing page has the MCP tools and Ask (grounded) tabs",
     )
 
     for page in (
@@ -435,8 +535,10 @@ def run_checks():
     # missing it fails CI instead of only showing up on one machine.
     status, response = _call("GET", f"{API_BASE}/guides")
     expect(status == 200, "GET /guides returns 200")
-    for city in ("Sydney", "Melbourne", "Perth", "Hobart"):
+    for city in ("Sydney", "Melbourne", "Brisbane", "Perth", "Cairns",
+                 "Tokyo", "Osaka", "Sapporo", "Kyoto", "Nara"):
         expect(city in response.text, f"seeded destination {city} is present")
+    expect("Hobart" not in response.text, "cities removed from the seed are gone")
 
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Sydney"})
     expect(status == 200, "GET /guides?query=Sydney returns 200")
@@ -510,6 +612,7 @@ def run_checks():
     expect("Weather" in response.text, "the detail view has a Weather subheading")
     expect("Jan" in response.text, "the detail view lists a January weather tab")
     expect("°C" in response.text, "the default weather tab shows a temperature")
+    expect("average daytime high" in response.text, "the weather figure is labelled as a daytime high")
 
     status, response = _call(
         "GET", f"{API_BASE}/guides/{sydney_id}/weather", params={"month": "July"}
@@ -572,22 +675,51 @@ def run_checks():
         "an unknown destination id shows a not-found message, not an error",
     )
 
-    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Alice Springs"})
-    expect(status == 200, "GET /guides?query=Alice Springs returns 200")
-    match = re.search(r"/guides/(\d+)", response.text)
-    expect(match is not None, "the Alice Springs row links to its guide detail endpoint")
-    alice_springs_id = match.group(1)
+    status, response = _call("GET", f"{API_BASE}/guides/{cairns_id}")
+    expect("Metro" not in response.text, "Cairns has no metro, so no Metro tab is shown")
 
-    status, response = _call("GET", f"{API_BASE}/guides/{alice_springs_id}")
-    expect(status == 200, f"GET /guides/{alice_springs_id} returns 200")
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Nara"})
+    expect(status == 200, "GET /guides?query=Nara returns 200")
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Nara row links to its guide detail endpoint")
+    nara_id = match.group(1)
+
+    status, response = _call("GET", f"{API_BASE}/guides/{nara_id}")
+    expect(status == 200, f"GET /guides/{nara_id} returns 200")
+    expect("Metro" not in response.text, "Nara has no metro, so no Metro tab is shown")
+    expect("Flights" not in response.text, "Nara has no airport, so no Flights tab is shown")
+    expect("Kansai" in response.text, "Nara's default train tab names the nearest airport")
+    expect("Book flights" not in response.text, "a city with no flights has no booking button")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Tokyo"})
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Tokyo row links to its guide detail endpoint")
+    tokyo_id = match.group(1)
+
+    status, response = _call("GET", f"{API_BASE}/guides/{tokyo_id}")
+    expect(status == 200, f"GET /guides/{tokyo_id} returns 200")
+    expect("JPY" in response.text, "a Japanese city uses the Japanese Yen")
+    expect("AUD" not in response.text, "a Japanese city does not show the Australian Dollar")
+    expect("Flights" in response.text, "Tokyo has a Flights tab")
     expect(
-        "Metro" not in response.text,
-        "Alice Springs has no metro, so no Metro tab is shown",
+        "Book flights" not in response.text,
+        "student-5 has no flights to Japan, so Tokyo shows no booking button",
     )
-    expect(
-        "Train" not in response.text,
-        "Alice Springs has no train service, so no Train tab is shown",
+    expect("Earthquakes" in response.text, "Tokyo has its own safety tips")
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{tokyo_id}/visa", params={"nationality": "Australia"}
     )
+    expect("Visa exempt" in response.text, "Australians use Japan's visa rules in Tokyo")
+    expect("90 days" in response.text, "the Japan visa note gives the stay length")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Sapporo"})
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Sapporo row links to its guide detail endpoint")
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{match.group(1)}/weather", params={"month": "January"}
+    )
+    expect("heavy snow" in response.text, "Sapporo's weather note names the winter snow")
 
     status, response = _call("GET", f"{API_BASE}/guides/999999999")
     expect(status == 404, "GET /guides/<unknown id> returns 404")
@@ -607,6 +739,11 @@ def run_checks():
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Australia"})
     expect(status == 200, "GET /guides?query=Australia returns 200")
     expect("Sydney" in response.text, "searching by country returns its cities")
+    expect("Tokyo" not in response.text, "searching by country excludes the other country")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Japan"})
+    expect("Kyoto" in response.text, "searching for Japan returns Japanese cities")
+    expect("Sydney" not in response.text, "searching for Japan excludes Australian cities")
 
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Nowhereville"})
     expect(status == 200, "GET /guides?query=Nowhereville returns 200")
@@ -758,6 +895,8 @@ def run_checks():
     # AI Assistant, best effort on the model-grounded checks since ai-mode
     # is optional for this script, see the module docstring.
     run_ai_assistant_checks()
+
+    run_mcp_rag_checks()
 
     # Frontend sign in gate, best effort since the frontend containers are
     # optional for this script, see the module docstring.

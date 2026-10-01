@@ -7,20 +7,38 @@
     <link rel="stylesheet" href="/shared/css/theme.css">
     <script src="/shared/js/htmx.min.js"></script>
     <script src="session.js"></script>
+    <style>
+        .page-top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        .page-top-bar .back-link { margin-bottom: 0; cursor: pointer; }
+        .signout-btn:hover {
+            background: var(--color-navy-800);
+            border-color: var(--color-navy-800);
+            color: var(--color-white);
+        }
+    </style>
 </head>
 <body>
 <main class="app-shell" id="app-shell" style="display:none">
-    <header class="app-header card" style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
-        <div>
-            <h1>Travel Guides</h1>
-            <p>Student 4 &middot; Aurelia Sari &middot; <a href="/" style="color:var(--accent)">back to all features</a></p>
-        </div>
-        <button type="button" class="btn-sm btn-secondary" data-signout>Sign out</button>
+    <div class="page-top-bar">
+        <a class="back-link" href="/"><span aria-hidden="true">&larr;</span> Home page</a>
+        <button type="button" class="back-link signout-btn" data-signout>Sign out</button>
+    </div>
+
+    <header class="app-header card">
+        <h1>Travel Guides</h1>
+        <p>Student 4 &middot; Aurelia Sari</p>
     </header>
 
     <nav class="tab-nav">
         <button class="tab-btn is-active" data-tab="guides" type="button">Guides</button>
         <button class="tab-btn" data-tab="ai" type="button">AI Assistant</button>
+        <button class="tab-btn" data-tab="mcp" type="button">MCP Tools</button>
+        <button class="tab-btn" data-tab="rag" type="button">Ask (grounded)</button>
     </nav>
 
     <section class="tab-panel is-active" id="panel-guides">
@@ -49,34 +67,134 @@
     </section>
 
     <section class="tab-panel card" id="panel-ai">
-        <h3 style="margin-top:0">NextStop AI</h3>
-        <p class="muted">Ask about a destination's currency, transportation, visa, weather or
-            safety guide. Name the city in your question. Runs locally through AI-Mode and Ollama.</p>
+        <div class="panel-intro" style="margin-bottom:0.4rem">
+            <h3>NextStop AI</h3>
+            <p class="muted" style="max-width:none">
+                Ask about a destination's currency, transportation, visa, weather or safety guide.
+                Name the city in your question. Runs locally through AI-Mode and Ollama.
+            </p>
+        </div>
 
-        <div class="chat-log" id="chat-log">
-            <p class="muted">Ask a question, naming a city, or open a past chat below.</p>
+        <div class="chat-log" id="chat-log" style="padding-top:0">
+            <div class="chat-log__empty" style="padding-top:0">Ask a question, naming a city, or open a past chat below.</div>
         </div>
 
         <form id="ai-chat-form"
               hx-post="/api/student-4/ai/guide-chat"
               hx-target="#chat-log"
               hx-swap="beforeend"
-              hx-on::after-request="this.querySelector('[name=question]').value = ''">
+              hx-on::after-request="this.querySelector('[name=question]').value = ''; document.getElementById('chat-log').scrollTop = 99999">
             <input type="hidden" id="chat-session-id" name="session_id" value="">
             <input type="hidden" id="chat-user-id" name="user_id" value="">
-            <div class="form-grid">
-                <div style="grid-column:1/-1">
-                    <label>Question</label>
-                    <input name="question" placeholder="e.g. What's the weather like in Cairns in July?" required>
-                </div>
+            <label for="ai-question" class="sr-only-label">Ask the AI assistant</label>
+            <div class="chat-input-row">
+                <input id="ai-question" type="text" name="question" autocomplete="off" required
+                       placeholder="e.g. What's the weather like in Sapporo in February?">
+                <button type="submit">Ask</button>
             </div>
-            <button type="submit">Ask</button>
-            <button type="button" id="ai-new-chat" class="btn-sm btn-secondary">New chat</button>
-            <span class="spinner">thinking, this can take a moment on a local model...</span>
+            <div class="chat-options">
+                <button type="button" id="ai-new-chat" class="chip chip--muted">New chat</button>
+                <span class="spinner">thinking, this can take a moment on a local model...</span>
+            </div>
         </form>
 
-        <h4 style="margin:1.75rem 0 0.35rem 0">Past chats</h4>
-        <div id="chat-sessions" hx-trigger="authenticated from:body" hx-swap="innerHTML"></div>
+        <div class="result-area">
+            <div class="panel-intro" style="margin-bottom:0.25rem"><h3>Past chats</h3></div>
+            <div id="chat-sessions" hx-trigger="authenticated from:body" hx-swap="innerHTML"></div>
+        </div>
+    </section>
+
+    <section class="tab-panel card" id="panel-mcp">
+        <div class="panel-intro">
+            <h3>MCP tools</h3>
+            <p class="muted" style="max-width:none">
+                Run the Travel Guides tool registered on the shared MCP server. The request goes
+                through this feature's backend/API. The tool can only read student-4-db, and its
+                arguments are checked against the tool's schema before anything is read.
+            </p>
+        </div>
+        <div hx-get="/api/student-4/ai-tools/status" hx-trigger="authenticated from:body" hx-swap="innerHTML"></div>
+
+        <form id="mcp-form"
+              hx-post="/api/student-4/mcp/destination-guide"
+              hx-target="#mcp-result"
+              hx-swap="innerHTML">
+            <fieldset class="tool-picker">
+                <legend class="sr-only-label">Tool</legend>
+                <label class="tool-option">
+                    <input type="radio" name="tool" value="lookup_destination_guide" checked>
+                    <span class="tool-option__name"><code>lookup_destination_guide</code></span>
+                    <span class="tool-option__desc">Look up travel-guide destinations by city or country.</span>
+                    <span class="tool-option__meta">reads student-4-db &middot; up to 20 rows</span>
+                </label>
+            </fieldset>
+
+            <div class="form-grid">
+                <div style="grid-column:1/-1">
+                    <label for="mcp-query">City or country <span class="optional">required</span></label>
+                    <input id="mcp-query" type="text" name="query" required
+                           placeholder="e.g. Japan or Kyoto" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit">Run tool</button>
+                <button type="button" class="chip chip--muted"
+                        hx-post="/api/student-4/mcp/destination-guide"
+                        hx-vals='{"query": ""}'
+                        hx-target="#mcp-result"
+                        hx-swap="innerHTML">Send an invalid call</button>
+                <span class="spinner">calling the MCP server...</span>
+            </div>
+        </form>
+
+        <div id="mcp-result" class="result-area">
+            <p class="result-empty">Search for a city or country and run the tool. The structured result appears here.</p>
+        </div>
+    </section>
+
+    <section class="tab-panel card" id="panel-rag">
+        <div class="panel-intro">
+            <h3>Ask NextStop (grounded)</h3>
+            <p class="muted" style="max-width:none">
+                Answers come from the shared RAG server and use only passages it retrieved from
+                the NextStop knowledge base. Each answer lists its sources and a confidence
+                category. If nothing relevant is found, you get an insufficient-context response
+                instead of a guess.
+            </p>
+        </div>
+        <div hx-get="/api/student-4/ai-tools/status" hx-trigger="authenticated from:body" hx-swap="innerHTML"></div>
+
+        <div class="suggestions" aria-label="Suggested questions">
+            <span class="suggestions__label">Try</span>
+            <button type="button" class="chip" data-question="What does a travel guide cover?">What a guide covers</button>
+            <button type="button" class="chip" data-question="Is the weather in a travel guide a forecast?">Guide weather</button>
+            <button type="button" class="chip" data-question="Are the currency and visa details in a travel guide live?">Currency and visa accuracy</button>
+            <button type="button" class="chip chip--muted" data-question="What is the capital of Peru?">An out-of-scope question</button>
+        </div>
+
+        <div class="chat-log" id="rag-log">
+            <div class="chat-log__empty" id="rag-empty">
+                No questions yet. Pick a suggestion above or ask your own.
+            </div>
+        </div>
+
+        <form id="rag-form"
+              hx-post="/api/student-4/rag/ask"
+              hx-target="#rag-log"
+              hx-swap="beforeend"
+              hx-on::after-request="this.reset(); document.getElementById('rag-log').scrollTop = 99999">
+            <label for="rag-question" class="sr-only-label">Ask a grounded question</label>
+            <div class="chat-input-row">
+                <input id="rag-question" type="text" name="question" maxlength="500"
+                       placeholder="Ask about travel guides..."
+                       autocomplete="off" required>
+                <button type="submit">Ask</button>
+            </div>
+            <div class="chat-options">
+                <span class="spinner">retrieving, then answering locally...</span>
+            </div>
+        </form>
     </section>
 </main>
 
@@ -85,6 +203,8 @@ const buttons = Array.from(document.querySelectorAll(".tab-btn"));
 const panels = {
     guides: document.getElementById("panel-guides"),
     ai: document.getElementById("panel-ai"),
+    mcp: document.getElementById("panel-mcp"),
+    rag: document.getElementById("panel-rag"),
 };
 
 function activate(name) {
@@ -98,7 +218,7 @@ buttons.forEach((b) => b.addEventListener("click", () => activate(b.dataset.tab)
 
 const chatLog = document.getElementById("chat-log");
 const chatSessions = document.getElementById("chat-sessions");
-const EMPTY_CHAT_LOG = "<p class='muted'>Ask a question, naming a city, or open a past chat below.</p>";
+const EMPTY_CHAT_LOG = "<div class='chat-log__empty' style='padding-top:0'>Ask a question, naming a city, or open a past chat below.</div>";
 
 // Never cache this: htmx replaces the element wholesale on every OOB swap.
 function getSessionIdInput() {
@@ -118,13 +238,26 @@ window.addEventListener("guide-chat-session-deleted", (event) => {
     }
 });
 
+const ragForm = document.getElementById("rag-form");
+document.querySelectorAll("#panel-rag .chip").forEach((chip) =>
+    chip.addEventListener("click", () => {
+        document.getElementById("rag-question").value = chip.dataset.question;
+        ragForm.requestSubmit();
+    })
+);
+
 document.body.addEventListener("htmx:afterRequest", (event) => {
     const target = event.target;
     if (!event.detail.successful) return;
 
+    if (target.id === "rag-form") {
+        document.getElementById("rag-empty")?.remove();
+    }
+
     // A fresh question may have just created a new session, so the past
     // chats list needs to catch up.
     if (target.id === "ai-chat-form") {
+        chatLog.querySelector(".chat-log__empty")?.remove();
         htmx.trigger(chatSessions, "authenticated");
     }
 });
