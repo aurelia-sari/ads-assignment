@@ -779,6 +779,10 @@ def run_checks():
 
     status, response = _call("GET", f"{API_BASE}/guides/{cairns_id}")
     expect("Metro" not in response.text, "Cairns has no metro, so no Metro tab is shown")
+    expect(
+        "Book flights" not in response.text,
+        "student-5 has no flights to Cairns, so Cairns shows no booking button",
+    )
 
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Nara"})
     expect(status == 200, "GET /guides?query=Nara returns 200")
@@ -804,8 +808,8 @@ def run_checks():
     expect("AUD" not in response.text, "a Japanese city does not show the Australian Dollar")
     expect("Flights" in response.text, "Tokyo has a Flights tab")
     expect(
-        "Book flights" not in response.text,
-        "student-5 has no flights to Japan, so Tokyo shows no booking button",
+        "Book flights" in response.text,
+        "student-5 has flights to Tokyo, so Tokyo shows a booking button",
     )
     expect("Earthquakes" in response.text, "Tokyo has its own safety tips")
 
