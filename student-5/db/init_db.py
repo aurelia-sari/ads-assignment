@@ -5,7 +5,6 @@ The database is owned by student-5-db.
 The API service must communicate with this database only through
 the student-5-db HTTP API.
 """
-
 import os
 import sqlite3
 from datetime import date, timedelta
@@ -110,7 +109,7 @@ CREATE TABLE IF NOT EXISTS search_history (
 )
 """)
 
-# Clear existing seed data
+# Clear existing seed data - this is a full replace, not an incremental add
 for table in [
     "budgets",
     "flights",
@@ -123,7 +122,7 @@ for table in [
 now = "2026-08-31T00:00:00"
 
 # ---------------------------------------------------------
-# Seed budgets - 10+
+# Seed budgets - 12
 # ---------------------------------------------------------
 budgets = []
 
@@ -149,189 +148,73 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 """, budgets)
 
 # ---------------------------------------------------------
-# Seed flights - 12 domestic Australian routes, all from Sydney
+# Seed flights - round trips for 5 Australian cities and 5 Japan
+# cities, all via Sydney. Each destination has 2 outbound options
+# and 2 return options (different airline/time/price), so search
+# results have more than one option to rank.
 # ---------------------------------------------------------
 flights = [
-    (
-        "Qantas",
-        "QF409",
-        "Sydney",
-        "Melbourne",
-        "2026-09-10",
-        "07:00",
-        "08:30",
-        90,
-        0,
-        189,
-        95,
-        4.7,
-        now,
-    ),
-    (
-        "Virgin Australia",
-        "VA863",
-        "Sydney",
-        "Brisbane",
-        "2026-09-10",
-        "09:15",
-        "10:35",
-        80,
-        0,
-        175,
-        93,
-        4.6,
-        now,
-    ),
-    (
-        "Jetstar",
-        "JQ501",
-        "Sydney",
-        "Perth",
-        "2026-09-11",
-        "06:30",
-        "11:30",
-        300,
-        0,
-        459,
-        89,
-        4.2,
-        now,
-    ),
-    (
-        "Qantas",
-        "QF737",
-        "Sydney",
-        "Adelaide",
-        "2026-09-12",
-        "14:00",
-        "16:00",
-        120,
-        0,
-        210,
-        90,
-        4.5,
-        now,
-    ),
-    (
-        "Virgin Australia",
-        "VA936",
-        "Sydney",
-        "Gold Coast",
-        "2026-09-12",
-        "08:00",
-        "09:25",
-        85,
-        0,
-        165,
-        92,
-        4.5,
-        now,
-    ),
-    (
-        "Jetstar",
-        "JQ905",
-        "Sydney",
-        "Cairns",
-        "2026-09-15",
-        "10:00",
-        "12:55",
-        175,
-        0,
-        320,
-        88,
-        4.3,
-        now,
-    ),
-    (
-        "Qantas",
-        "QF1400",
-        "Sydney",
-        "Canberra",
-        "2026-09-15",
-        "17:00",
-        "17:55",
-        55,
-        0,
-        145,
-        85,
-        4.4,
-        now,
-    ),
-    (
-        "Virgin Australia",
-        "VA1257",
-        "Sydney",
-        "Hobart",
-        "2026-09-18",
-        "07:45",
-        "09:55",
-        130,
-        0,
-        225,
-        89,
-        4.6,
-        now,
-    ),
-    (
-        "Qantas",
-        "QF825",
-        "Sydney",
-        "Darwin",
-        "2026-09-18",
-        "12:00",
-        "16:35",
-        275,
-        0,
-        410,
-        87,
-        4.5,
-        now,
-    ),
-    (
-        "Jetstar",
-        "JQ764",
-        "Sydney",
-        "Sunshine Coast",
-        "2026-09-20",
-        "15:30",
-        "16:55",
-        85,
-        0,
-        170,
-        86,
-        4.2,
-        now,
-    ),
-    (
-        "Rex Airlines",
-        "ZL231",
-        "Sydney",
-        "Launceston",
-        "2026-09-22",
-        "09:00",
-        "11:10",
-        130,
-        0,
-        235,
-        84,
-        4.3,
-        now,
-    ),
-    (
-        "Qantas",
-        "QF841",
-        "Sydney",
-        "Alice Springs",
-        "2026-09-25",
-        "11:00",
-        "14:20",
-        200,
-        0,
-        340,
-        91,
-        4.6,
-        now,
-    ),
+
+    # --- Melbourne ---
+    ("Qantas", "QF409", "Sydney", "Melbourne", "2026-09-10", "07:00", "08:30", 90, 0, 189, 95, 4.7, now),
+    ("Virgin Australia", "VA410", "Sydney", "Melbourne", "2026-09-10", "14:00", "15:30", 90, 0, 165, 88, 4.3, now),
+    ("Qantas", "QF410", "Melbourne", "Sydney", "2026-09-17", "09:00", "10:30", 90, 0, 195, 95, 4.7, now),
+    ("Virgin Australia", "VA411", "Melbourne", "Sydney", "2026-09-17", "16:00", "17:30", 90, 0, 170, 88, 4.3, now),
+
+    # --- Brisbane ---
+    ("Virgin Australia", "VA863", "Sydney", "Brisbane", "2026-09-10", "09:15", "10:35", 80, 0, 175, 93, 4.6, now),
+    ("Jetstar", "JQ700", "Sydney", "Brisbane", "2026-09-10", "18:00", "19:20", 80, 0, 145, 85, 4.1, now),
+    ("Virgin Australia", "VA864", "Brisbane", "Sydney", "2026-09-17", "11:00", "12:20", 80, 0, 180, 93, 4.6, now),
+    ("Jetstar", "JQ701", "Brisbane", "Sydney", "2026-09-17", "19:30", "20:50", 80, 0, 150, 85, 4.1, now),
+
+    # --- Perth ---
+    ("Jetstar", "JQ501", "Sydney", "Perth", "2026-09-11", "06:30", "11:30", 300, 0, 459, 89, 4.2, now),
+    ("Qantas", "QF577", "Sydney", "Perth", "2026-09-11", "13:00", "18:00", 300, 0, 510, 92, 4.5, now),
+    ("Jetstar", "JQ502", "Perth", "Sydney", "2026-09-18", "12:30", "17:35", 305, 0, 465, 89, 4.2, now),
+    ("Qantas", "QF578", "Perth", "Sydney", "2026-09-18", "19:30", "00:35", 305, 0, 520, 92, 4.5, now),
+
+    # --- Adelaide ---
+    ("Qantas", "QF737", "Sydney", "Adelaide", "2026-09-12", "14:00", "16:00", 120, 0, 210, 90, 4.5, now),
+    ("Virgin Australia", "VA720", "Sydney", "Adelaide", "2026-09-12", "08:00", "10:00", 120, 0, 195, 86, 4.2, now),
+    ("Qantas", "QF738", "Adelaide", "Sydney", "2026-09-19", "16:30", "18:30", 120, 0, 215, 90, 4.5, now),
+    ("Virgin Australia", "VA721", "Adelaide", "Sydney", "2026-09-19", "10:30", "12:30", 120, 0, 200, 86, 4.2, now),
+
+    # --- Gold Coast ---
+    ("Virgin Australia", "VA936", "Sydney", "Gold Coast", "2026-09-12", "08:00", "09:25", 85, 0, 165, 92, 4.5, now),
+    ("Jetstar", "JQ764", "Sydney", "Gold Coast", "2026-09-12", "15:30", "16:55", 85, 0, 145, 86, 4.2, now),
+    ("Virgin Australia", "VA937", "Gold Coast", "Sydney", "2026-09-19", "10:00", "11:25", 85, 0, 170, 92, 4.5, now),
+    ("Jetstar", "JQ765", "Gold Coast", "Sydney", "2026-09-19", "17:30", "18:55", 85, 0, 150, 86, 4.2, now),
+
+    # --- Tokyo ---
+    ("Qantas", "QF25", "Sydney", "Tokyo", "2026-10-12", "09:20", "18:50", 570, 0, 950, 90, 4.6, now),
+    ("Japan Airlines", "JL771", "Sydney", "Tokyo", "2026-10-12", "19:30", "05:00", 570, 0, 880, 86, 4.4, now),
+    ("Qantas", "QF26", "Tokyo", "Sydney", "2026-10-19", "21:30", "09:30", 570, 0, 950, 90, 4.6, now),
+    ("Japan Airlines", "JL770", "Tokyo", "Sydney", "2026-10-19", "11:00", "21:30", 570, 0, 870, 86, 4.4, now),
+
+    # --- Osaka ---
+    ("Japan Airlines", "JL772", "Sydney", "Osaka", "2026-10-12", "11:00", "19:30", 510, 0, 890, 87, 4.5, now),
+    ("ANA", "NH878", "Sydney", "Osaka", "2026-10-12", "20:00", "04:30", 510, 0, 860, 83, 4.3, now),
+    ("Japan Airlines", "JL773", "Osaka", "Sydney", "2026-10-19", "21:00", "07:30", 510, 0, 890, 87, 4.5, now),
+    ("ANA", "NH877", "Osaka", "Sydney", "2026-10-19", "09:00", "17:30", 510, 0, 855, 83, 4.3, now),
+
+    # --- Nagoya ---
+    ("ANA", "NH879", "Sydney", "Nagoya", "2026-10-13", "10:15", "19:00", 525, 0, 910, 85, 4.4, now),
+    ("Japan Airlines", "JL855", "Sydney", "Nagoya", "2026-10-13", "20:30", "05:15", 525, 0, 875, 80, 4.1, now),
+    ("ANA", "NH880", "Nagoya", "Sydney", "2026-10-20", "20:30", "07:00", 525, 0, 910, 85, 4.4, now),
+    ("Japan Airlines", "JL856", "Nagoya", "Sydney", "2026-10-20", "08:30", "17:15", 525, 0, 880, 80, 4.1, now),
+
+    # --- Fukuoka ---
+    ("Japan Airlines", "JL881", "Sydney", "Fukuoka", "2026-10-13", "08:40", "17:10", 510, 0, 870, 84, 4.3, now),
+    ("ANA", "NH655", "Sydney", "Fukuoka", "2026-10-13", "21:00", "05:30", 510, 0, 840, 79, 4.0, now),
+    ("Japan Airlines", "JL882", "Fukuoka", "Sydney", "2026-10-20", "19:00", "05:30", 510, 0, 870, 84, 4.3, now),
+    ("ANA", "NH656", "Fukuoka", "Sydney", "2026-10-20", "07:30", "16:00", 510, 1, 845, 79, 4.0, now),
+
+    # --- Sapporo ---
+    ("ANA", "NH956", "Sydney", "Sapporo", "2026-10-14", "09:00", "19:30", 630, 1, 990, 82, 4.2, now),
+    ("Japan Airlines", "JL507", "Sydney", "Sapporo", "2026-10-14", "21:30", "08:00", 630, 1, 960, 78, 4.0, now),
+    ("ANA", "NH957", "Sapporo", "Sydney", "2026-10-21", "19:30", "08:00", 630, 1, 990, 82, 4.2, now),
+    ("Japan Airlines", "JL508", "Sapporo", "Sydney", "2026-10-21", "09:30", "20:00", 630, 1, 965, 78, 4.0, now),
+
 ]
 
 cursor.executemany("""
@@ -343,153 +226,55 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """, flights)
 
 # ---------------------------------------------------------
-# Seed hotels - 12, across the same Australian destinations
+# Seed hotels - 2 in Sydney (home base) plus 2 each in the 5
+# Australian and 5 Japan destinations above (22 total).
 # ---------------------------------------------------------
 hotels = [
-    (
-        "Sydney Harbour Hotel",
-        "Sydney",
-        "2026-09-10",
-        "2026-09-13",
-        1,
-        220,
-        660,
-        4.7,
-        95,
-        now,
-    ),
-    (
-        "Central Sydney Suites",
-        "Sydney",
-        "2026-09-10",
-        "2026-09-13",
-        1,
-        180,
-        540,
-        4.4,
-        90,
-        now,
-    ),
-    (
-        "Melbourne CBD Hotel",
-        "Melbourne",
-        "2026-09-10",
-        "2026-09-13",
-        1,
-        195,
-        585,
-        4.6,
-        93,
-        now,
-    ),
-    (
-        "Southbank Melbourne Suites",
-        "Melbourne",
-        "2026-09-10",
-        "2026-09-13",
-        1,
-        150,
-        450,
-        4.2,
-        87,
-        now,
-    ),
-    (
-        "Brisbane River Hotel",
-        "Brisbane",
-        "2026-09-12",
-        "2026-09-15",
-        1,
-        175,
-        525,
-        4.5,
-        90,
-        now,
-    ),
-    (
-        "Perth City Central",
-        "Perth",
-        "2026-09-11",
-        "2026-09-16",
-        1,
-        190,
-        950,
-        4.6,
-        91,
-        now,
-    ),
-    (
-        "Adelaide Central Hotel",
-        "Adelaide",
-        "2026-09-12",
-        "2026-09-16",
-        1,
-        160,
-        640,
-        4.3,
-        85,
-        now,
-    ),
-    (
-        "Gold Coast Beachfront Resort",
-        "Gold Coast",
-        "2026-09-12",
-        "2026-09-17",
-        1,
-        210,
-        1050,
-        4.7,
-        94,
-        now,
-    ),
-    (
-        "Cairns Esplanade Hotel",
-        "Cairns",
-        "2026-09-15",
-        "2026-09-20",
-        1,
-        200,
-        1000,
-        4.5,
-        90,
-        now,
-    ),
-    (
-        "Hobart Waterfront Inn",
-        "Hobart",
-        "2026-09-18",
-        "2026-09-22",
-        1,
-        165,
-        660,
-        4.4,
-        86,
-        now,
-    ),
-    (
-        "Darwin Harbourview Hotel",
-        "Darwin",
-        "2026-09-18",
-        "2026-09-23",
-        1,
-        185,
-        925,
-        4.3,
-        84,
-        now,
-    ),
-    (
-        "Alice Springs Desert Lodge",
-        "Alice Springs",
-        "2026-09-25",
-        "2026-09-29",
-        1,
-        155,
-        620,
-        4.2,
-        82,
-        now,
-    ),
+
+    # --- Sydney (home base) ---
+    ("Sydney Harbour Hotel", "Sydney", "2026-09-10", "2026-09-13", 1, 220, 660, 4.7, 95, now),
+    ("Central Sydney Suites", "Sydney", "2026-09-10", "2026-09-13", 1, 180, 540, 4.4, 90, now),
+
+    # --- Melbourne ---
+    ("Melbourne CBD Hotel", "Melbourne", "2026-09-10", "2026-09-17", 1, 195, 1365, 4.6, 93, now),
+    ("Southbank Melbourne Suites", "Melbourne", "2026-09-10", "2026-09-17", 1, 150, 1050, 4.2, 87, now),
+
+    # --- Brisbane ---
+    ("Brisbane River Hotel", "Brisbane", "2026-09-10", "2026-09-17", 1, 175, 1225, 4.5, 90, now),
+    ("Brisbane Riverside Inn", "Brisbane", "2026-09-10", "2026-09-17", 1, 140, 980, 4.1, 82, now),
+
+    # --- Perth ---
+    ("Perth City Central", "Perth", "2026-09-11", "2026-09-18", 1, 190, 1330, 4.6, 91, now),
+    ("Perth Swan River Lodge", "Perth", "2026-09-11", "2026-09-18", 1, 160, 1120, 4.2, 84, now),
+
+    # --- Adelaide ---
+    ("Adelaide Central Hotel", "Adelaide", "2026-09-12", "2026-09-19", 1, 160, 1120, 4.3, 85, now),
+    ("Adelaide Hills Boutique Hotel", "Adelaide", "2026-09-12", "2026-09-19", 1, 145, 1015, 4.1, 80, now),
+
+    # --- Gold Coast ---
+    ("Gold Coast Beachfront Resort", "Gold Coast", "2026-09-12", "2026-09-19", 1, 210, 1470, 4.7, 94, now),
+    ("Gold Coast Surfers Paradise Inn", "Gold Coast", "2026-09-12", "2026-09-19", 1, 175, 1225, 4.3, 86, now),
+
+    # --- Tokyo ---
+    ("Tokyo Shinjuku Hotel", "Tokyo", "2026-10-12", "2026-10-19", 1, 250, 1750, 4.6, 92, now),
+    ("Tokyo Asakusa Ryokan", "Tokyo", "2026-10-12", "2026-10-19", 1, 210, 1470, 4.4, 85, now),
+
+    # --- Osaka ---
+    ("Osaka Namba Hotel", "Osaka", "2026-10-12", "2026-10-19", 1, 210, 1470, 4.4, 88, now),
+    ("Osaka Umeda Tower Hotel", "Osaka", "2026-10-12", "2026-10-19", 1, 230, 1610, 4.5, 86, now),
+
+    # --- Nagoya ---
+    ("Nagoya Central Hotel", "Nagoya", "2026-10-13", "2026-10-20", 1, 190, 1330, 4.3, 84, now),
+    ("Nagoya Sakae Suites", "Nagoya", "2026-10-13", "2026-10-20", 1, 170, 1190, 4.1, 79, now),
+
+    # --- Fukuoka ---
+    ("Fukuoka Tenjin Hotel", "Fukuoka", "2026-10-13", "2026-10-20", 1, 180, 1260, 4.2, 82, now),
+    ("Fukuoka Hakata Station Hotel", "Fukuoka", "2026-10-13", "2026-10-20", 1, 165, 1155, 4.0, 77, now),
+
+    # --- Sapporo ---
+    ("Sapporo Susukino Hotel", "Sapporo", "2026-10-14", "2026-10-21", 1, 200, 1400, 4.3, 80, now),
+    ("Sapporo Odori Park Hotel", "Sapporo", "2026-10-14", "2026-10-21", 1, 185, 1295, 4.1, 76, now),
+
 ]
 
 cursor.executemany("""
@@ -501,7 +286,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """, hotels)
 
 # ---------------------------------------------------------
-# Seed trip selections - 10+
+# Seed trip selections - 12
 # ---------------------------------------------------------
 selections = []
 
@@ -524,9 +309,15 @@ VALUES (?, ?, ?, ?, ?, ?)
 """, selections)
 
 # ---------------------------------------------------------
-# Seed search history - 10+, Australian destinations
+# Seed search history - 12, cycling through all 10 destinations
+# (5 Australian, 5 Japan) for variety.
 # ---------------------------------------------------------
 history = []
+
+destinations_cycle = [
+    "Melbourne", "Tokyo", "Brisbane", "Osaka", "Perth",
+    "Nagoya", "Adelaide", "Fukuoka", "Gold Coast", "Sapporo",
+]
 
 for i in range(1, 13):
     history.append(
@@ -534,9 +325,9 @@ for i in range(1, 13):
             i,
             "flight" if i % 2 else "hotel",
             "Sydney",
-            ["Melbourne", "Brisbane", "Perth", "Cairns"][i % 4],
+            destinations_cycle[i % len(destinations_cycle)],
             "2026-09-10",
-            "2026-09-15",
+            "2026-09-17",
             1 + (i % 3),
             500 + i * 200,
             f"Sample search {i}",
@@ -557,4 +348,5 @@ conn.close()
 
 print("student-5-db initialised successfully.")
 print("Tables: budgets, flights, hotels, trip_selections, search_history")
-print("Each table contains at least 10 seed records.")
+print("Flights: round trips (2 options each way) for 5 AU cities and 5 Japan cities via Sydney.")
+print("Hotels: 2 in Sydney plus 2 each in all 10 destination cities.")

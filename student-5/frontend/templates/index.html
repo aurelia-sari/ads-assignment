@@ -58,6 +58,8 @@
         <button class="tab-btn" data-tab="trip" type="button">My selections</button>
         <button class="tab-btn" data-tab="history" type="button">Search history</button>
         <button class="tab-btn" data-tab="ai" type="button">AI assistant</button>
+        <button class="tab-btn" data-tab="mcp" type="button">MCP Tools</button>
+        <button class="tab-btn" data-tab="ask" type="button">Ask (grounded)</button>
     </nav>
 
 
@@ -295,6 +297,93 @@
 
     </section>
 
+
+    <!-- =====================================================
+         MCP TOOLS TAB
+    ====================================================== -->
+
+    <section class="tab-panel card" id="panel-mcp">
+
+        <h2 style="margin-top:0">MCP tools</h2>
+        <p class="muted">
+            Run a Bookings &amp; Budget tool registered on the shared MCP
+            server. The request goes through this feature's backend/API.
+            Tools are read-only, allowlisted to one database each, and their
+            arguments are checked against the tool's schema before anything
+            is read.
+        </p>
+
+        <div id="mcp-status" class="notice" style="margin-bottom:1rem">Checking MCP server...</div>
+
+        <div class="form-grid">
+            <div>
+                <label for="mcp-tool-select">Tool</label>
+                <select id="mcp-tool-select" onchange="renderMcpToolFields()">
+                    <option value="search_flights">search_flights (student-5-db)</option>
+                    <option value="lookup_destination_guide">lookup_destination_guide (student-4-db)</option>
+                    <option value="search_places">search_places (student-2-db)</option>
+                    <option value="list_trips">list_trips (student-1-db)</option>
+                </select>
+            </div>
+        </div>
+
+        <p class="muted" id="mcp-tool-description" style="margin-top:0.5rem"></p>
+
+        <div id="mcp-tool-fields" class="form-grid" style="margin-top:1rem"></div>
+
+        <button type="button" onclick="runMcpTool()">Run tool</button>
+        <button type="button" class="btn-secondary" onclick="runMcpTool(true)">Send an invalid call</button>
+
+        <div id="mcp-result" style="margin-top:1.5rem">
+            <p class="muted">Pick a tool, fill in its arguments, and run it. The structured result appears here.</p>
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         ASK (GROUNDED) TAB
+    ====================================================== -->
+
+    <section class="tab-panel card" id="panel-ask">
+
+        <h2 style="margin-top:0">Ask (grounded)</h2>
+        <p class="muted">
+            Ask a question answered purely from the shared knowledge base via
+            RAG - no live trip data, no MCP lookups. Every answer carries
+            source citations and a confidence category, and an
+            insufficient-context message is shown instead of a guess when
+            nothing relevant is retrieved.
+        </p>
+
+        <div id="rag-status" class="notice" style="margin-bottom:1rem">Checking RAG server...</div>
+
+        <form onsubmit="askGrounded(event)">
+            <label for="ask-question" class="sr-only-label">Ask a grounded question</label>
+            <div class="chat-input-row">
+                <input id="ask-question" type="text"
+                       placeholder="e.g. How does flight and hotel ranking work?"
+                       autocomplete="off" required>
+                <button type="submit">Ask</button>
+                <button type="button" class="btn-secondary" onclick="retrieveContext()">Retrieve Context</button>
+            </div>
+            <span id="ask-spinner" class="spinner">retrieving...</span>
+        </form>
+        <p class="muted" style="margin-top:0.5rem">
+            <strong>Ask</strong> returns a full generated answer with citations.
+            <strong>Retrieve Context</strong> skips generation and shows the raw
+            ranked passages the RAG server would have used, with their
+            similarity scores.
+        </p>
+
+        <div id="ask-result" style="margin-top:1.5rem">
+            <p class="muted">Ask a question about how this feature works to see a grounded, cited answer.</p>
+        </div>
+
+        <div id="retrieve-result" style="margin-top:1.5rem"></div>
+
+    </section>
+
 </main>
 
 <!-- =========================================================
@@ -320,7 +409,9 @@ const panels = {
     budget: document.getElementById("panel-budget"),
     trip: document.getElementById("panel-trip"),
     history: document.getElementById("panel-history"),
-    ai: document.getElementById("panel-ai")
+    ai: document.getElementById("panel-ai"),
+    mcp: document.getElementById("panel-mcp"),
+    ask: document.getElementById("panel-ask")
 };
 
 function activate(name) {
@@ -337,6 +428,11 @@ function activate(name) {
 
     if (name === "ai") {
         const input = document.getElementById("ai-question");
+        if (input) input.focus();
+    }
+
+    if (name === "ask") {
+        const input = document.getElementById("ask-question");
         if (input) input.focus();
     }
 }
@@ -1058,6 +1154,412 @@ async function sendChat(event) {
 
 
 /* =========================================================
+   MCP TOOLS
+========================================================= */
+
+const MCP_TOOL_SCHEMAS = {
+    search_flights: {
+        description: "Search this feature's own seeded flights (student-5-db).",
+        fields: [
+            { name: "origin", label: "Origin", type: "text", placeholder: "e.g. Sydney" },
+            { name: "destination", label: "Destination", type: "text", placeholder: "e.g. Melbourne" },
+            { name: "budget_aud", label: "Max budget (AUD)", type: "number" }
+        ],
+        invalid: { budget_aud: "not-a-number" }
+    },
+    lookup_destination_guide: {
+        description: "student-4's destination guide lookup (student-4-db). 'query' is required.",
+        fields: [
+            { name: "query", label: "City or country", type: "text", placeholder: "e.g. Melbourne", required: true }
+        ],
+        invalid: {}
+    },
+    search_places: {
+        description: "student-2's attractions/dining search (student-2-db).",
+        fields: [
+            { name: "name", label: "Place name", type: "text", placeholder: "e.g. Museum" },
+            { name: "category", label: "Category", type: "text", placeholder: "e.g. attraction" }
+        ],
+        invalid: { category: 12345 }
+    },
+    list_trips: {
+        description: "student-1's trip list (student-1-db).",
+        fields: [
+            { name: "destination", label: "Destination", type: "text", placeholder: "e.g. Melbourne" },
+            { name: "status", label: "Status", type: "select", options: ["", "planned", "booked", "completed", "cancelled"] }
+        ],
+        invalid: { status: "not-a-real-status" }
+    }
+};
+
+function renderMcpToolFields() {
+
+    const toolName = document.getElementById("mcp-tool-select").value;
+    const schema = MCP_TOOL_SCHEMAS[toolName];
+    const fieldsContainer = document.getElementById("mcp-tool-fields");
+    const description = document.getElementById("mcp-tool-description");
+
+    description.textContent = schema.description;
+    fieldsContainer.innerHTML = "";
+
+    schema.fields.forEach(field => {
+        const wrapper = document.createElement("div");
+
+        const label = document.createElement("label");
+        label.setAttribute("for", `mcp-field-${field.name}`);
+        label.textContent = field.label + (field.required ? " (required)" : "");
+        wrapper.appendChild(label);
+
+        let input;
+        if (field.type === "select") {
+            input = document.createElement("select");
+            field.options.forEach(optionValue => {
+                const option = document.createElement("option");
+                option.value = optionValue;
+                option.textContent = optionValue || "any";
+                input.appendChild(option);
+            });
+        }
+        else {
+            input = document.createElement("input");
+            input.type = field.type;
+            if (field.placeholder) input.placeholder = field.placeholder;
+        }
+        input.id = `mcp-field-${field.name}`;
+        wrapper.appendChild(input);
+
+        fieldsContainer.appendChild(wrapper);
+    });
+
+}
+
+function collectMcpArguments() {
+
+    const toolName = document.getElementById("mcp-tool-select").value;
+    const schema = MCP_TOOL_SCHEMAS[toolName];
+    const toolArguments = {};
+
+    schema.fields.forEach(field => {
+        const input = document.getElementById(`mcp-field-${field.name}`);
+        if (!input || !input.value) return;
+        toolArguments[field.name] = field.type === "number" ? Number(input.value) : input.value;
+    });
+
+    return toolArguments;
+
+}
+
+function prettifyColumnName(key) {
+    return key
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function renderMcpResult(result) {
+
+    // Find the first array of plain objects in the result (usually
+    // "rows", but fall back to scanning other keys just in case).
+    let rows = null;
+
+    if (Array.isArray(result?.rows)) {
+        rows = result.rows;
+    }
+    else if (result && typeof result === "object") {
+        for (const value of Object.values(result)) {
+            if (Array.isArray(value) && value.length && typeof value[0] === "object") {
+                rows = value;
+                break;
+            }
+        }
+    }
+
+    if (!rows || !rows.length) {
+        // Nothing table-shaped — fall back to readable JSON.
+        return `<pre style="white-space:pre-wrap; margin-top:0.5rem;">${escapeHTML(JSON.stringify(result, null, 2))}</pre>`;
+    }
+
+    const columns = Object.keys(rows[0]);
+
+    let html = `<div class="table-wrap" style="margin-top:0.5rem"><table><thead><tr>`;
+    columns.forEach(col => { html += `<th>${escapeHTML(prettifyColumnName(col))}</th>`; });
+    html += `</tr></thead><tbody>`;
+
+    rows.forEach(row => {
+        html += `<tr>`;
+        columns.forEach(col => {
+            const value = row[col];
+            const raw = value === null || value === undefined ? "" : String(value);
+            let cellHtml;
+
+            if (/price|budget|cost/i.test(col) && raw !== "" && !isNaN(parseFloat(raw))) {
+                // Light formatting for obviously-priced fields.
+                cellHtml = escapeHTML(`$${Number(raw).toLocaleString(undefined, { minimumFractionDigits: 0 })}`);
+            }
+            else if (/^status$/i.test(col) && raw) {
+                // Render a status-like field as a small pill badge.
+                cellHtml = `<span style="display:inline-block; padding:0.15rem 0.6rem; `
+                    + `border-radius:999px; font-size:0.85rem; font-weight:600; `
+                    + `background:#e6f7ee; color:#1a7f4e;">${escapeHTML(raw)}</span>`;
+            }
+            else {
+                cellHtml = escapeHTML(raw);
+            }
+
+            html += `<td>${cellHtml}</td>`;
+        });
+        html += `</tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+async function runMcpTool(sendInvalid) {
+
+    const toolName = document.getElementById("mcp-tool-select").value;
+    const schema = MCP_TOOL_SCHEMAS[toolName];
+    const resultContainer = document.getElementById("mcp-result");
+
+    const toolArguments = sendInvalid ? schema.invalid : collectMcpArguments();
+
+    resultContainer.innerHTML = "<p class='muted'>Running tool...</p>";
+
+    try {
+
+        const response = await fetch(`${API_BASE}/mcp/call`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tool: toolName, arguments: toolArguments })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "MCP call failed.");
+        }
+
+        if (data.ok) {
+
+            // Reconstruct the JSON-RPC envelope actually sent to the MCP
+            // server by services/mcp_client.py (the real "id" is generated
+            // server-side per call, so it's shown as a placeholder here).
+            const jsonRpcRequest = {
+                jsonrpc: "2.0",
+                id: "<generated per call>",
+                method: "tools/call",
+                params: { name: toolName, arguments: toolArguments }
+            };
+
+            resultContainer.innerHTML = `
+                <div class="notice notice-success">Tool call succeeded.</div>
+                <p class="muted" style="margin-top:0.5rem">
+                    Read-only result via a live MCP protocol call — no booking action, no write to any database.
+                </p>
+                ${renderMcpResult(data.result)}
+
+                <details style="margin-top:0.75rem">
+                    <summary style="cursor:pointer; font-weight:600;">Raw JSON-RPC request sent to the MCP server</summary>
+                    <pre style="white-space:pre-wrap; margin-top:0.5rem;">${escapeHTML(JSON.stringify(jsonRpcRequest, null, 2))}</pre>
+                </details>
+
+                <details style="margin-top:0.5rem">
+                    <summary style="cursor:pointer; font-weight:600;">Raw structuredContent returned</summary>
+                    <pre style="white-space:pre-wrap; margin-top:0.5rem;">${escapeHTML(JSON.stringify(data.result, null, 2))}</pre>
+                </details>
+            `;
+        }
+        else {
+
+            const jsonRpcRequest = {
+                jsonrpc: "2.0",
+                id: "<generated per call>",
+                method: "tools/call",
+                params: { name: toolName, arguments: toolArguments }
+            };
+
+            resultContainer.innerHTML = `
+                <div class="notice notice-error">
+                    Refused${data.boundary ? ` (boundary: ${escapeHTML(data.boundary)})` : ""}: ${escapeHTML(data.error)}
+                </div>
+                <details style="margin-top:0.75rem">
+                    <summary style="cursor:pointer; font-weight:600;">Raw JSON-RPC request that was refused</summary>
+                    <pre style="white-space:pre-wrap; margin-top:0.5rem;">${escapeHTML(JSON.stringify(jsonRpcRequest, null, 2))}</pre>
+                </details>
+            `;
+        }
+
+    }
+    catch (error) {
+        resultContainer.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+async function checkMcpStatus() {
+
+    const status = document.getElementById("mcp-status");
+
+    try {
+        const response = await fetch(`${API_BASE}/mcp/tools`);
+        if (!response.ok) throw new Error();
+        status.className = "notice notice-success";
+        status.textContent = "MCP server available.";
+    }
+    catch (error) {
+        status.className = "notice notice-error";
+        status.textContent = "MCP server unavailable. Start it on the host and reload.";
+    }
+
+}
+
+
+/* =========================================================
+   ASK (GROUNDED)
+========================================================= */
+
+async function askGrounded(event) {
+
+    event.preventDefault();
+
+    const question = document.getElementById("ask-question").value.trim();
+    const container = document.getElementById("ask-result");
+
+    container.innerHTML = "<p class='muted'>Retrieving...</p>";
+
+    try {
+
+        const response = await fetch(`${API_BASE}/ai/ask`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Ask failed.");
+        }
+
+        const citations = (data.citations || []).map(c => {
+            const excerpt = c.excerpt || c.text || c.passage || c.content || c.chunk || c.snippet || "";
+            const header = `[${escapeHTML(String(c.number))}] ${escapeHTML(c.source || c.source_file || "knowledge base")}${c.section ? " &middot; " + escapeHTML(c.section) : ""}`;
+            const excerptHtml = excerpt
+                ? `<div style="margin-top:0.25rem; font-size:0.9rem; color:var(--muted,#666); white-space:pre-wrap;">${escapeHTML(excerpt)}</div>`
+                : "";
+            return `<li><div>${header}</div>${excerptHtml}</li>`;
+        }).join("");
+
+        const reasonHtml = data.confidence_reason
+            ? `<div style="margin-top:0.35rem; font-size:0.9rem; color:var(--muted,#666);">${escapeHTML(data.confidence_reason)}</div>`
+            : "";
+
+        container.innerHTML = `
+            <div class="notice">
+                <strong>Confidence:</strong> ${escapeHTML(data.confidence || "unknown")}
+                ${reasonHtml}
+                <p style="white-space:pre-wrap; margin-top:0.5rem; margin-bottom:0;">${escapeHTML(data.answer || "")}</p>
+            </div>
+            ${citations ? `<div class="citations" style="margin-top:0.75rem"><div class="citations-label">Sources</div><ul>${citations}</ul></div>` : ""}
+        `;
+
+    }
+    catch (error) {
+        container.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+
+async function retrieveContext() {
+
+    const question = document.getElementById("ask-question").value.trim();
+    const container = document.getElementById("retrieve-result");
+
+    if (!question) {
+        container.innerHTML = `<div class="notice notice-error">Enter a question first.</div>`;
+        return;
+    }
+
+    container.innerHTML = "<p class='muted'>Retrieving raw passages (no generation)...</p>";
+
+    try {
+
+        const response = await fetch(`${API_BASE}/ai/rag/retrieve`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Retrieve failed.");
+        }
+
+        const results = data.hits || data.results || data.matches || data.citations || [];
+
+        if (!results.length) {
+            container.innerHTML = `<div class="notice">No passages were retrieved for that question.</div>`;
+            return;
+        }
+
+        const items = results.map((r, index) => {
+            const excerpt = r.excerpt || r.text || r.passage || r.content || r.chunk || r.snippet || "";
+            const source = r.source || r.source_file || "knowledge base";
+            const score = (r.score !== undefined) ? ` &middot; score ${Number(r.score).toFixed(4)}` : "";
+            return `
+                <li>
+                    <div><strong>${index + 1}.</strong> ${escapeHTML(source)}${r.section ? " &middot; " + escapeHTML(r.section) : ""}${score}</div>
+                    ${excerpt ? `<div style="margin-top:0.25rem; font-size:0.9rem; color:var(--muted,#666); white-space:pre-wrap;">${escapeHTML(excerpt)}</div>` : ""}
+                </li>
+            `;
+        }).join("");
+
+        const topLine = (data.confidence || data.coverage !== undefined)
+            ? `<p class="muted" style="margin-top:0.5rem">
+                   ${data.confidence ? "Confidence: " + escapeHTML(data.confidence) : ""}
+                   ${data.coverage !== undefined ? " &middot; coverage: " + escapeHTML(String(data.coverage)) : ""}
+               </p>`
+            : "";
+
+        container.innerHTML = `
+            <div class="citations">
+                <div class="citations-label">Retrieved passages (no generation)</div>
+                <ul>${items}</ul>
+            </div>
+            ${topLine}
+        `;
+
+    }
+    catch (error) {
+        container.innerHTML = `<div class="notice notice-error">${escapeHTML(error.message)}</div>`;
+    }
+
+}
+
+async function checkRagStatus() {
+
+    const status = document.getElementById("rag-status");
+
+    try {
+        const response = await fetch(`${API_BASE}/ai/ask`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: "" })
+        });
+        if (response.status === 503) throw new Error();
+        status.className = "notice notice-success";
+        status.textContent = "RAG server available.";
+    }
+    catch (error) {
+        status.className = "notice notice-error";
+        status.textContent = "RAG server unavailable. Start it on the host and reload.";
+    }
+
+}
+
+
+/* =========================================================
    HELPERS
 ========================================================= */
 
@@ -1089,6 +1591,9 @@ activate(panels[initial] ? initial : "search");
  * so the feature has useful content immediately.
  */
 loadBudget();
+renderMcpToolFields();
+checkMcpStatus();
+checkRagStatus();
 
 </script>
 
