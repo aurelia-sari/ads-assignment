@@ -27,6 +27,10 @@ FAILURE_TTL_SECONDS = 5 * 60
 TRAVELLER_CURRENCIES = ["USD", "EUR", "GBP"]
 OTHER_SEEDED_CURRENCY = {"AUD": "JPY", "JPY": "AUD"}
 
+# Every currency the page shows a rate for, so also every one the AI
+# Assistant can convert.
+SUPPORTED_CURRENCIES = ["AUD", "JPY", "USD", "EUR", "GBP"]
+
 # Quoted per 100 rather than per 1, since one unit is worth very little.
 PER_HUNDRED = {"JPY"}
 
@@ -106,10 +110,26 @@ def rate_lines(data):
     lines = []
     for code, rate in data["rates"].items():
         amount = 100 if code in PER_HUNDRED else 1
-        value = amount / rate
-        shown = f"{value:,.0f}" if local in PER_HUNDRED else f"{value:,.2f}"
-        lines.append(f"{amount} {code} = {shown} {local}")
+        lines.append(f"{amount} {code} = {format_amount(amount / rate, local)} {local}")
     return lines
+
+
+def format_amount(value, code):
+    return f"{value:,.0f}" if code in PER_HUNDRED else f"{value:,.2f}"
+
+
+def convert(amount, from_code, to_code):
+    """Returns (converted, rate, data) using the same cached rates as the
+    page. A seeded currency is used as the base, since its cached rates
+    cover every other supported currency."""
+    base = next((code for code in (from_code, to_code) if code in OTHER_SEEDED_CURRENCY), "AUD")
+    data = latest(base)
+
+    def per_base(code):
+        return 1.0 if code == base else data["rates"][code]
+
+    rate = per_base(to_code) / per_base(from_code)
+    return amount * rate, rate, data
 
 
 def source_note(data):

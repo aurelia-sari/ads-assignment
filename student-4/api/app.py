@@ -159,31 +159,60 @@ def validate_password(value):
 def destination_row(destination):
     detail_url = f"/api/student-4/guides/{destination['id']}"
     return (
-        "<div style='padding:0.75rem 0; border-bottom:1px solid var(--color-slate-200)'>"
-        f"<a href='#' hx-get='{detail_url}' hx-target='#guides-results' hx-swap='innerHTML' "
-        "style='font-size:1rem; font-weight:600; color:var(--color-navy-900)'>"
-        f"{escape(destination['city'])}, {escape(destination['country'])}</a>"
-        "</div>"
+        f"<a href='#' class='guide-row' hx-get='{detail_url}' hx-target='#guides-results' hx-swap='innerHTML'>"
+        f"<span class='guide-row__name'>{escape(destination['city'])}, {escape(destination['country'])}</span>"
+        f"<span class='guide-row__meta'>{escape(destination['region'])}</span>"
+        "<span class='guide-row__chevron' aria-hidden='true'>&rsaquo;</span>"
+        "</a>"
     )
 
 def destinations_table(destinations, query):
     if not destinations:
         message = f"No cities or countries match \"{query}\"." if query else "No destinations available."
-        return f"<p class='muted'>{escape(message)}</p>"
+        return f"<p class='result-empty'>{escape(message)}</p>"
 
-    rows = "".join(destination_row(d) for d in destinations)
-    return f"<div>{rows}</div>"
+    by_country = {}
+    for destination in destinations:
+        by_country.setdefault(destination["country"], []).append(destination)
+
+    groups = "".join(
+        f"<div class='guide-group'><h4 class='guide-group__title'>{escape(country)}</h4>"
+        f"<div class='guide-list'>{''.join(destination_row(d) for d in rows)}</div></div>"
+        for country, rows in sorted(by_country.items())
+    )
+    return f"<div class='guide-groups'>{groups}</div>"
+
+def guide_section(title, body, section_id="", wide=False):
+    # transportation, visa and weather keep an id because their tabs swap the whole section.
+    id_attr = f" id='{section_id}'" if section_id else ""
+    modifier = " guide-section--wide" if wide else ""
+    return (
+        f"<section class='guide-section{modifier}'{id_attr}>"
+        f"<h4 class='guide-section__title'>{escape(title)}</h4>{body}</section>"
+    )
+
+def guide_tabs(buttons):
+    return f"<div class='guide-tabs' role='group'>{buttons}</div>"
+
+def guide_tab(label, url, target, active):
+    pressed = "true" if active else "false"
+    css = "chip is-active" if active else "chip"
+    return (
+        f"<button type='button' class='{css}' aria-pressed='{pressed}' hx-get='{url}' "
+        f"hx-target='#{target}' hx-swap='outerHTML'>{escape(label)}</button>"
+    )
 
 def currency_subsection(destination_id, info):
     if info is None:
-        return "<h4 style='margin:1.75rem 0 0.15rem 0'>Currency</h4><p class='muted'>No currency information yet.</p>"
+        return guide_section("Currency", "<p class='muted'>No currency information yet.</p>", wide=True)
 
-    return (
-        "<h4 style='margin:1.75rem 0 0.15rem 0'>Currency</h4>"
-        f"<p style='margin:0'>{escape(info['currency_code'])}, the {escape(info['currency_name'])}. "
-        f"{escape(info['exchange_tips'])}</p>"
+    body = (
+        f"<p><span class='pill pill-planned'>{escape(info['currency_code'])}</span>"
+        f"{escape(info['currency_name'])}</p>"
+        f"<p>{escape(info['exchange_tips'])}</p>"
         + live_rates_placeholder(destination_id)
     )
+    return guide_section("Currency", body, wide=True)
 
 TRANSPORT_TYPE_LABELS = {
     "flights": "Flights",
@@ -200,86 +229,61 @@ FLIGHT_BOOKING_URL = "/student-5/#search"
 
 def transportation_section(destination_id, items, active_type):
     if not items:
-        return (
-            "<div id='transportation-section'>"
-            "<h4 style='margin:1.75rem 0 0.15rem 0'>Transportation</h4>"
-            "<p class='muted'>No transportation information yet.</p>"
-            "</div>"
+        return guide_section(
+            "Transportation", "<p class='muted'>No transportation information yet.</p>", "transportation-section"
         )
 
     active = active_type if any(item["type"] == active_type for item in items) else items[0]["type"]
     active_item = next(item for item in items if item["type"] == active)
 
-    tabs = "".join(
-        (
-            f"<button type='button' hx-get='/api/student-4/guides/{destination_id}/transportation?type={item['type']}' "
-            "hx-target='#transportation-section' hx-swap='outerHTML' "
-            "style='padding:0.35rem 0.75rem; margin:0 0.35rem 0.35rem 0; border-radius:999px; "
-            "border:1px solid var(--color-slate-200); "
-            f"{'background:var(--color-navy-800); color:var(--color-white)' if item['type'] == active else 'background:transparent; color:var(--color-slate-500)'}'>"
-            f"{escape(TRANSPORT_TYPE_LABELS.get(item['type'], item['type'].title()))}</button>"
+    tabs = guide_tabs("".join(
+        guide_tab(
+            TRANSPORT_TYPE_LABELS.get(item["type"], item["type"].title()),
+            f"/api/student-4/guides/{destination_id}/transportation?type={item['type']}",
+            "transportation-section",
+            item["type"] == active,
         )
         for item in items
-    )
+    ))
 
     book_button = ""
     if active == "flights" and active_item.get("bookable"):
-        book_button = (
-            f"<a class='btn-sm' href='{FLIGHT_BOOKING_URL}' "
-            "style='display:inline-block; margin-top:0.6rem'>Book flights</a>"
-        )
+        book_button = f"<a class='btn-sm guide-action' href='{FLIGHT_BOOKING_URL}'>Book flights</a>"
 
-    return (
-        "<div id='transportation-section'>"
-        "<h4 style='margin:1.75rem 0 0.35rem 0'>Transportation</h4>"
-        f"<div>{tabs}</div>"
-        f"<p style='margin:0.35rem 0 0'>{escape(active_item['description'])} {escape(active_item['tips'])}</p>"
-        f"{book_button}"
-        "</div>"
+    body = (
+        tabs
+        + f"<p>{escape(active_item['description'])}</p>"
+        + f"<p class='muted'>{escape(active_item['tips'])}</p>"
+        + book_button
     )
+    return guide_section("Transportation", body, "transportation-section")
 
 def visa_section(destination_id, items, active_nationality):
     if not items:
-        return (
-            "<div id='visa-section'>"
-            "<h4 style='margin:1.75rem 0 0.15rem 0'>Visa</h4>"
-            "<p class='muted'>No visa information yet.</p>"
-            "</div>"
-        )
+        return guide_section("Visa", "<p class='muted'>No visa information yet.</p>", "visa-section")
 
     active = active_nationality if any(item["nationality"] == active_nationality for item in items) else None
 
-    tabs = "".join(
-        (
-            f"<button type='button' hx-get='/api/student-4/guides/{destination_id}/visa?nationality={quote(item['nationality'])}' "
-            "hx-target='#visa-section' hx-swap='outerHTML' "
-            "style='padding:0.35rem 0.75rem; margin:0 0.35rem 0.35rem 0; border-radius:999px; "
-            "border:1px solid var(--color-slate-200); "
-            f"{'background:var(--color-navy-800); color:var(--color-white)' if item['nationality'] == active else 'background:transparent; color:var(--color-slate-500)'}'>"
-            f"{escape(item['nationality'])}</button>"
+    tabs = guide_tabs("".join(
+        guide_tab(
+            item["nationality"],
+            f"/api/student-4/guides/{destination_id}/visa?nationality={quote(item['nationality'])}",
+            "visa-section",
+            item["nationality"] == active,
         )
         for item in items
-    )
+    ))
 
     if active is None:
-        body = (
-            "<p class='muted' style='margin:0.35rem 0 0'>"
-            "Select your nationality to see visa requirements for this destination.</p>"
-        )
+        body = "<p class='muted'>Select your nationality to see visa requirements for this destination.</p>"
     else:
         active_item = next(item for item in items if item["nationality"] == active)
         body = (
-            f"<p style='margin:0.35rem 0 0'><strong>{escape(active_item['requirement_type'])}.</strong> "
-            f"{escape(active_item['notes'])}</p>"
+            f"<p><span class='pill pill-planned'>{escape(active_item['requirement_type'])}</span></p>"
+            f"<p>{escape(active_item['notes'])}</p>"
         )
 
-    return (
-        "<div id='visa-section'>"
-        "<h4 style='margin:1.75rem 0 0.35rem 0'>Visa</h4>"
-        f"<div>{tabs}</div>"
-        f"{body}"
-        "</div>"
-    )
+    return guide_section("Visa", tabs + body, "visa-section")
 
 def default_weather_month(items):
     current_month = datetime.now().strftime("%B")
@@ -289,61 +293,58 @@ def default_weather_month(items):
 
 def weather_section(destination_id, items, active_month):
     if not items:
-        return (
-            "<div id='weather-section'>"
-            "<h4 style='margin:1.75rem 0 0.15rem 0'>Weather</h4>"
-            "<p class='muted'>No weather information yet.</p>"
-            "</div>"
-        )
+        return guide_section("Weather", "<p class='muted'>No weather information yet.</p>", "weather-section")
 
     active = active_month if any(item["month"] == active_month for item in items) else default_weather_month(items)
     active_item = next(item for item in items if item["month"] == active)
 
-    tabs = "".join(
-        (
-            f"<button type='button' hx-get='/api/student-4/guides/{destination_id}/weather?month={quote(item['month'])}' "
-            "hx-target='#weather-section' hx-swap='outerHTML' "
-            "style='padding:0.3rem 0.55rem; margin:0 0.3rem 0.3rem 0; border-radius:999px; "
-            "border:1px solid var(--color-slate-200); "
-            f"{'background:var(--color-navy-800); color:var(--color-white)' if item['month'] == active else 'background:transparent; color:var(--color-slate-500)'}'>"
-            f"{escape(item['month'][:3])}</button>"
+    tabs = guide_tabs("".join(
+        guide_tab(
+            item["month"][:3],
+            f"/api/student-4/guides/{destination_id}/weather?month={quote(item['month'])}",
+            "weather-section",
+            item["month"] == active,
         )
         for item in items
-    )
+    ))
 
-    return (
-        "<div id='weather-section'>"
-        "<h4 style='margin:1.75rem 0 0.35rem 0'>Weather</h4>"
-        f"<div>{tabs}</div>"
-        f"<p style='margin:0.35rem 0 0'>The average daytime high in {escape(active_item['month'])} is about "
-        f"{active_item['avg_temp']:g}°C, with around {active_item['rainfall']:g}mm of rainfall.</p>"
-        f"<p class='muted' style='margin:0.35rem 0 0'>{escape(active_item['best_visit_time'])}</p>"
-        "</div>"
+    body = (
+        tabs
+        + f"<p>The average daytime high in {escape(active_item['month'])} is about "
+        f"<strong>{active_item['avg_temp']:g}°C</strong>, with around "
+        f"<strong>{active_item['rainfall']:g}mm</strong> of rainfall.</p>"
+        + f"<p class='muted'>{escape(active_item['best_visit_time'])}</p>"
     )
+    return guide_section("Weather", body, "weather-section")
 
 def safety_subsection(info):
     if info is None:
-        return "<h4 style='margin:1.75rem 0 0.15rem 0'>Safety</h4><p class='muted'>No safety information yet.</p>"
+        return guide_section("Safety", "<p class='muted'>No safety information yet.</p>")
 
-    return (
-        "<h4 style='margin:1.75rem 0 0.15rem 0'>Safety</h4>"
-        f"<p style='margin:0'><strong>{escape(info['safety_level'])}.</strong> {escape(info['tips'])}</p>"
+    body = (
+        f"<p><span class='pill pill-booked'>{escape(info['safety_level'])}</span></p>"
+        f"<p>{escape(info['tips'])}</p>"
     )
+    return guide_section("Safety", body)
 
 def destination_detail(destination, currency, transportation, visa, weather, safety):
-    back_link = (
-        "<a href='#' hx-get='/api/student-4/guides' hx-target='#guides-results' hx-swap='innerHTML' "
-        "style='display:inline-block; margin-bottom:0.75rem; font-weight:600'>&lt;- View all</a>"
+    head = (
+        "<div class='guide-head'>"
+        "<a href='#' class='back-link' hx-get='/api/student-4/guides' hx-target='#guides-results' "
+        "hx-swap='innerHTML'><span aria-hidden='true'>&larr;</span> View all</a>"
+        f"<h3>{escape(destination['city'])}, {escape(destination['country'])}</h3>"
+        f"<p class='muted'>{escape(destination['region'])}</p>"
+        "</div>"
     )
-    heading = f"<h3 style='margin:0'>{escape(destination['city'])}, {escape(destination['country'])}</h3>"
     return (
-        back_link
-        + heading
+        head
+        + "<div class='guide-grid'>"
         + currency_subsection(destination["id"], currency)
         + transportation_section(destination["id"], transportation, None)
         + visa_section(destination["id"], visa, None)
         + weather_section(destination["id"], weather, None)
         + safety_subsection(safety)
+        + "</div>"
     )
 
 @app.get("/health")

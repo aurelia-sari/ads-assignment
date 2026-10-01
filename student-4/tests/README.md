@@ -131,11 +131,17 @@ that fails on any network call, a timeout and four kinds of bad response,
 the cache, keeping the last good rates when a refresh fails, and the AI
 Assistant quoting the same figures as the page.
 
-The workflow runs all four files before the Docker build.
+`test_currency_request.py` checks AI Assistant conversions such as "How
+much is 500 AUD to yen?". They are calculated in code from the stubbed
+rates, with a guard that fails if the model is called. It also covers an
+unsupported currency, a bare "dollars", a missing target currency and no
+live rates.
+
+The workflow runs all five files before the Docker build.
 
 ```bash
 python -m pip install -r student-4/tests/requirements.txt
-python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py
+python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_currency_request.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py
 ```
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted

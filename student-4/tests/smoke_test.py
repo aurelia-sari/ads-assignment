@@ -352,6 +352,21 @@ def run_ai_assistant_checks():
     status, response = ai_guide_chat("Is the shinkansen worth it?", user_id=ai_user_id)
     expect(response.json().get("intent") == "transport", "asking about the shinkansen is a transport question")
 
+    # Conversions are calculated in code, so these need no model. CI has no
+    # live rates, so there the assistant says so instead.
+    status, response = ai_guide_chat("How much is 500 AUD to yen?", user_id=ai_user_id)
+    answer = response.json().get("answer", "")
+    expect(
+        answer.startswith("500 AUD is about ") or "Live exchange rates are not available" in answer,
+        "a conversion is answered from the live rates, or says they are unavailable",
+    )
+
+    status, response = ai_guide_chat("How much is 1000 baht in yen?", user_id=ai_user_id)
+    expect(
+        response.json().get("answer", "").startswith("Only AUD, JPY, USD, EUR and GBP are available"),
+        "an unsupported currency lists the currencies that are available",
+    )
+
     if not ai_mode_reachable():
         _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{bare_city_session}")
         print("  skip  ai-mode is not running, skipping the model-grounded AI Assistant checks")

@@ -8,9 +8,11 @@ own fallback response instead of a guess.
 """
 
 from agentic_loop.collectors import guide_collector
+from agentic_loop.core import currency_request
 from agentic_loop.core.classifier import classify_intent
 from agentic_loop.core.validator import validate_answer
 from agentic_loop.pipelines.guide_chat_pipeline import GUIDE_SOURCE_PATH, run_guide_chat
+from services import exchange_rates
 
 GUIDE_TOPICS = "currency, transportation, visa, weather and safety"
 
@@ -35,6 +37,69 @@ def unrelated_message():
     return f"I can only help with the {GUIDE_TOPICS} guide{where}. Ask me about one of those, naming a city."
 
 
+SUPPORTED_CURRENCY_TEXT = _join(exchange_rates.SUPPORTED_CURRENCIES)
+
+
+def _shown_amount(amount, code):
+    return f"{amount:,.0f}" if amount == int(amount) else exchange_rates.format_amount(amount, code)
+
+
+def answer_currency_request(request, resolve_destination):
+    """Act and Adapt for a question that names a currency. Returns None when
+    it is not a conversion, so the normal guide answer runs instead."""
+    def reply(answer):
+        return {"intent": "currency", "answer": answer, "adapted": True}
+
+    if request["kind"] == "unsupported":
+        return reply(
+            f"Only {SUPPORTED_CURRENCY_TEXT} are available at the moment, so I cannot "
+            f"convert {_join(request['names'])}."
+        )
+    if request["kind"] == "ambiguous_dollar":
+        return reply("Which dollar do you mean? I can convert US dollars (USD) and Australian dollars (AUD).")
+
+    codes = request["currencies"]
+    if request["amount"] is None and not request["asks_rate"]:
+        return None
+
+    # Also starts a chat session when the question names a city.
+    destination = resolve_destination()
+    if len(codes) == 1 and destination is not None:
+        currency = guide_collector.collect_currency(destination["id"])
+        if currency and currency["currency_code"] != codes[0]:
+            codes = codes + [currency["currency_code"]]
+    if len(codes) < 2:
+        # Only the city's own currency, as in "is 50000 yen enough in Tokyo",
+        # which the guide answers better than a conversion.
+        if destination is not None:
+            return None
+        others = _join([code for code in exchange_rates.SUPPORTED_CURRENCIES if code != codes[0]])
+        return reply(f"Which currency should I convert {codes[0]} to? I can use {others}.")
+
+    from_code, to_code = codes[0], codes[1]
+    amount = request["amount"] if request["amount"] is not None else 1
+    try:
+        converted, rate, data = exchange_rates.convert(amount, from_code, to_code)
+    except (exchange_rates.LiveDataDisabled, exchange_rates.RatesUnavailable):
+        return reply(
+            "Live exchange rates are not available right now, so I cannot convert amounts. "
+            f"The currency tips are on the guide page here: {GUIDE_SOURCE_PATH}"
+        ) | {"redirect_path": GUIDE_SOURCE_PATH}
+
+    # Quoted and rounded the same way as the rate tiles on the page.
+    unit = 100 if from_code in exchange_rates.PER_HUNDRED else 1
+    shown_rate = exchange_rates.format_amount(rate * unit, to_code)
+    return {
+        "intent": "currency",
+        "answer": (
+            f"{_shown_amount(amount, from_code)} {from_code} is about "
+            f"{exchange_rates.format_amount(converted, to_code)} {to_code}, at {unit} {from_code} = "
+            f"{shown_rate} {to_code}. {exchange_rates.source_note(data)}"
+        ),
+        "adapted": False,
+    }
+
+
 # Also covers a city or country without a guide, since an unknown place
 # name cannot be told apart from no place name at all.
 def no_city_message():
@@ -50,6 +115,13 @@ def run(question, resolve_destination):
     """
     redirect_map = guide_collector.collect_redirect_map()
     intent, redirect_row = classify_intent(question, redirect_map)
+
+    if intent in ("currency", "unrelated"):
+        request = currency_request.parse(question)
+        if request is not None:
+            result = answer_currency_request(request, resolve_destination)
+            if result is not None:
+                return result
 
     if intent == "unrelated":
         # A bare city name, often a reply to the no city prompt, starts a

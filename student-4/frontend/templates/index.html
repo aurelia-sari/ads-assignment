@@ -20,6 +20,119 @@
             border-color: var(--color-navy-800);
             color: var(--color-white);
         }
+
+        /* Guide list */
+        .guide-group + .guide-group { margin-top: 1.4rem; }
+        .guide-group__title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--color-slate-500);
+            margin-bottom: 0.6rem;
+        }
+        .guide-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.6rem;
+        }
+        .guide-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            padding: 0.75rem 0.95rem;
+            border: 1px solid var(--color-slate-200);
+            border-radius: var(--radius-input);
+            transition: border-color 0.15s ease, background 0.15s ease;
+        }
+        .guide-row:hover { border-color: var(--color-blue-500); background: #f2f7fd; }
+        .guide-row__name { font-weight: 600; color: var(--color-navy-900); }
+        .guide-row__meta { grid-column: 1; font-size: 0.82rem; color: var(--color-slate-500); }
+        .guide-row__chevron { grid-column: 2; grid-row: 1 / span 2; font-size: 1.3rem; color: var(--color-slate-500); }
+
+        /* Guide detail */
+        .guide-head { margin-bottom: 1.25rem; }
+        .guide-head .back-link { margin-bottom: 0.9rem; }
+        .guide-head h3 {
+            font-family: var(--font-display);
+            font-size: 1.6rem;
+            color: var(--color-navy-900);
+            margin: 0;
+        }
+        .guide-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            align-items: start;
+        }
+        .guide-section {
+            border: 1px solid var(--color-slate-200);
+            border-radius: var(--radius-input);
+            padding: 1.1rem 1.2rem 1.2rem;
+        }
+        .guide-section--wide { grid-column: 1 / -1; }
+        .guide-section__title {
+            font-family: var(--font-display);
+            font-size: 1.05rem;
+            color: var(--color-navy-900);
+            margin: 0 0 0.75rem;
+        }
+        .guide-section p { margin: 0; font-size: 0.93rem; line-height: 1.55; }
+        .guide-section p + p { margin-top: 0.45rem; }
+        .guide-section .pill { margin-right: 0.45rem; }
+        .guide-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.85rem; }
+        .guide-tabs .chip { padding: 0.3rem 0.8rem; font-size: 0.82rem; color: var(--color-slate-500); }
+        .guide-tabs .chip.is-active {
+            background: var(--color-navy-800);
+            border-color: var(--color-navy-800);
+            color: var(--color-white);
+        }
+        .guide-action { display: inline-block; margin-top: 0.85rem; }
+
+        /* Live exchange rates and converter */
+        .fx { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-slate-200); }
+        .guide-section .fx-title { font-size: 0.82rem; font-weight: 600; color: var(--color-slate-500); margin: 0 0 0.5rem; }
+        .fx-rates {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.5rem;
+            margin-bottom: 1.1rem;
+        }
+        .fx-rates li {
+            padding: 0.55rem 0.75rem;
+            border-radius: var(--radius-input);
+            background: #f2f7fd;
+            color: var(--color-navy-800);
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        .fx-converter { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+        .fx-converter.is-reversed { flex-direction: row-reverse; justify-content: flex-end; }
+        .fx-field {
+            display: flex;
+            flex: 1 1 200px;
+            border: 1px solid var(--color-slate-200);
+            border-radius: var(--radius-input);
+            overflow: hidden;
+        }
+        .fx-field:focus-within { outline: 2px solid var(--color-blue-500); outline-offset: 1px; }
+        .fx-field input { flex: 1; min-width: 0; border: none; border-radius: 0; font-size: 1rem; }
+        .fx-field input:focus { outline: none; }
+        .fx-field select, .fx-code {
+            width: auto;
+            flex: 0 0 auto;
+            border: none;
+            border-left: 1px solid var(--color-slate-200);
+            border-radius: 0;
+            background: var(--color-cream-50);
+            padding: 0.6rem 0.8rem;
+            font-weight: 600;
+            color: var(--color-navy-800);
+        }
+        .fx-code { display: flex; align-items: center; font-size: 0.95rem; }
+        .fx-swap { flex: 0 0 auto; font-size: 1.05rem; line-height: 1; padding: 0.45rem 0.7rem; }
+        .guide-section .fx-note { font-size: 0.8rem; margin-top: 0.75rem; }
     </style>
 </head>
 <body>
@@ -245,6 +358,45 @@ document.querySelectorAll("#panel-rag .chip").forEach((chip) =>
         ragForm.requestSubmit();
     })
 );
+
+// Currency converter in a guide's live rates. The listeners sit on the
+// document because htmx swaps the converter in after the page loads.
+function fxAmount(value, code) {
+    return code === "JPY" ? value.toFixed(0) : value.toFixed(2);
+}
+
+function fxConvert(converter, fromSide) {
+    // data-fx-rates holds how much of each currency one local unit buys.
+    const rates = JSON.parse(converter.dataset.fxRates);
+    const localCode = converter.dataset.fxBase;
+    const foreignCode = converter.querySelector("[data-fx-currency]").value;
+    const foreignInput = converter.querySelector("[data-fx-side='foreign']");
+    const localInput = converter.querySelector("[data-fx-side='local']");
+    const source = fromSide === "local" ? localInput : foreignInput;
+    const target = fromSide === "local" ? foreignInput : localInput;
+    const amount = parseFloat(source.value);
+
+    if (Number.isNaN(amount) || amount < 0) {
+        target.value = "";
+        return;
+    }
+    target.value = fromSide === "local"
+        ? fxAmount(amount * rates[foreignCode], foreignCode)
+        : fxAmount(amount / rates[foreignCode], localCode);
+}
+
+document.addEventListener("input", (event) => {
+    const converter = event.target.closest("[data-fx-rates]");
+    if (!converter) return;
+    // Changing the currency keeps the amount the user last typed.
+    if (event.target.dataset.fxSide) converter.dataset.fxLastSide = event.target.dataset.fxSide;
+    fxConvert(converter, converter.dataset.fxLastSide || "foreign");
+});
+
+document.addEventListener("click", (event) => {
+    const swap = event.target.closest("[data-fx-swap]");
+    if (swap) swap.closest("[data-fx-rates]").classList.toggle("is-reversed");
+});
 
 document.body.addEventListener("htmx:afterRequest", (event) => {
     const target = event.target;

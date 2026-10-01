@@ -96,6 +96,15 @@ def test_australian_city_shows_foreign_currency_in_aud(client, frankfurter_calls
     assert frankfurter_calls[0] == {"base": "AUD", "symbols": "USD,EUR,GBP,JPY"}
 
 
+def test_converter_starts_at_100_of_the_first_currency(client, frankfurter_calls):
+    html = client.get("/guides/1/currency/live", headers=HTMX).get_data(as_text=True)
+    assert "data-fx-base='AUD'" in html
+    assert "&quot;USD&quot;: 0.69675" in html
+    assert "data-fx-side='foreign' value='100'" in html
+    assert "data-fx-side='local' value='143.52'" in html
+    assert "<option value='JPY'>JPY</option>" in html
+
+
 def test_japanese_city_shows_foreign_currency_in_jpy(client, frankfurter_calls):
     body = client.get("/guides/14/currency/live").get_json()
     assert body["status"] == "ok"
