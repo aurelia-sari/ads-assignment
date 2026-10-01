@@ -13,10 +13,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
 
-from agentic_loop.collectors import trip_collector  # noqa: E402
-from agentic_loop.core import orchestrator  # noqa: E402
-from agentic_loop.core.classifier import extract_destination_hint  # noqa: E402
-from views.ai_formatter import match_fragment  # noqa: E402
+from agentic_loop.collectors import trip_collector 
+from agentic_loop.core import orchestrator 
+from agentic_loop.core.classifier import extract_destination_hint  
+from views.ai_formatter import match_fragment  
 
 
 def post(post_id, destination, traveller_id=1):
