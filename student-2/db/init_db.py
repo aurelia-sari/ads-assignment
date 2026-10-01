@@ -42,12 +42,10 @@ DB_PATH = Path(
 # Seed data - Places
 # ------------------------------------------------------------------
 
-# Representative photo for each place, taken directly from that
-# place's Google Maps listing (lh3.googleusercontent.com CDN).
-# NOTE: these are unofficial Google Maps photo URLs (not the paid
-# Places API). They are good enough for the current demo video, but
-# are not guaranteed to stay valid indefinitely - re-scrape from
-# Google Maps if any of them stop resolving.
+# Representative photo for each place. Most photos use the Google Maps
+# image CDN; the preserved legacy Din Tai Fung record uses a direct JPEG.
+# These external image URLs are suitable for the current demo, but they are
+# not guaranteed to remain valid indefinitely and should be re-checked.
 GOOGLE_MAPS_PHOTO = "https://lh3.googleusercontent.com/gps-cs-s/{}"
 
 
@@ -202,10 +200,9 @@ PLACES = [
         "description": (
             "Major public art museum located beside The Domain."
         ),
-        "image_url": GOOGLE_MAPS_PHOTO.format(
-            "AHRPTWm3Jpr_38pUbuecUCPYy9LL_T7icCXt6GnGREwt0V3D4lh1VDYmge7V"
-            "UhsrTvPF461yLX2hi3ScnWxhgeLVe7iZIM1lykqO-u0JYR_4D8N862kihOi8"
-            "2TUhFlkCmF_mbC91xJFXO11YoeXg=w408-h306-k-no"
+        "image_url": (
+            "https://www.datocms-assets.com/42890/"
+            "1669430626-2022kdc_002.jpg?fit=max&iptc=allow&w=1200"
         ),
     },
     {
@@ -225,6 +222,24 @@ PLACES = [
             "AHRPTWnMjSEKGa68k30MEyeYV308mP8OUbpfsc9nxJjbCDjtB3NbKzV2uFZb"
             "JqKrfR-mhYmzYORZNyrQMNCcT3oxqBWK5B0_j8jK-trM_lcW22gJRnPnJOVT"
             "z2bW84PINVQsI9go9KXL=w408-h271-k-no"
+        ),
+    },
+    {
+        "external_place_id": None,
+        "name": "Din Tai Fung World Square",
+        "category": "restaurant",
+        "address": "644 George St, Sydney NSW 2000",
+        "latitude": -33.8778,
+        "longitude": 151.2058,
+        "rating": 4.4,
+        "opening_hours": "11:00-21:30",
+        "price_range": 30,
+        "description": (
+            "Restaurant known for dumplings and Taiwanese cuisine."
+        ),
+        "image_url": (
+            "https://cdn.gotoeat.net/dintaifungworldsquarerestaurant/"
+            "16232-albums-1.jpg"
         ),
     },
     {
@@ -641,6 +656,24 @@ for place in MULTI_CITY_PLACES:
 PLACES.extend(MULTI_CITY_PLACES)
 
 
+# Keep existing databases in sync with the image URLs in the seed data.
+PLACE_IMAGE_URLS = {
+    place["name"]: place["image_url"]
+    for place in PLACES
+}
+
+# Replace known image URLs that can fail in browsers even when they still
+# return an image to a direct HTTP request.
+STALE_PLACE_IMAGE_URLS = {
+    "Art Gallery of New South Wales": (
+        "https://lh3.googleusercontent.com/gps-cs-s/"
+        "AHRPTWm3Jpr_38pUbuecUCPYy9LL_T7icCXt6GnGREwt0V3D4lh1VDYmge7V"
+        "UhsrTvPF461yLX2hi3ScnWxhgeLVe7iZIM1lykqO-u0JYR_4D8N862kihOi8"
+        "2TUhFlkCmF_mbC91xJFXO11YoeXg=w408-h306-k-no"
+    ),
+}
+
+
 # ------------------------------------------------------------------
 # Database connection
 # ------------------------------------------------------------------
@@ -716,7 +749,7 @@ def create_schema(conn: sqlite3.Connection) -> None:
 def seed_places(conn: sqlite3.Connection) -> None:
     """Insert place records that are not already present."""
 
-    for name, image_url in MULTI_CITY_IMAGE_URLS.items():
+    for name, image_url in PLACE_IMAGE_URLS.items():
         conn.execute(
             """
             UPDATE places
@@ -725,6 +758,17 @@ def seed_places(conn: sqlite3.Connection) -> None:
               AND (image_url IS NULL OR image_url = '')
             """,
             (image_url, name),
+        )
+
+    for name, stale_url in STALE_PLACE_IMAGE_URLS.items():
+        conn.execute(
+            """
+            UPDATE places
+            SET image_url = ?
+            WHERE name = ?
+              AND image_url = ?
+            """,
+            (PLACE_IMAGE_URLS[name], name, stale_url),
         )
 
     existing_names = {
