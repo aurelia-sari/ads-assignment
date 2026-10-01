@@ -106,8 +106,27 @@ def check_frontend_wiring():
     expect(hx_attributes > 0, f"page has HTMX attributes ({hx_attributes} found)")
     expect("/api/student-3/" in body, "page calls its own API (/api/student-3/)")
     expect("/shared/css/theme.css" in body, "page uses the shared CSS theme")
+
+def check_ai_integrations():
+    """In CI (CI=true) MCP and RAG are disabled and must answer 503.
+    Locally they are enabled and must answer 200 (or 502 if a host service is down)."""
+    import os
+    ci_mode = os.environ.get("CI", "").lower() == "true"
+
+    for path, body in (("/mcp/find-mates", b"destination="), ("/ai/ask-grounded", b"question=test")):
+        req = urllib.request.Request(f"{API_BASE}{path}", data=body, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as response:
+                status = response.status
+        except urllib.error.HTTPError as exc:
+            status = exc.code
+
+        if ci_mode:
+            expect(status == 503, f"{path} is disabled in CI (503)")
+        else:
+            expect(status in (200, 502), f"{path} responds locally (got {status})")
  
- 
+
 def main():
     print("Smoke test: student-3 (Travel Mate)")
     try:
@@ -121,6 +140,7 @@ def main():
         check_connect_requests_read()
         check_api_wiring()
         check_frontend_wiring()
+        check_ai_integrations()
     except SmokeFailure as failure:
         print(f"\nFAIL: {failure}")
         return 1
