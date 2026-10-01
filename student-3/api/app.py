@@ -15,7 +15,7 @@ import os
 import itertools
 import requests
 from flask import Flask, jsonify, render_template_string, request, send_from_directory
-
+from services import mcp_client, rag_client
 from agentic_loop.core.orchestrator import run as run_match_turn, score_candidates, LLM_ERRORS
 from views.ai_formatter import match_fragment
 app = Flask(__name__)
@@ -26,8 +26,7 @@ FRONTEND_DIR = os.environ.get("FRONTEND_DIR", "../frontend/templates")
 CURRENT_TRAVELLER_ID = int(os.environ.get("CURRENT_TRAVELLER_ID", "1"))
 #newly addedddd
 SHARED_API_URL = os.environ.get("SHARED_API_URL", "http://localhost:5000")
-MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://localhost:5400")
-RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://localhost:5500")
+
 MCP_ENABLED = os.environ.get("MCP_ENABLED", "true").lower() == "true"
 RAG_ENABLED = os.environ.get("RAG_ENABLED", "true").lower() == "true"
 
@@ -77,35 +76,7 @@ def connect_thread(post_id, other_id):
 #OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 
 
-#mcp adding
-_mcp_id_counter = itertools.count(1)
 
-def call_mcp_tool(tool_name, arguments):
-    """Call one registered MCP tool and return its structured result.
-    Raises requests.RequestException on transport failure, and returns
-    a dict with isError=True if the MCP server refused the call (a
-    boundary violation, not a network problem)."""
-    payload = {
-        "jsonrpc": "2.0",
-        "id": next(_mcp_id_counter),
-        "method": "tools/call",
-        "params": {"name": tool_name, "arguments": arguments},
-    }
-    r = requests.post(f"{MCP_SERVER_URL}/mcp", json=payload, timeout=10)
-    r.raise_for_status()
-    body = r.json()
-    if "error" in body:
-        raise ValueError(body["error"].get("message", "MCP server error"))
-    return body["result"]
-
-#RAG
-def call_rag_ask(question, live_context=None):
-    """Call the shared RAG server's /ask endpoint and return its full
-    response: answer, grounded flag, confidence, confidence_reason,
-    and citations. Raises requests.RequestException on transport failure."""
-    r = requests.post(f"{RAG_SERVER_URL}/ask", json={"question": question}, timeout=180)
-    r.raise_for_status()
-    return r.json()
 
 #AI_MODE_URL = os.environ.get("AI_MODE_URL", "http://ai-mode:5300")
 # --- Serve the frontend (handy for local testing) --------------------------
@@ -355,6 +326,22 @@ def my_trips():
     posts = r.json()
     return render_template_string(TRIP_CARD_TMPL, posts=posts, current_id=CURRENT_TRAVELLER_ID)
 
+@app.get("/ai/status")
+def ai_status():
+    """Report whether the shared MCP and RAG servers are reachable from this container."""
+    status = {"mcp_enabled": MCP_ENABLED, "rag_enabled": RAG_ENABLED}
+    for name, enabled, check in (
+        ("mcp", MCP_ENABLED, mcp_client.health),
+        ("rag", RAG_ENABLED, rag_client.health),
+    ):
+        if not enabled:
+            status[name] = "disabled"
+            continue
+        try:
+            status[name] = check()
+        except requests.RequestException as exc:
+            status[name] = f"unreachable: {exc}"
+    return jsonify(status)
 
 
 
@@ -601,7 +588,7 @@ def mcp_find_mates():
     args = {"destination": destination} if destination else {}
     args.setdefault("status", "open")
     try:
-        result = call_mcp_tool("find_travel_mates", args)
+        result = mcp_client.call_tool("find_travel_mates", args)
     except (requests.RequestException, ValueError) as exc:
         return f'<div class="card"><p class="error">MCP request failed: {exc}</p></div>', 502
     return render_template_string(MCP_RESULT_TMPL, result=result)
@@ -615,7 +602,7 @@ def ask_grounded():
     if not question.strip():
         return '<div class="card"><p class="error">Type a question first.</p></div>', 400
     try:
-        result = call_rag_ask(question)
+        result = rag_client.ask(question)
     except requests.RequestException as exc:
         return f'<div class="card"><p class="error">RAG request failed: {exc}. Is AI-Mode / Ollama running on the host?</p></div>', 502
     return render_template_string(RAG_RESULT_TMPL, result=result)
