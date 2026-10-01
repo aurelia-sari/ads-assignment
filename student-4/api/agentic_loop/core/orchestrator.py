@@ -166,7 +166,7 @@ def run(question, resolve_destination):
             "redirect_path": GUIDE_SOURCE_PATH,
         }
 
-    validation = validate_answer(result["answer"], result["fact_tokens"])
+    validation = validate_answer(result["answer"], result["fact_tokens"], **result.get("checks", {}))
     if validation["valid"]:
         return {"intent": intent, "answer": result["answer"], "adapted": False}
 
@@ -176,10 +176,23 @@ def run(question, resolve_destination):
         "are not sure, say which detail you need clarified."
     )
     retry_result = run_guide_chat(retry_question, intent, destination)
-    retry_validation = validate_answer(retry_result["answer"], retry_result["fact_tokens"])
+    retry_validation = validate_answer(
+        retry_result["answer"], retry_result["fact_tokens"], **retry_result.get("checks", {})
+    )
 
     if retry_validation["valid"]:
         return {"intent": intent, "answer": retry_result["answer"], "adapted": False}
+
+    # The guide's own payment advice is short and always correct, so it is
+    # quoted instead of asking the traveller to rephrase.
+    currency = guide_collector.collect_currency(destination["id"]) if intent == "currency" else None
+    if currency:
+        return {
+            "intent": intent,
+            "answer": f"Here is what the guide says for {destination_label}. {currency['exchange_tips']}",
+            "adapted": True,
+            "redirect_path": GUIDE_SOURCE_PATH,
+        }
 
     return {
         "intent": intent,

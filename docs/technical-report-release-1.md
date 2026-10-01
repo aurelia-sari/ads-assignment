@@ -249,7 +249,7 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 | student-1.yml | ✅ [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP and RAG disabled |
 | student-2.yml | ⬜ TODO |
 | student-3.yml | ⬜ TODO |
-| student-4.yml | ⬜ Run link pending. Runs 97 unit tests, then the smoke test asserts disabled MCP, RAG and live data |
+| student-4.yml | ⬜ Run link pending. Runs 120 unit tests, then the smoke test asserts disabled MCP, RAG and live data |
 | student-5.yml | ⬜ TODO |
 
 ### 6.5 Deployment via the Release 0 docker-compose.yml
@@ -326,7 +326,7 @@ surfaced:_
 | R4-C | Release 0 guide endpoints return 503 fragments, which HTMX does not swap | Rare | Low | Return 200 notices, as the Release 1 and live endpoints do | Aurelia |
 | R4-D | Live data depends on free external APIs, and Frankfurter can take 5 to 7 seconds | Occasional | Low | Caching, the last good data and a seeded fallback | Aurelia |
 | R4-E | Book flights is hidden for Japan, since student-5 has no Japanese flights | Certain | Medium | Needs Japanese inventory in student-5 | Aurelia |
-| R4-F | Model currency answers are validated loosely. One wrongly said cards work almost everywhere in Kyoto | Rare | Medium | Conversions are computed in code. A stricter validator is planned | Aurelia |
+| R4-F | Currency answers can contradict the guide, such as "you do not need cash in Sydney" | Rare | Low | Fixed. Contradicting claims and unknown figures are rejected, then the guide's tip is quoted. The checks are pattern-based | Aurelia |
 | R4-G | Monthly weather is seeded. Osaka, Kyoto and Nara share one set, and the Australian source is unnamed | Certain | Low | Labelled as long-term averages. Per-city JMA normals planned | Aurelia |
 | R1-D | When a trip id is passed as live context, the small local model (llama3.2) sometimes cites an unrelated retrieved passage and leaves a stray citation marker, though the same question without a trip answers correctly | Occasional | Low | Live context is labelled separately from the cited passages. Ask without a trip for general questions; a larger model reduces it | Caroline |
 | R1-E | The local model occasionally replies that it cannot answer even though relevant passages were retrieved and cited (1 in 7 runs of the same question in testing). Retrieval and confidence are computed by code and stay correct; only the generated text varies | Occasional | Low | Asking again normally succeeds. A lower temperature or a larger model would reduce it | Caroline |

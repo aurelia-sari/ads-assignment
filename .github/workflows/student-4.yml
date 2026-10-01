@@ -47,6 +47,7 @@ jobs:
           python -m pytest -q
           student-4/tests/test_ai_tools.py
           student-4/tests/test_currency_request.py
+          student-4/tests/test_currency_validation.py
           student-4/tests/test_exchange_rates.py
           student-4/tests/test_init_db.py
           student-4/tests/test_orchestrator.py

@@ -3,14 +3,21 @@
 safety, unrelated, or other:<feature_name>.
 """
 
+import re
+
 GUIDE_CATEGORY_KEYWORDS = {
     "currency": ["currency", "money", "exchange rate", "cash", "aud", "dollar", "jpy", "yen", "euro", "pound",
-                 "usd", "gbp", "convert", "afford", "cost of"],
+                 "usd", "gbp", "convert", "afford", "cost of", "pay by"],
     "weather": ["weather", "temperature", "rain", "rainfall", "climate", "forecast", "season", "hot", "cold", "snow"],
     "visa": ["visa", "passport", "entry requirement", "nationality", "immigration", "enter the country"],
     "transport": ["transport", "metro", "subway", "train", "shinkansen", "taxi", "rental", "getting around",
                   "public transport", "flight"],
     "safety": ["safety", "safe", "crime", "danger", "precaution", "risk"],
+}
+
+# Matched as whole words, since "atm" is also inside "atmosphere".
+GUIDE_CATEGORY_WORDS = {
+    "currency": re.compile(r"\b(atms?|cards?)\b"),
 }
 
 
@@ -25,7 +32,8 @@ def classify_intent(question, redirect_map):
             return f"other:{row['feature_name']}", row
 
     for category, keywords in GUIDE_CATEGORY_KEYWORDS.items():
-        if any(keyword in lowered for keyword in keywords):
+        words = GUIDE_CATEGORY_WORDS.get(category)
+        if any(keyword in lowered for keyword in keywords) or (words and words.search(lowered)):
             return category, None
 
     return "unrelated", None
