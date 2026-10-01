@@ -325,7 +325,7 @@ surfaced:_
 | R4-B | The hand-written RAG knowledge can drift from the code, as it did twice | Occasional | Medium | Update it with every feature change and recheck the probes | Aurelia |
 | R4-C | Release 0 guide endpoints return 503 fragments, which HTMX does not swap | Rare | Low | Return 200 notices, as the Release 1 and live endpoints do | Aurelia |
 | R4-D | Live data depends on free external APIs, and Frankfurter can take 5 to 7 seconds | Occasional | Low | Caching, the last good data and a seeded fallback | Aurelia |
-| R4-E | Book flights is hidden for Japan, since student-5 has no Japanese flights | Certain | Medium | Needs Japanese inventory in student-5 | Aurelia |
+| R4-E | Book flights follows student-5's cities, which changed after release | Occasional | Low | Updated. Tokyo, Osaka and Sapporo added, Cairns removed | Aurelia |
 | R4-F | AI answers can contradict the guide, such as "you do not need cash in Sydney" or July's rain for August | Rare | Low | Fixed. Contradicting claims and figures from elsewhere are rejected, then the guide is quoted. The checks are pattern-based | Aurelia |
 | R4-G | Monthly weather had shared or unsourced figures | Certain | Low | Fixed. Each city now uses its own BOM or JMA station averages, named in the seed | Aurelia |
 | R1-D | When a trip id is passed as live context, the small local model (llama3.2) sometimes cites an unrelated retrieved passage and leaves a stray citation marker, though the same question without a trip answers correctly | Occasional | Low | Live context is labelled separately from the cited passages. Ask without a trip for general questions; a larger model reduces it | Caroline |

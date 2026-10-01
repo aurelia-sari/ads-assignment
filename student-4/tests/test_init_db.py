@@ -124,7 +124,7 @@ def test_only_student_5_cities_can_book_flights(seeded):
         "SELECT d.city FROM transportation_infos t JOIN destinations d ON d.id = t.destination_id "
         "WHERE t.bookable = 1"
     )}
-    assert bookable == {"Sydney", "Melbourne", "Brisbane", "Perth", "Cairns"}
+    assert bookable == {"Sydney", "Melbourne", "Brisbane", "Perth", "Tokyo", "Osaka", "Sapporo"}
     assert conn.execute(
         "SELECT COUNT(*) FROM transportation_infos WHERE bookable = 1 AND type != 'flights'"
     ).fetchone()[0] == 0
@@ -162,7 +162,7 @@ def test_seed_upgrades_a_release_1_database(tmp_path):
     assert cities[1] == "Sydney"
     assert sydney_zone == "Australia/Sydney"
     assert 13 not in cities
-    assert bookable == 5
+    assert bookable == 7
 
 
 def test_reseed_is_idempotent(seeded):

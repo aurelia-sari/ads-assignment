@@ -221,8 +221,8 @@ TRANSPORT_TYPES_BY_CITY = {
 }
 
 # Only these cities have flights in student-5 (Bookings & Budget), so only
-# their Flights tab shows a Book flights button.
-FLIGHT_BOOKABLE_CITIES = {"Sydney", "Melbourne", "Brisbane", "Perth", "Cairns"}
+# their Flights tab shows a Book flights button. Sydney is student-5's origin.
+FLIGHT_BOOKABLE_CITIES = {"Sydney", "Melbourne", "Brisbane", "Perth", "Tokyo", "Osaka", "Sapporo"}
 
 AIRPORTS_BY_CITY = {
     "Tokyo": "Haneda and Narita airports",

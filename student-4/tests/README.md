@@ -34,8 +34,8 @@ It exercises the real flow end to end:
   `/visa?nationality=` and `/weather?month=` switch the active tab within
   each subsection, confirming a city only shows the transport modes it
   actually has (e.g. Nara has no metro or flights tab), that a booking
-  button shows only on the Flights tab of a city student-5 can book (so not
-  for Japan), that each country has its own currency and visa rules, that no
+  button shows only on the Flights tab of a city student-5 can book (Tokyo
+  yes, Cairns no), that each country has its own currency and visa rules, that no
   visa nationality is selected by
   default since it cannot be guessed, and that the weather tab defaults to
   the city's own current month (Tokyo's month, not the server's UTC month).
