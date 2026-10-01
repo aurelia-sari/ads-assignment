@@ -354,9 +354,13 @@ def test_a_question_without_a_month_keeps_the_original_check(open_meteo_calls):
 
 NARA = {"id": 18, "country": "Japan", "city": "Nara", "region": "Nara Prefecture",
         "latitude": 34.6851, "longitude": 135.8048, "timezone": "Asia/Tokyo"}
+KANSAI_BEST_VISIT = (
+    "Late March to early April and November are the most popular months, for cherry "
+    "blossom and autumn leaves. July and August are hot and humid."
+)
 NARA_MONTHS = [
-    {"month": "July", "avg_temp": 32, "rainfall": 174, "best_visit_time": "July is hot and humid."},
-    {"month": "August", "avg_temp": 33, "rainfall": 128, "best_visit_time": "August is hot and humid."},
+    {"month": "July", "avg_temp": 32, "rainfall": 174, "best_visit_time": KANSAI_BEST_VISIT},
+    {"month": "August", "avg_temp": 33, "rainfall": 128, "best_visit_time": KANSAI_BEST_VISIT},
 ]
 
 
@@ -385,6 +389,24 @@ def test_august_given_julys_rainfall_is_retried(nara_model):
     result = ask_nara("What is the weather like in Nara in August?")
     assert result["adapted"] is False
     assert "128mm" in result["answer"]
+
+
+@pytest.mark.parametrize("question, intent", [
+    ("When is the best time to visit Sapporo?", "weather"),
+    ("When to visit Kyoto?", "weather"),
+    ("What is the best time to book a flight to Sydney?", "other:Bookings & Budget"),
+])
+def test_best_time_questions_are_weather_questions(question, intent):
+    redirect_map = [{"keyword": "book a flight", "feature_name": "Bookings & Budget",
+                     "redirect_path_template": "/student-5/#search"}]
+    assert orchestrator.classify_intent(question, redirect_map)[0] == intent
+
+
+def test_a_best_time_answer_without_figures_passes(nara_model):
+    nara_model.append("Late March to early April and November are best, for cherry blossom and autumn leaves.")
+    result = ask_nara("When is the best time to visit Nara?")
+    assert result["intent"] == "weather"
+    assert result["adapted"] is False
 
 
 def test_two_wrong_month_answers_fall_back_to_the_guide_figures(nara_model):

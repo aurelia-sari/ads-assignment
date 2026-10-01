@@ -8,7 +8,8 @@ import re
 GUIDE_CATEGORY_KEYWORDS = {
     "currency": ["currency", "money", "exchange rate", "cash", "aud", "dollar", "jpy", "yen", "euro", "pound",
                  "usd", "gbp", "convert", "afford", "cost of", "pay by"],
-    "weather": ["weather", "temperature", "rain", "rainfall", "climate", "forecast", "season", "hot", "cold", "snow"],
+    "weather": ["weather", "temperature", "rain", "rainfall", "climate", "forecast", "season", "hot", "cold", "snow",
+                "best time", "when to visit"],
     "visa": ["visa", "passport", "entry requirement", "nationality", "immigration", "enter the country"],
     "transport": ["transport", "metro", "subway", "train", "shinkansen", "taxi", "rental", "getting around",
                   "public transport", "flight"],
