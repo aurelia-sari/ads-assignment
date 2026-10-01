@@ -56,7 +56,7 @@ _One short subsection per student: what their feature gained._
 - **student-1 - Caroline Zhou (Trips & Itinerary)** - Trips & Itinerary reaches the shared MCP and RAG servers only through student-1-api. The MCP tools tab runs `list_trips` and `get_trip_itinerary` against student-1-db and shows boundary refusals by name. The Ask (grounded) tab answers trip-planning questions with citations and a confidence category, or an insufficient-context response. AI-Mode can now be switched off with `AI_MODE_ENABLED`, like MCP and RAG, so CI runs with all three disabled. Trip and itinerary CRUD and the Release 0 AI assistant are unchanged.
 - **student-2 - Kevin Kim (Attractions & Dining)** - _TODO_
 - **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
-- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers travel guide questions with citations and a confidence badge. Sign-up, sign-in, the guide views and the Release 0 AI Assistant are unchanged.
+- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers travel guide questions with citations and a confidence badge. Guides now load live exchange rates and weather after the page renders, falling back to seeded data. Accounts are unchanged.
 - **student-5 - Aung Ko Khaing (Bookings & Budget)** - _TODO_
 
 #### student-4 requirements
@@ -242,7 +242,7 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 | student-1.yml | ✅ [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP and RAG disabled |
 | student-2.yml | ⬜ TODO |
 | student-3.yml | ⬜ TODO |
-| student-4.yml | ⬜ Run link pending. Runs 13 pytest unit tests, then the smoke test asserts the disabled response for both servers |
+| student-4.yml | ⬜ Run link pending. Runs 97 unit tests, then the smoke test asserts disabled MCP, RAG and live data |
 | student-5.yml | ⬜ TODO |
 
 ### 6.5 Deployment via the Release 0 docker-compose.yml

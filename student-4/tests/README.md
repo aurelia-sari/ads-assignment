@@ -38,7 +38,8 @@ It exercises the real flow end to end:
   for Japan), that each country has its own currency and visa rules, that no
   visa nationality is selected by
   default since it cannot be guessed, and that the weather tab defaults to
-  the current month. `GET /guides/<id>/safety` and the other per-destination
+  the city's own current month (Tokyo's month, not the server's UTC month).
+  `GET /guides/<id>/safety` and the other per-destination
   endpoints return a graceful not-found message, not an error, for an
   unknown id.
 - **Seed data.** The `student1`-`student5` and `traveller6`-`traveller10`
@@ -94,6 +95,11 @@ It exercises the real flow end to end:
   `lookup_destination_guide` call, a `schema-checked` boundary refusal for an
   empty query, and the insufficient-context reply for an off-topic question.
   The landing page is also checked for the MCP tools and Ask (grounded) tabs.
+- **Live rates and weather.** `/guides/<id>/currency/live` and
+  `/guides/<id>/weather/live` are checked in whichever state they report. In
+  CI `GUIDES_LIVE_DATA=false`, so the switched off note is asserted. Locally
+  the real Frankfurter rates and Open-Meteo conditions are asserted, or the
+  unavailable note if the internet is down.
 
 Each run registers freshly-randomised email addresses, so it is safe to
 re-run without leaving stray state behind. There is deliberately no
@@ -118,8 +124,8 @@ an insufficient-context reply.
 directory. The seed runs at every container start, so it checks that a rerun
 is idempotent, destination ids stay fixed, saved chats survive, chats for a
 removed destination are deleted, and an older database gains the new
-columns. It also checks per-country currency, coordinates, and which cities
-can book flights.
+columns. It also checks per-country currency, coordinates, timezones, and
+which cities can book flights.
 
 `test_orchestrator.py` stubs the database and checks the AI Assistant's
 replies that need no model. A city without a guide gets the list of cities
@@ -137,11 +143,19 @@ rates, with a guard that fails if the model is called. It also covers an
 unsupported currency, a bare "dollars", a missing target currency and no
 live rates.
 
-The workflow runs all five files before the Docker build.
+`test_weather.py` stubs Open-Meteo and student-4-db. It covers current
+conditions and the three day forecast, the page not waiting for the API,
+month tabs that leave the live block alone, the default month in each city's
+own timezone, the disabled path with a guard that fails on any network call,
+a timeout and six kinds of bad response, the cache, keeping the last good
+forecast, the weather code labels, and the AI Assistant quoting the same
+figures as the page or being told not to describe current weather.
+
+The workflow runs all six files before the Docker build.
 
 ```bash
 python -m pip install -r student-4/tests/requirements.txt
-python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_currency_request.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py
+python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_currency_request.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py student-4/tests/test_weather.py
 ```
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted

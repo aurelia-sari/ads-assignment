@@ -11,6 +11,7 @@ import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -66,6 +67,16 @@ def test_every_destination_has_coordinates(seeded):
     assert missing == []
 
 
+def test_every_destination_has_a_real_timezone(seeded):
+    _, conn = seeded
+    zones = dict(conn.execute("SELECT city, timezone FROM destinations"))
+    assert zones["Perth"] == "Australia/Perth"
+    assert zones["Cairns"] == "Australia/Brisbane"
+    assert zones["Sapporo"] == "Asia/Tokyo"
+    for zone in zones.values():
+        ZoneInfo(zone)
+
+
 def test_currency_follows_the_country(seeded):
     _, conn = seeded
     codes = dict(conn.execute(
@@ -114,8 +125,10 @@ def test_seed_upgrades_a_release_1_database(tmp_path):
     conn = run_seed(tmp_path)
     cities = dict(conn.execute("SELECT id, city FROM destinations"))
     bookable = conn.execute("SELECT COUNT(*) FROM transportation_infos WHERE bookable = 1").fetchone()[0]
+    sydney_zone = conn.execute("SELECT timezone FROM destinations WHERE id = 1").fetchone()[0]
     conn.close()
     assert cities[1] == "Sydney"
+    assert sydney_zone == "Australia/Sydney"
     assert 13 not in cities
     assert bookable == 5
 

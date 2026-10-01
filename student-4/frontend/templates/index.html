@@ -59,18 +59,12 @@
             color: var(--color-navy-900);
             margin: 0;
         }
-        .guide-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1rem;
-            align-items: start;
-        }
+        .guide-grid { display: grid; gap: 1rem; }
         .guide-section {
             border: 1px solid var(--color-slate-200);
             border-radius: var(--radius-input);
             padding: 1.1rem 1.2rem 1.2rem;
         }
-        .guide-section--wide { grid-column: 1 / -1; }
         .guide-section__title {
             font-family: var(--font-display);
             font-size: 1.05rem;
@@ -133,6 +127,37 @@
         .fx-code { display: flex; align-items: center; font-size: 0.95rem; }
         .fx-swap { flex: 0 0 auto; font-size: 1.05rem; line-height: 1; padding: 0.45rem 0.7rem; }
         .guide-section .fx-note { font-size: 0.8rem; margin-top: 0.75rem; }
+
+        /* Live weather, above the typical monthly conditions */
+        .wx { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--color-slate-200); }
+        .guide-section .wx-title { font-size: 0.82rem; font-weight: 600; color: var(--color-slate-500); margin: 0 0 0.5rem; }
+        .wx-now { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.1rem; }
+        .wx-temp {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            line-height: 1;
+            color: var(--color-navy-900);
+        }
+        .wx-now__text { display: flex; flex-direction: column; font-size: 0.9rem; }
+        .wx-days {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.5rem;
+        }
+        .wx-days li {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            padding: 0.6rem 0.75rem;
+            border-radius: var(--radius-input);
+            background: #f2f7fd;
+            font-size: 0.85rem;
+            color: var(--color-navy-800);
+        }
+        .wx-day { font-weight: 600; }
+        .wx-range { font-weight: 600; font-size: 0.95rem; }
+        .guide-section .wx-note { font-size: 0.8rem; margin-top: 0.75rem; }
+        .wx > .wx-note:only-child { margin-top: 0; }
     </style>
 </head>
 <body>

@@ -28,7 +28,8 @@ from werkzeug.security import generate_password_hash
 from routes.ai_chat import ai_chat_bp
 from routes.ai_tools import ai_tools_bp
 from routes.live_guides import live_guides_bp
-from views.live_guides_formatter import live_rates_placeholder
+from services.weather import local_month
+from views.live_guides_formatter import live_rates_placeholder, live_weather_placeholder
 
 app = Flask(__name__)
 CORS(app)
@@ -182,12 +183,11 @@ def destinations_table(destinations, query):
     )
     return f"<div class='guide-groups'>{groups}</div>"
 
-def guide_section(title, body, section_id="", wide=False):
-    # transportation, visa and weather keep an id because their tabs swap the whole section.
+def guide_section(title, body, section_id=""):
+    # transportation and visa keep an id because their tabs swap the whole section.
     id_attr = f" id='{section_id}'" if section_id else ""
-    modifier = " guide-section--wide" if wide else ""
     return (
-        f"<section class='guide-section{modifier}'{id_attr}>"
+        f"<section class='guide-section'{id_attr}>"
         f"<h4 class='guide-section__title'>{escape(title)}</h4>{body}</section>"
     )
 
@@ -204,7 +204,7 @@ def guide_tab(label, url, target, active):
 
 def currency_subsection(destination_id, info):
     if info is None:
-        return guide_section("Currency", "<p class='muted'>No currency information yet.</p>", wide=True)
+        return guide_section("Currency", "<p class='muted'>No currency information yet.</p>")
 
     body = (
         f"<p><span class='pill pill-planned'>{escape(info['currency_code'])}</span>"
@@ -212,7 +212,7 @@ def currency_subsection(destination_id, info):
         f"<p>{escape(info['exchange_tips'])}</p>"
         + live_rates_placeholder(destination_id)
     )
-    return guide_section("Currency", body, wide=True)
+    return guide_section("Currency", body)
 
 TRANSPORT_TYPE_LABELS = {
     "flights": "Flights",
@@ -285,37 +285,46 @@ def visa_section(destination_id, items, active_nationality):
 
     return guide_section("Visa", tabs + body, "visa-section")
 
-def default_weather_month(items):
-    current_month = datetime.now().strftime("%B")
+def default_weather_month(items, timezone_name):
+    current_month = local_month(timezone_name)
     if any(item["month"] == current_month for item in items):
         return current_month
     return items[0]["month"]
 
-def weather_section(destination_id, items, active_month):
+def weather_months(destination_id, items, active_month, timezone_name):
+    # The month tabs swap only this block, so the live weather above is not reloaded.
     if not items:
-        return guide_section("Weather", "<p class='muted'>No weather information yet.</p>", "weather-section")
+        return "<div id='weather-months'><p class='muted'>No typical weather information yet.</p></div>"
 
-    active = active_month if any(item["month"] == active_month for item in items) else default_weather_month(items)
-    active_item = next(item for item in items if item["month"] == active)
+    if not any(item["month"] == active_month for item in items):
+        active_month = default_weather_month(items, timezone_name)
+    active_item = next(item for item in items if item["month"] == active_month)
 
     tabs = guide_tabs("".join(
         guide_tab(
             item["month"][:3],
             f"/api/student-4/guides/{destination_id}/weather?month={quote(item['month'])}",
-            "weather-section",
-            item["month"] == active,
+            "weather-months",
+            item["month"] == active_month,
         )
         for item in items
     ))
 
-    body = (
-        tabs
+    return (
+        "<div id='weather-months'>"
+        "<p class='wx-title'>Typical conditions by month</p>"
+        + tabs
         + f"<p>The average daytime high in {escape(active_item['month'])} is about "
         f"<strong>{active_item['avg_temp']:g}°C</strong>, with around "
         f"<strong>{active_item['rainfall']:g}mm</strong> of rainfall.</p>"
         + f"<p class='muted'>{escape(active_item['best_visit_time'])}</p>"
+        + "<p class='muted wx-note'>Long-term station averages for each month, not live readings.</p>"
+        + "</div>"
     )
-    return guide_section("Weather", body, "weather-section")
+
+def weather_section(destination_id, items, timezone_name):
+    body = live_weather_placeholder(destination_id) + weather_months(destination_id, items, None, timezone_name)
+    return guide_section("Weather", body)
 
 def safety_subsection(info):
     if info is None:
@@ -342,7 +351,7 @@ def destination_detail(destination, currency, transportation, visa, weather, saf
         + currency_subsection(destination["id"], currency)
         + transportation_section(destination["id"], transportation, None)
         + visa_section(destination["id"], visa, None)
-        + weather_section(destination["id"], weather, None)
+        + weather_section(destination["id"], weather, destination.get("timezone"))
         + safety_subsection(safety)
         + "</div>"
     )
@@ -435,10 +444,13 @@ def guide_weather(destination_id):
     try:
         response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}/weather", timeout=5)
         response.raise_for_status()
+        # Only needed for the default month when the requested one is not seeded.
+        destination_response = requests.get(f"{DB_SERVICE_URL}/destinations/{destination_id}", timeout=5)
     except requests.RequestException as exc:
         return error_fragment(DB_DOWN, exc), 503
 
-    return weather_section(destination_id, response.json(), requested_month), 200
+    timezone_name = destination_response.json().get("timezone") if destination_response.status_code == 200 else None
+    return weather_months(destination_id, response.json(), requested_month, timezone_name), 200
 
 @app.get("/guides/<int:destination_id>/currency")
 def guide_currency(destination_id):
