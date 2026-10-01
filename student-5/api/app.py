@@ -15,8 +15,8 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from route.ai_chat import ai_chat_bp
-from route.ai_budget import ai_budget_bp
+from routes.ai_chat import ai_chat_bp
+from routes.ai_budget import ai_budget_bp
 
 app = Flask(__name__)
 CORS(app)

@@ -10,7 +10,7 @@ swapping in rendered markup.
 import requests
 from flask import Blueprint, jsonify, request
 
-from services import aiMode, dbApi
+from services import ai_mode, database_api
 
 ai_budget_bp = Blueprint("ai_budget", __name__)
 
@@ -70,16 +70,16 @@ def budget_advisor():
         return jsonify({"error": "Select a trip first."}), 400
 
     try:
-        budget_response = dbApi.get_budget(trip_id)
+        budget_response = database_api.get_budget(trip_id)
         budget = budget_response.json() if budget_response.status_code == 200 else None
-        selections = dbApi.list_selections(trip_id)
+        selections = database_api.list_selections(trip_id)
     except requests.RequestException as exc:
         return jsonify({"error": DB_DOWN, "detail": str(exc)}), 503
 
     context = build_context(budget, selections)
 
     try:
-        answer = aiMode.chat(ADVISOR_PROMPT, context=context)
+        answer = ai_mode.chat(ADVISOR_PROMPT, context=context)
     except requests.HTTPError as exc:
         detail = exc.response.json().get("hint", exc.response.text) if exc.response is not None else str(exc)
         return jsonify({"error": "AI-Mode could not answer that.", "detail": detail}), 503
