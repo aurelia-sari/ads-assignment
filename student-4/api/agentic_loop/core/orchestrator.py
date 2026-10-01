@@ -13,6 +13,7 @@ from agentic_loop.core.classifier import classify_intent
 from agentic_loop.core.validator import validate_answer
 from agentic_loop.pipelines.guide_chat_pipeline import GUIDE_SOURCE_PATH, guide_fallback, run_guide_chat
 from services import exchange_rates
+from services.ai_client import AIModeDisabled
 
 GUIDE_TOPICS = "currency, transportation, visa, weather and safety"
 
@@ -100,6 +101,16 @@ def answer_currency_request(request, resolve_destination):
     }
 
 
+def model_off_reply(intent, question, destination):
+    """With AI_MODE_ENABLED=false, as in CI, the guide's own text is quoted
+    where it answers the question, otherwise the guide page is linked."""
+    answer = guide_fallback(intent, question, destination) or (
+        f"The AI model is switched off here, so I cannot answer that. The {intent} guide for "
+        f"{destination['city']}, {destination['country']} is on the guide page here: {GUIDE_SOURCE_PATH}"
+    )
+    return {"intent": intent, "answer": answer, "adapted": True, "redirect_path": GUIDE_SOURCE_PATH}
+
+
 # Also covers a city or country without a guide, since an unknown place
 # name cannot be told apart from no place name at all.
 def no_city_message():
@@ -153,7 +164,10 @@ def run(question, resolve_destination):
         return {"intent": intent, "answer": no_city_message(), "adapted": True}
 
     destination_label = f"{destination['city']}, {destination['country']}"
-    result = run_guide_chat(question, intent, destination)
+    try:
+        result = run_guide_chat(question, intent, destination)
+    except AIModeDisabled:
+        return model_off_reply(intent, question, destination)
 
     if not result["has_data"]:
         return {

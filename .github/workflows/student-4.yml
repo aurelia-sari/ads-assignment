@@ -46,6 +46,7 @@ jobs:
         run: >-
           python -m pytest -q
           student-4/tests/test_ai_tools.py
+          student-4/tests/test_ai_mode_flag.py
           student-4/tests/test_currency_request.py
           student-4/tests/test_currency_validation.py
           student-4/tests/test_exchange_rates.py
@@ -67,13 +68,14 @@ jobs:
             student-4-db
 
       - name: Start the student-4 microservices
-        # Release 1: the MCP and RAG integration stays in the image, but
-        # both are disabled here. The shared MCP and RAG servers are not
-        # containerised, so they do not exist on a CI runner - leaving
-        # them enabled would mean every AI path waits for a timeout.
+        # Release 1: the AI-Mode, MCP and RAG integrations stay in the image,
+        # but all three are disabled here. They are not containerised, so they
+        # do not exist on a CI runner, and leaving them enabled would mean
+        # every AI path waits for a timeout.
         # Live exchange rates and weather are switched off too, so CI never
         # depends on the internet.
         env:
+          AI_MODE_ENABLED: 'false'
           MCP_ENABLED: 'false'
           RAG_ENABLED: 'false'
           GUIDES_LIVE_DATA: 'false'
