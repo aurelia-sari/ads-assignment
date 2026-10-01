@@ -321,10 +321,49 @@ def run_ai_assistant_checks():
     expect(no_city.get("intent") == "weather", "the topic is still classified without a city")
     expect(no_city.get("adapted") is True, "a missing city is an adapted response")
     expect(no_city.get("session_id") is None, "no session is created when no city is named")
+    expect("Tokyo" in no_city.get("answer", ""), "the no city prompt lists the Japanese cities too")
+
+    status, response = ai_guide_chat("How's the weather in Alice Springs?", user_id=ai_user_id)
+    unknown = response.json()
+    expect(
+        "Australia (" in unknown.get("answer", "") and "Japan (" in unknown.get("answer", ""),
+        "a city without a guide gets the list of cities that have one",
+    )
+    expect(unknown.get("session_id") is None, "a city without a guide starts no session")
+
+    status, response = ai_guide_chat("Alice Springs", user_id=ai_user_id)
+    expect(
+        "Sydney" in response.json().get("answer", ""),
+        "a bare place name without a guide also lists the cities that have one",
+    )
+
+    status, response = ai_guide_chat("Tokyo", user_id=ai_user_id)
+    bare_city = response.json()
+    expect(
+        bare_city.get("answer", "").startswith("What would you like to know about Tokyo"),
+        "a bare city name asks which topic",
+    )
+    bare_city_session = bare_city.get("session_id")
+    expect(bare_city_session is not None, "a bare city name starts a session for that city")
+
+    status, response = ai_guide_chat("How much yen should I carry?", user_id=ai_user_id)
+    expect(response.json().get("intent") == "currency", "asking about yen is a currency question")
+
+    status, response = ai_guide_chat("Is the shinkansen worth it?", user_id=ai_user_id)
+    expect(response.json().get("intent") == "transport", "asking about the shinkansen is a transport question")
 
     if not ai_mode_reachable():
+        _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{bare_city_session}")
         print("  skip  ai-mode is not running, skipping the model-grounded AI Assistant checks")
         return
+
+    status, response = ai_guide_chat(
+        "What's the weather like?", user_id=ai_user_id, session_id=bare_city_session
+    )
+    expect(response.json().get("intent") == "weather", "the follow up topic is classified")
+    status, response = _call("GET", f"{API_BASE}/ai/guide-chat/session/{bare_city_session}")
+    expect(response.json().get("city") == "Tokyo", "the follow up stays on the city named before")
+    _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{bare_city_session}")
 
     status, response = ai_guide_chat(
         "What is the weather like in Cairns in July?", user_id=ai_user_id
@@ -496,8 +535,10 @@ def run_checks():
     # missing it fails CI instead of only showing up on one machine.
     status, response = _call("GET", f"{API_BASE}/guides")
     expect(status == 200, "GET /guides returns 200")
-    for city in ("Sydney", "Melbourne", "Perth", "Hobart"):
+    for city in ("Sydney", "Melbourne", "Brisbane", "Perth", "Cairns",
+                 "Tokyo", "Osaka", "Sapporo", "Kyoto", "Nara"):
         expect(city in response.text, f"seeded destination {city} is present")
+    expect("Hobart" not in response.text, "cities removed from the seed are gone")
 
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Sydney"})
     expect(status == 200, "GET /guides?query=Sydney returns 200")
@@ -571,6 +612,7 @@ def run_checks():
     expect("Weather" in response.text, "the detail view has a Weather subheading")
     expect("Jan" in response.text, "the detail view lists a January weather tab")
     expect("°C" in response.text, "the default weather tab shows a temperature")
+    expect("average daytime high" in response.text, "the weather figure is labelled as a daytime high")
 
     status, response = _call(
         "GET", f"{API_BASE}/guides/{sydney_id}/weather", params={"month": "July"}
@@ -633,22 +675,51 @@ def run_checks():
         "an unknown destination id shows a not-found message, not an error",
     )
 
-    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Alice Springs"})
-    expect(status == 200, "GET /guides?query=Alice Springs returns 200")
-    match = re.search(r"/guides/(\d+)", response.text)
-    expect(match is not None, "the Alice Springs row links to its guide detail endpoint")
-    alice_springs_id = match.group(1)
+    status, response = _call("GET", f"{API_BASE}/guides/{cairns_id}")
+    expect("Metro" not in response.text, "Cairns has no metro, so no Metro tab is shown")
 
-    status, response = _call("GET", f"{API_BASE}/guides/{alice_springs_id}")
-    expect(status == 200, f"GET /guides/{alice_springs_id} returns 200")
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Nara"})
+    expect(status == 200, "GET /guides?query=Nara returns 200")
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Nara row links to its guide detail endpoint")
+    nara_id = match.group(1)
+
+    status, response = _call("GET", f"{API_BASE}/guides/{nara_id}")
+    expect(status == 200, f"GET /guides/{nara_id} returns 200")
+    expect("Metro" not in response.text, "Nara has no metro, so no Metro tab is shown")
+    expect("Flights" not in response.text, "Nara has no airport, so no Flights tab is shown")
+    expect("Kansai" in response.text, "Nara's default train tab names the nearest airport")
+    expect("Book flights" not in response.text, "a city with no flights has no booking button")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Tokyo"})
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Tokyo row links to its guide detail endpoint")
+    tokyo_id = match.group(1)
+
+    status, response = _call("GET", f"{API_BASE}/guides/{tokyo_id}")
+    expect(status == 200, f"GET /guides/{tokyo_id} returns 200")
+    expect("JPY" in response.text, "a Japanese city uses the Japanese Yen")
+    expect("AUD" not in response.text, "a Japanese city does not show the Australian Dollar")
+    expect("Flights" in response.text, "Tokyo has a Flights tab")
     expect(
-        "Metro" not in response.text,
-        "Alice Springs has no metro, so no Metro tab is shown",
+        "Book flights" not in response.text,
+        "student-5 has no flights to Japan, so Tokyo shows no booking button",
     )
-    expect(
-        "Train" not in response.text,
-        "Alice Springs has no train service, so no Train tab is shown",
+    expect("Earthquakes" in response.text, "Tokyo has its own safety tips")
+
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{tokyo_id}/visa", params={"nationality": "Australia"}
     )
+    expect("Visa exempt" in response.text, "Australians use Japan's visa rules in Tokyo")
+    expect("90 days" in response.text, "the Japan visa note gives the stay length")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Sapporo"})
+    match = re.search(r"/guides/(\d+)", response.text)
+    expect(match is not None, "the Sapporo row links to its guide detail endpoint")
+    status, response = _call(
+        "GET", f"{API_BASE}/guides/{match.group(1)}/weather", params={"month": "January"}
+    )
+    expect("heavy snow" in response.text, "Sapporo's weather note names the winter snow")
 
     status, response = _call("GET", f"{API_BASE}/guides/999999999")
     expect(status == 404, "GET /guides/<unknown id> returns 404")
@@ -668,6 +739,11 @@ def run_checks():
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Australia"})
     expect(status == 200, "GET /guides?query=Australia returns 200")
     expect("Sydney" in response.text, "searching by country returns its cities")
+    expect("Tokyo" not in response.text, "searching by country excludes the other country")
+
+    status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Japan"})
+    expect("Kyoto" in response.text, "searching for Japan returns Japanese cities")
+    expect("Sydney" not in response.text, "searching for Japan excludes Australian cities")
 
     status, response = _call("GET", f"{API_BASE}/guides", params={"query": "Nowhereville"})
     expect(status == 200, "GET /guides?query=Nowhereville returns 200")

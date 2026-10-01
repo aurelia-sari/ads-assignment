@@ -35,7 +35,8 @@ def gather_guide_facts(intent, destination_id):
             f"Currency: {info['currency_code']}, the {info['currency_name']}. "
             f"{info['exchange_tips']}"
         )
-        return context, [info["currency_code"]], True
+        fact_tokens = [info["currency_code"]] + _distinctive_words(info["exchange_tips"])
+        return context, fact_tokens, True
 
     if intent == "transport":
         items = guide_collector.collect_transportation(destination_id)
@@ -67,7 +68,7 @@ def gather_guide_facts(intent, destination_id):
         context = (
             "Monthly weather:\n"
             + "\n".join(
-                f"- {item['month']}: {item['avg_temp']:g}C, {item['rainfall']:g}mm rainfall"
+                f"- {item['month']}: average daytime high {item['avg_temp']:g}C, {item['rainfall']:g}mm rainfall"
                 for item in items
             )
             + f"\nBest time to visit: {active['best_visit_time']}"

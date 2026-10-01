@@ -190,8 +190,8 @@ TRANSPORT_TYPE_LABELS = {
 }
 
 # Flights are the only transport mode this app can actually book (through
-# student-5, Bookings & Budget). Metro, train, taxi and rental stay
-# descriptive only.
+# student-5, Bookings & Budget), and only for cities student-5 lists. The
+# seed marks those rows bookable.
 FLIGHT_BOOKING_URL = "/student-5/#search"
 
 def transportation_section(destination_id, items, active_type):
@@ -219,7 +219,7 @@ def transportation_section(destination_id, items, active_type):
     )
 
     book_button = ""
-    if active == "flights":
+    if active == "flights" and active_item.get("bookable"):
         book_button = (
             f"<a class='btn-sm' href='{FLIGHT_BOOKING_URL}' "
             "style='display:inline-block; margin-top:0.6rem'>Book flights</a>"
@@ -311,7 +311,7 @@ def weather_section(destination_id, items, active_month):
         "<div id='weather-section'>"
         "<h4 style='margin:1.75rem 0 0.35rem 0'>Weather</h4>"
         f"<div>{tabs}</div>"
-        f"<p style='margin:0.35rem 0 0'>Average temperature in {escape(active_item['month'])} is about "
+        f"<p style='margin:0.35rem 0 0'>The average daytime high in {escape(active_item['month'])} is about "
         f"{active_item['avg_temp']:g}°C, with around {active_item['rainfall']:g}mm of rainfall.</p>"
         f"<p class='muted' style='margin:0.35rem 0 0'>{escape(active_item['best_visit_time'])}</p>"
         "</div>"
