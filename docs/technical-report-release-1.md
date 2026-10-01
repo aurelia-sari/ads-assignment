@@ -53,7 +53,7 @@ host.docker.internal in one direction, localhost in the other._
 
 _One short subsection per student: what their feature gained._
 
-- **student-1 - Caroline Zhou (Trips & Itinerary)** - _draft below, use as the shape_
+- **student-1 - Caroline Zhou (Trips & Itinerary)** - Trips & Itinerary reaches the shared MCP and RAG servers only through student-1-api. The MCP tools tab runs `list_trips` and `get_trip_itinerary` against student-1-db and shows boundary refusals by name. The Ask (grounded) tab answers trip-planning questions with citations and a confidence category, or an insufficient-context response. AI-Mode can now be switched off with `AI_MODE_ENABLED`, like MCP and RAG, so CI runs with all three disabled. Trip and itinerary CRUD and the Release 0 AI assistant are unchanged.
 - **student-2 - Kevin Kim (Attractions & Dining)** - _TODO_
 - **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
 - **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers travel guide questions with citations and a confidence badge. Sign-up, sign-in, the guide views and the Release 0 AI Assistant are unchanged.
@@ -239,7 +239,7 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 
 | Workflow | Run link |
 |----------|----------|
-| student-1.yml | ⬜ TODO |
+| student-1.yml | ✅ [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP and RAG disabled |
 | student-2.yml | ⬜ TODO |
 | student-3.yml | ⬜ TODO |
 | student-4.yml | ⬜ Run link pending. Runs 13 pytest unit tests, then the smoke test asserts the disabled response for both servers |
@@ -247,8 +247,15 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 
 ### 6.5 Deployment via the Release 0 docker-compose.yml
 
-_Show compose still deploys all 18 containers, and that the backends carry the
-MCP/RAG connection configuration while neither is a compose service._
+`docker compose up` deploys 19 containers: the 18 application containers
+(shared frontend, API and database, plus each feature's frontend, backend/API
+and database) and `mailpit`, student-4's local email service. AI-Mode, the MCP
+server, the RAG server and the agentic loop do not appear in
+`docker compose config --services`. Every backend/API gets `AI_MODE_URL`,
+`MCP_SERVER_URL` and `RAG_SERVER_URL`, all pointing at `host.docker.internal`,
+from the shared `x-api-env` block, extending the connection approach Release 0
+used for AI-Mode. Evidence: `docs/evidence/release1-terminal-validation.md`
+section 5.
 
 ---
 
@@ -259,11 +266,33 @@ validation activity, and identifiable commits._
 
 | Student | Contribution | Commits |
 |---------|-------------|---------|
-| student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 wiring | _TODO: list_ |
+| student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 MCP/RAG integration, CI disable switches, architecture diagrams | See 7.1 |
 | student-2 Kevin Kim | _TODO_ | |
 | student-3 Tanishpreet Kour | _TODO_ | |
 | student-4 Aurelia Sari | `feature/student-4-mcp-rag-integration` (PR #31) added the MCP and RAG proxy endpoints in `student-4/api`, the MCP Tools and Ask (grounded) tabs, 13 unit tests, MCP and RAG smoke checks and a pytest step in `student-4.yml`. `fix/rag-knowledge-accounts-guides` corrected the RAG knowledge for accounts and guides to match the real feature, with all 5 loop retrieval probes still hitting the expected source | "Add MCP and RAG proxy endpoints for student 4"<br>"Add MCP Tools and Ask (grounded) tabs and align Travel Guides page styling for student 4"<br>"Add MCP and RAG tests and CI unit test step for student 4"<br>"Correct RAG knowledge for accounts and travel guides" |
 | student-5 Aung Ko Khaing | _TODO_ | |
+
+### 7.1 student-1 - Caroline Zhou (Trips & Itinerary)
+
+Merged to `main` through four pull requests. PR #26 was squash-merged; its
+individual commits remain on the `release-1/shared-mcp-rag` branch.
+
+| Date | Area | Work | Commit |
+|------|------|------|--------|
+| 11 Sep | Group | Shared MCP server (:5400): six read-only tools over JSON-RPC, boundary enforcement. Shared RAG server (:5500): BM25 retrieval, citations, score-derived confidence, insufficient-context response | [`a486755`](https://github.com/aurelia-sari/ads-assignment/commit/a486755) |
+| 11 Sep | Group | Agentic loop MCP and RAG validation modes; AI-Mode, MCP, RAG and loop moved out of compose onto the host | [`ba7adbf`](https://github.com/aurelia-sari/ads-assignment/commit/ba7adbf) |
+| 11 Sep | Group + feature | MCP and RAG disabled in CI via `MCP_ENABLED`/`RAG_ENABLED`; removed ai-mode service dropped from all five workflows | [`ead51a8`](https://github.com/aurelia-sari/ads-assignment/commit/ead51a8) |
+| 11 Sep | Feature | student-1 frontend reaches MCP and RAG only through student-1-api: MCP tools and Ask (grounded) tabs | [`8e17d3a`](https://github.com/aurelia-sari/ads-assignment/commit/8e17d3a) |
+| 11 Sep | Group | Release 1 topology in the README; loop runs in both modes captured as evidence; this report's scaffold | [`e819bda`](https://github.com/aurelia-sari/ads-assignment/commit/e819bda), [`6d348d5`](https://github.com/aurelia-sari/ads-assignment/commit/6d348d5), [`a9c15d2`](https://github.com/aurelia-sari/ads-assignment/commit/a9c15d2) |
+| 11 Sep | Merge | PR #26 - all of the above | [`0bc3317`](https://github.com/aurelia-sari/ads-assignment/commit/0bc3317) |
+| 28 Sep | Feature | `AI_MODE_ENABLED` switch so AI-Mode is also disabled in CI, as the brief requires (PR #27) | [`45b6510`](https://github.com/aurelia-sari/ads-assignment/commit/45b6510) |
+| 28 Sep | Feature + validation | MCP and RAG tabs redesigned; panels moved inside the page shell; `get_trip_itinerary` result fixed; terminal validation of MCP and RAG, backend responses, CRUD smoke test and frontend screenshots captured (PR #28) | [`a925637`](https://github.com/aurelia-sari/ads-assignment/commit/a925637) |
+| 28 Sep | Group | Release 1 architecture and MCP/RAG flow diagrams (PR #29) | [`5534cde`](https://github.com/aurelia-sari/ads-assignment/commit/5534cde) |
+
+**Validation evidence:** `docs/evidence/release1-terminal-validation.md`,
+`docs/evidence/student-1-*.png`, `docs/evidence/agentic-loop-release1-mcp-mode.md`,
+`docs/evidence/agentic-loop-release1-rag-mode.md`. Passing `student-1.yml` run
+with AI-Mode, MCP and RAG disabled: [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872).
 
 ---
 
@@ -288,7 +317,8 @@ surfaced:_
 | R4-A | `lookup_destination_guide` matches city and country only, so a region such as "Queensland" returns no rows | Occasional | Low | The input hint suggests a city or country. Region search needs a student-4-db query change | Aurelia |
 | R4-B | The RAG knowledge for accounts and guides is hand-written, so it can drift from the code. It drifted once and was corrected in PR #32 | Occasional | Medium | Update the knowledge file with any feature change. The loop's RAG probes catch retrieval drift but not wrong facts | Aurelia |
 | R4-C | Release 0 guide endpoints return 503 error fragments, which HTMX does not swap, so a database outage shows nothing | Rare | Low | The Release 1 MCP and RAG endpoints return 200 notices to HTMX instead. The same fix can be applied to the guide endpoints | Aurelia |
-| R1-D | _TODO - add per-feature limitations_ | | | | |
+| R1-D | When a trip id is passed as live context, the small local model (llama3.2) sometimes cites an unrelated retrieved passage and leaves a stray citation marker, though the same question without a trip answers correctly | Occasional | Low | Live context is labelled separately from the cited passages. Ask without a trip for general questions; a larger model reduces it | Caroline |
+| R1-E | The local model occasionally replies that it cannot answer even though relevant passages were retrieved and cited (1 in 7 runs of the same question in testing). Retrieval and confidence are computed by code and stay correct; only the generated text varies | Occasional | Low | Asking again normally succeeds. A lower temperature or a larger model would reduce it | Caroline |
 
 ---
 
