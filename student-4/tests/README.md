@@ -151,7 +151,8 @@ a timeout and six kinds of bad response, the cache, keeping the last good
 forecast, the weather code labels, and the AI Assistant quoting the same
 figures as the page or being told not to describe current weather. When a
 question names a month, an answer using another month's figures is rejected,
-and a second failure quotes that month's guide figures.
+and a second failure quotes that month's guide figures. Best time to visit
+questions count as weather questions and can pass without a figure.
 
 `test_currency_validation.py` replaces the model with scripted answers. It
 checks that a currency answer contradicting the guide's payment advice is

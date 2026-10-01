@@ -249,7 +249,7 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 | student-1.yml | ✅ [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP and RAG disabled |
 | student-2.yml | ⬜ TODO |
 | student-3.yml | ⬜ TODO |
-| student-4.yml | ⬜ Run link pending. Runs 135 unit tests, then the smoke test asserts disabled MCP, RAG and live data |
+| student-4.yml | ⬜ Run link pending. Runs 139 unit tests, then the smoke test asserts disabled MCP, RAG and live data |
 | student-5.yml | ⬜ TODO |
 
 ### 6.5 Deployment via the Release 0 docker-compose.yml
