@@ -103,10 +103,7 @@ def call_rag_ask(question, live_context=None):
     """Call the shared RAG server's /ask endpoint and return its full
     response: answer, grounded flag, confidence, confidence_reason,
     and citations. Raises requests.RequestException on transport failure."""
-    payload = {"question": question}
-    if live_context:
-        payload["context"] = live_context
-    r = requests.post(f"{RAG_SERVER_URL}/ask", json=payload, timeout=180)
+    r = requests.post(f"{RAG_SERVER_URL}/ask", json={"question": question}, timeout=180)
     r.raise_for_status()
     return r.json()
 
@@ -484,15 +481,6 @@ def incoming_requests():
 
     return render_template_string(REQUEST_ROW_TMPL, requests=incoming, direction="incoming")
 
-
-
-    for req in incoming:
-        traveller = get_traveller(req["from_traveller_id"])
-        req["sender_name"] = traveller["full_name"] if traveller else None
-        req["destination"] = my_posts.get(req["to_post_id"], {}).get("destination")
-
-
-    return render_template_string(REQUEST_ROW_TMPL, requests=incoming, direction="incoming")
 @app.get("/connect/outgoing")
 def outgoing_requests():
     r = requests.get(
@@ -629,7 +617,7 @@ def ask_grounded():
     try:
         result = call_rag_ask(question)
     except requests.RequestException as exc:
-        return f'<div class="card"><p class="error">RAG request failed: {exc}</p></div>', 502
+        return f'<div class="card"><p class="error">RAG request failed: {exc}. Is AI-Mode / Ollama running on the host?</p></div>', 502
     return render_template_string(RAG_RESULT_TMPL, result=result)
 
 
