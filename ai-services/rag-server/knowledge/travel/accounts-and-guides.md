@@ -34,16 +34,22 @@ the same requirements as before.
 
 A travel guide is held per destination. Each guide is written to cover five
 areas, which are currency, transportation, visa requirements, weather and
-safety. Destinations
-can be searched by city or country. Guide content is seeded reference material,
-not live data. Currency figures and visa rules in particular are indicative and
-are not updated in real time, so a traveller should confirm them with an
-official source before relying on them.
+safety. Destinations can be searched by city or country. Most guide content is
+seeded reference material, but two parts are live. The currency section shows
+live exchange rates, and the weather section shows current conditions and a
+short forecast. Visa rules are seeded and indicative and are not updated in
+real time, so a traveller should confirm them with an official source before
+relying on them. When live data is switched off or cannot be reached, the guide
+says so and shows only the seeded content.
 
 ## Currency and transportation
 
 The currency section gives the local currency code and name, with tips on
-paying and exchanging money. Transportation lists only the modes a destination
+paying and exchanging money. It also shows live exchange rates for the US
+dollar, euro, British pound and either the Australian dollar or the Japanese
+yen, taken from the European Central Bank's daily reference rates, with a
+two-way converter. Rates are refreshed about twice a day, and banks add their
+own margin. Transportation lists only the modes a destination
 actually has, such as flights, metro, train, taxi and car rental. Flights are
 the only mode that can be booked in NextStop, through the Bookings & Budget feature. The
 other modes are descriptive only.
@@ -51,16 +57,20 @@ other modes are descriptive only.
 ## Visa, weather and safety
 
 Visa requirements depend on the traveller's nationality, so no nationality is
-selected by default and the traveller picks their own. Weather in a guide
-describes typical conditions for each month, with the average temperature,
-rainfall and the best time to visit. It is not a forecast and does not refer to
-any particular date. The safety section gives the destination's safety level
+selected by default and the traveller picks their own. Weather in a guide has
+two parts. Current conditions and a three day forecast come live from
+Open-Meteo and refresh about every 30 minutes. Below them, typical conditions
+for each month give the average daytime high, rainfall and the best time to
+visit. These monthly figures are long-term averages, and the guide opens on the
+current month in that city. The safety section gives the destination's safety level
 and local safety tips.
 
 ## The AI assistant
 
-The AI assistant answers questions about a named city using only that city's
-seeded data. If the data does not answer the question, it says so rather than
+The AI assistant answers questions about a named city using that city's guide
+data, including the same live exchange rates and weather the guide page shows.
+It converts amounts between the five supported currencies using the live rates,
+calculated in code rather than by the model. If the data does not answer the question, it says so rather than
 guessing. Questions about booking travel are pointed to the
 Bookings & Budget feature, and questions about food or attractions are pointed
 to Attractions & Dining. Each conversation about a destination is saved as a

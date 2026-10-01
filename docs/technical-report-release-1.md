@@ -56,18 +56,19 @@ _One short subsection per student: what their feature gained._
 - **student-1 - Caroline Zhou (Trips & Itinerary)** - Trips & Itinerary reaches the shared MCP and RAG servers only through student-1-api. The MCP tools tab runs `list_trips` and `get_trip_itinerary` against student-1-db and shows boundary refusals by name. The Ask (grounded) tab answers trip-planning questions with citations and a confidence category, or an insufficient-context response. AI-Mode can now be switched off with `AI_MODE_ENABLED`, like MCP and RAG, so CI runs with all three disabled. Trip and itinerary CRUD and the Release 0 AI assistant are unchanged.
 - **student-2 - Kevin Kim (Attractions & Dining)** - _TODO_
 - **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
-- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers travel guide questions with citations and a confidence badge. Guides now load live exchange rates and weather after the page renders, falling back to seeded data. Accounts are unchanged.
+- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. MCP searches destinations with `lookup_destination_guide`, and RAG answers guide questions with citations and a confidence badge. Guides also load live exchange rates and weather after the page renders, falling back to seeded data.
 - **student-5 - Aung Ko Khaing (Bookings & Budget)** - _TODO_
 
 #### student-4 requirements
 
 | ID | Requirement |
 |----|-------------|
-| R4-1 | `POST /mcp/destination-guide` proxies `lookup_destination_guide` and returns the structured result, including boundary refusals |
-| R4-2 | `POST /rag/ask` returns the grounded answer, citations, confidence and the insufficient-context reply |
-| R4-3 | With `MCP_ENABLED` or `RAG_ENABLED` set to false, the endpoint returns a clear disabled response and makes no network call |
-| R4-4 | An unreachable server returns a clear unavailable response, never a crash. `GET /ai-tools/status` reports each server's state |
-| R4-5 | Release 0 guides, accounts and AI Assistant keep working, and CI runs with MCP and RAG disabled |
+| R4-1 | `POST /mcp/destination-guide` proxies `lookup_destination_guide`, including boundary refusals |
+| R4-2 | `POST /rag/ask` returns the answer, citations and confidence, or the insufficient-context reply |
+| R4-3 | A disabled flag returns a clear notice without any network call. An unreachable service gives an unavailable notice, never a crash |
+| R4-4 | Live rates (Frankfurter) with a converter, and live weather (Open-Meteo), load after the page renders, are cached and fall back to seeded data |
+| R4-5 | The AI Assistant quotes the same live figures as the page and converts currency in code |
+| R4-6 | Release 0 guides, accounts and AI Assistant keep working, and CI runs with MCP, RAG and live data disabled |
 
 ---
 
@@ -189,20 +190,26 @@ model, because a small local model answers "high" almost unconditionally.
 ```mermaid
 flowchart LR
     subgraph Docker["Docker Compose"]
-        UI["student-4-frontend<br/>MCP tools, Ask (grounded)"] -->|"/api/student-4"| API["student-4-api<br/>ai_tools blueprint"]
+        UI["student-4-frontend"] -->|"/api/student-4"| API["student-4-api"]
         DB[("student-4-db")]
     end
     subgraph Host["Host, not containerised"]
-        MCP["MCP server :5400<br/>lookup_destination_guide"]
-        RAG["RAG server :5500<br/>BM25, citations, confidence"]
+        MCP["MCP server :5400"]
+        RAG["RAG server :5500"]
         AI["AI-Mode :5300, Ollama"]
+    end
+    subgraph Web["Public APIs, no key"]
+        FX["Frankfurter, ECB rates"]
+        WX["Open-Meteo, weather"]
     end
     API -->|"tools/call"| MCP -->|"GET /destinations"| DB
     API -->|"POST /ask"| RAG --> AI
-    API -.->|"flag false"| OFF["Disabled response,<br/>no network call"]
+    API -->|"cached 12 h"| FX
+    API -->|"cached 30 min"| WX
+    API -.->|"flag false"| OFF["Disabled notice,<br/>no network call"]
 ```
 
-The browser only ever calls student-4-api. When `MCP_ENABLED` or `RAG_ENABLED` is false, the endpoint returns a disabled response without making any network call. An unreachable server gives an unavailable notice. The Release 0 guides and accounts never depend on the host AI services.
+The browser only ever calls student-4-api. `MCP_ENABLED`, `RAG_ENABLED` and `GUIDES_LIVE_DATA` each switch one path off. The seeded guide renders first and never waits for a live call.
 
 ---
 
@@ -269,7 +276,7 @@ validation activity, and identifiable commits._
 | student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 MCP/RAG integration, CI disable switches, architecture diagrams | See 7.1 |
 | student-2 Kevin Kim | _TODO_ | |
 | student-3 Tanishpreet Kour | _TODO_ | |
-| student-4 Aurelia Sari | `feature/student-4-mcp-rag-integration` (PR #31) added the MCP and RAG proxy endpoints in `student-4/api`, the MCP Tools and Ask (grounded) tabs, 13 unit tests, MCP and RAG smoke checks and a pytest step in `student-4.yml`. `fix/rag-knowledge-accounts-guides` corrected the RAG knowledge for accounts and guides to match the real feature, with all 5 loop retrieval probes still hitting the expected source | "Add MCP and RAG proxy endpoints for student 4"<br>"Add MCP Tools and Ask (grounded) tabs and align Travel Guides page styling for student 4"<br>"Add MCP and RAG tests and CI unit test step for student 4"<br>"Correct RAG knowledge for accounts and travel guides" |
+| student-4 Aurelia Sari | MCP and RAG proxy endpoints, MCP Tools and Ask (grounded) tabs and a CI pytest step (PR #31). Guide seeding with fixed ids and Australian and Japanese cities (PRs #34, #35). Live exchange rates, converter and AI conversions (PR #40). Live weather and city-timezone months (PR #41). RAG knowledge kept accurate (PR #32 and `chore/student-4-live-guides-docs`), with all loop probes still passing | PRs #31, #32, #34, #35, #40, #41 |
 | student-5 Aung Ko Khaing | _TODO_ | |
 
 ### 7.1 student-1 - Caroline Zhou (Trips & Itinerary)
@@ -314,9 +321,13 @@ surfaced:_
 | R1-A | The loop's OBSERVE step sometimes asserts facts not present in the collected evidence - one MCP run claimed `allow: get` appears in `nginx.conf`, which it never saw. The ACT evidence is collected by code and is accurate; the model's commentary drifts | Occasional | Low | Read ACT evidence as authoritative; OBSERVE is commentary. A larger review model reduces it | Caroline |
 | R1-B | BM25 retrieval matches terms, not meaning - a question phrased entirely in synonyms of the corpus wording can fall below the relevance floor and be refused despite being covered | Occasional | Medium | Confidence and the refusal are honest about it; an embedding retriever is the fix if it proves to matter | Caroline |
 | R1-C | The local AI services must be started separately from `docker compose up`. `dev.sh up` does it, but starting compose by hand leaves every AI path failing | Certain, by design | Low | Required by the brief - they cannot be compose services. Frontends show a clear unreachable notice naming the fix | Group |
-| R4-A | `lookup_destination_guide` matches city and country only, so a region such as "Queensland" returns no rows | Occasional | Low | The input hint suggests a city or country. Region search needs a student-4-db query change | Aurelia |
-| R4-B | The RAG knowledge for accounts and guides is hand-written, so it can drift from the code. It drifted once and was corrected in PR #32 | Occasional | Medium | Update the knowledge file with any feature change. The loop's RAG probes catch retrieval drift but not wrong facts | Aurelia |
-| R4-C | Release 0 guide endpoints return 503 error fragments, which HTMX does not swap, so a database outage shows nothing | Rare | Low | The Release 1 MCP and RAG endpoints return 200 notices to HTMX instead. The same fix can be applied to the guide endpoints | Aurelia |
+| R4-A | `lookup_destination_guide` matches city and country only, so "Queensland" returns no rows | Occasional | Low | The input hint suggests a city or country | Aurelia |
+| R4-B | The hand-written RAG knowledge can drift from the code, as it did twice | Occasional | Medium | Update it with every feature change and recheck the probes | Aurelia |
+| R4-C | Release 0 guide endpoints return 503 fragments, which HTMX does not swap | Rare | Low | Return 200 notices, as the Release 1 and live endpoints do | Aurelia |
+| R4-D | Live data depends on free external APIs, and Frankfurter can take 5 to 7 seconds | Occasional | Low | Caching, the last good data and a seeded fallback | Aurelia |
+| R4-E | Book flights is hidden for Japan, since student-5 has no Japanese flights | Certain | Medium | Needs Japanese inventory in student-5 | Aurelia |
+| R4-F | Model currency answers are validated loosely. One wrongly said cards work almost everywhere in Kyoto | Rare | Medium | Conversions are computed in code. A stricter validator is planned | Aurelia |
+| R4-G | Monthly weather is seeded. Osaka, Kyoto and Nara share one set, and the Australian source is unnamed | Certain | Low | Labelled as long-term averages. Per-city JMA normals planned | Aurelia |
 | R1-D | When a trip id is passed as live context, the small local model (llama3.2) sometimes cites an unrelated retrieved passage and leaves a stray citation marker, though the same question without a trip answers correctly | Occasional | Low | Live context is labelled separately from the cited passages. Ask without a trip for general questions; a larger model reduces it | Caroline |
 | R1-E | The local model occasionally replies that it cannot answer even though relevant passages were retrieved and cited (1 in 7 runs of the same question in testing). Retrieval and confidence are computed by code and stay correct; only the generated text varies | Occasional | Low | Asking again normally succeeds. A lower temperature or a larger model would reduce it | Caroline |
 
