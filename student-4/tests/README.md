@@ -162,11 +162,17 @@ correct answers still pass, and that a second failed answer quotes the
 guide's own tip. It also checks that card and ATM questions count as
 currency questions.
 
-The workflow runs all seven files before the Docker build.
+`test_ai_mode_flag.py` runs the AI Assistant with `AI_MODE_ENABLED=false`, as
+in CI, with a guard that fails on any call to AI-Mode. A named month or a
+currency question quotes the guide, other questions link the guide page,
+answers that need no model still work, and the chat route returns 200, not
+503.
+
+The workflow runs all eight files before the Docker build.
 
 ```bash
 python -m pip install -r student-4/tests/requirements.txt
-python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_currency_request.py student-4/tests/test_currency_validation.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py student-4/tests/test_weather.py
+python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_ai_mode_flag.py student-4/tests/test_currency_request.py student-4/tests/test_currency_validation.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py student-4/tests/test_weather.py
 ```
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted

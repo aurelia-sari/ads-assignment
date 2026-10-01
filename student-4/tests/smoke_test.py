@@ -369,6 +369,19 @@ def run_ai_assistant_checks():
         "an unsupported currency lists the currencies that are available",
     )
 
+    # With AI_MODE_ENABLED=false, as in CI, the guide's figures for the named
+    # month are quoted instead of a 503. A 503 is only expected when the flag
+    # is on but AI-Mode is not running.
+    status, response = ai_guide_chat("How much rain does Cairns get in July?", user_id=ai_user_id)
+    if status == 503:
+        expect(not ai_mode_reachable(), "only an unreachable AI-Mode gives a 503")
+    else:
+        month = response.json()
+        expect(status == 200 and month.get("intent") == "weather", "a named month weather question returns 200")
+        if month.get("answer", "").startswith("Here is what the guide says"):
+            expect("36mm" in month["answer"], "the guide's July figures for Cairns are quoted")
+        _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{month.get('session_id')}")
+
     if not ai_mode_reachable():
         _call("DELETE", f"{API_BASE}/ai/guide-chat/session/{bare_city_session}")
         print("  skip  ai-mode is not running, skipping the model-grounded AI Assistant checks")

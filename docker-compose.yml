@@ -28,7 +28,7 @@ x-api-env: &api-env
   # so AI-Mode, MCP and RAG are switched off there rather than left to time out
   # against a host.docker.internal that has nothing behind it. The integration
   # stays in the image; only the runtime path is disabled. All default to on
-  # locally. (AI_MODE_ENABLED is honoured by student-1-api so far.)
+  # locally. (AI_MODE_ENABLED is honoured by student-1-api and student-4-api so far.)
   AI_MODE_ENABLED: ${AI_MODE_ENABLED:-true}
   MCP_ENABLED: ${MCP_ENABLED:-true}
   RAG_ENABLED: ${RAG_ENABLED:-true}

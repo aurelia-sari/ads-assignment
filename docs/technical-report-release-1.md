@@ -68,7 +68,7 @@ _One short subsection per student: what their feature gained._
 | R4-3 | A disabled flag returns a clear notice without any network call. An unreachable service gives an unavailable notice, never a crash |
 | R4-4 | Live rates (Frankfurter) with a converter, and live weather (Open-Meteo), load after the page renders, are cached and fall back to seeded data |
 | R4-5 | The AI Assistant quotes the same live figures as the page and converts currency in code |
-| R4-6 | Release 0 guides, accounts and AI Assistant keep working, and CI runs with MCP, RAG and live data disabled |
+| R4-6 | Release 0 guides, accounts and AI Assistant keep working, and CI runs with AI-Mode, MCP, RAG and live data disabled |
 
 ---
 
@@ -209,7 +209,7 @@ flowchart LR
     API -.->|"flag false"| OFF["Disabled notice,<br/>no network call"]
 ```
 
-The browser only ever calls student-4-api. `MCP_ENABLED`, `RAG_ENABLED` and `GUIDES_LIVE_DATA` each switch one path off. The seeded guide renders first and never waits for a live call.
+The browser only ever calls student-4-api. `AI_MODE_ENABLED`, `MCP_ENABLED`, `RAG_ENABLED` and `GUIDES_LIVE_DATA` each switch one path off. The seeded guide renders first and never waits for a live call.
 
 ---
 
@@ -249,7 +249,7 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 | student-1.yml | ✅ [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP and RAG disabled |
 | student-2.yml | ⬜ TODO |
 | student-3.yml | ⬜ TODO |
-| student-4.yml | ⬜ Run link pending. Runs 139 unit tests, then the smoke test asserts disabled MCP, RAG and live data |
+| student-4.yml | ⬜ Run link pending. Runs 147 unit tests, then the smoke test asserts disabled AI-Mode, MCP, RAG and live data |
 | student-5.yml | ⬜ TODO |
 
 ### 6.5 Deployment via the Release 0 docker-compose.yml
