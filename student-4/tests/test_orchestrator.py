@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
 
 from agentic_loop.collectors import guide_collector  # noqa: E402
 from agentic_loop.core import orchestrator  # noqa: E402
-from agentic_loop.core.classifier import extract_destination  # noqa: E402
+from agentic_loop.core.classifier import classify_intent, extract_destination  # noqa: E402
 
 DESTINATIONS = [
     {"id": 1, "country": "Australia", "city": "Sydney", "region": "New South Wales"},
@@ -60,6 +60,15 @@ def test_unrelated_question_in_a_session_does_not_assume_the_city(seeded):
     # The resolver falls back to the session's city, but the question never named it.
     result = orchestrator.run("What is the capital of France?", lambda: DESTINATIONS[0])
     assert "I can only help with" in result["answer"]
+
+
+@pytest.mark.parametrize("question", [
+    "How much is a euro worth in Sydney?",
+    "What is the exchange rate for US dollars in Tokyo?",
+    "How many pounds is that in Osaka?",
+])
+def test_quoted_currencies_are_currency_questions(question):
+    assert classify_intent(question, [])[0] == "currency"
 
 
 def test_messages_still_work_without_the_database(monkeypatch):

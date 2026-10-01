@@ -144,11 +144,11 @@ destinations = [
     (3, "Australia", "Brisbane", "Queensland", -27.4698, 153.0251),
     (4, "Australia", "Perth", "Western Australia", -31.9523, 115.8613),
     (7, "Australia", "Cairns", "Queensland", -16.9186, 145.7781),
-    (14, "Japan", "Tokyo", "Tokyo", 35.6762, 139.6503),
-    (15, "Japan", "Osaka", "Osaka", 34.6937, 135.5023),
+    (14, "Japan", "Tokyo", "Tokyo Metropolis", 35.6762, 139.6503),
+    (15, "Japan", "Osaka", "Osaka Prefecture", 34.6937, 135.5023),
     (16, "Japan", "Sapporo", "Hokkaido", 43.0618, 141.3545),
-    (17, "Japan", "Kyoto", "Kyoto", 35.0116, 135.7681),
-    (18, "Japan", "Nara", "Nara", 34.6851, 135.8048),
+    (17, "Japan", "Kyoto", "Kyoto Prefecture", 35.0116, 135.7681),
+    (18, "Japan", "Nara", "Nara Prefecture", 34.6851, 135.8048),
 ]
 
 cursor.executemany(

@@ -123,12 +123,25 @@ can book flights.
 
 `test_orchestrator.py` stubs the database and checks the AI Assistant's
 replies that need no model. A city without a guide gets the list of cities
-that have one, and a bare city name asks which topic. The workflow runs all
-three files before the Docker build.
+that have one, and a bare city name asks which topic.
+
+`test_exchange_rates.py` stubs Frankfurter and student-4-db. It covers live
+rates for an Australian and a Japanese city, the disabled path with a guard
+that fails on any network call, a timeout and four kinds of bad response,
+the cache, keeping the last good rates when a refresh fails, and the AI
+Assistant quoting the same figures as the page.
+
+`test_currency_request.py` checks AI Assistant conversions such as "How
+much is 500 AUD to yen?". They are calculated in code from the stubbed
+rates, with a guard that fails if the model is called. It also covers an
+unsupported currency, a bare "dollars", a missing target currency and no
+live rates.
+
+The workflow runs all five files before the Docker build.
 
 ```bash
 python -m pip install -r student-4/tests/requirements.txt
-python -m pytest student-4/tests/test_ai_tools.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py -q
+python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_currency_request.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py
 ```
 
 Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted

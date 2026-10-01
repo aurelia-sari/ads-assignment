@@ -5,6 +5,7 @@ model (student-4, Aurelia Sari).
 from datetime import datetime
 
 from agentic_loop.collectors import guide_collector
+from services import exchange_rates
 from services.ai_client import ask_ai
 from services.prompt_loader import load_prompt
 
@@ -25,6 +26,24 @@ def _distinctive_words(text, min_length=6):
     return [word.strip(".,") for word in text.split() if len(word.strip(".,")) >= min_length]
 
 
+def _live_rate_facts(currency_code):
+    """Uses the same cached rates and wording as the guide page, so the
+    assistant and the page never quote different figures."""
+    try:
+        data = exchange_rates.latest(currency_code)
+    except (exchange_rates.LiveDataDisabled, exchange_rates.RatesUnavailable):
+        return "Live exchange rates are not available right now, so do not quote any rate.", []
+
+    lines = exchange_rates.rate_lines(data)
+    context = (
+        "Live exchange rates:\n"
+        + "\n".join(f"- {line}" for line in lines)
+        + f"\n{exchange_rates.source_note(data)}"
+    )
+    # The figure on the right of each line, such as 1.44 in "1 USD = 1.44 AUD".
+    return context, [line.split(" = ")[1].split()[0] for line in lines]
+
+
 def gather_guide_facts(intent, destination_id):
     """Returns (context_text, fact_tokens, has_data) for one guide category."""
     if intent == "currency":
@@ -36,7 +55,8 @@ def gather_guide_facts(intent, destination_id):
             f"{info['exchange_tips']}"
         )
         fact_tokens = [info["currency_code"]] + _distinctive_words(info["exchange_tips"])
-        return context, fact_tokens, True
+        rate_context, rate_tokens = _live_rate_facts(info["currency_code"])
+        return f"{context}\n{rate_context}", fact_tokens + rate_tokens, True
 
     if intent == "transport":
         items = guide_collector.collect_transportation(destination_id)
