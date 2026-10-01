@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS destinations (
     city TEXT NOT NULL,
     region TEXT NOT NULL,
     latitude REAL,
-    longitude REAL
+    longitude REAL,
+    -- IANA name, so the guide opens on the city's own month.
+    timezone TEXT
 )
 """)
 
@@ -127,6 +129,7 @@ def add_column_if_missing(table, column, definition):
 
 add_column_if_missing("destinations", "latitude", "REAL")
 add_column_if_missing("destinations", "longitude", "REAL")
+add_column_if_missing("destinations", "timezone", "TEXT")
 add_column_if_missing("transportation_infos", "bookable", "INTEGER NOT NULL DEFAULT 0")
 
 cursor.execute("DELETE FROM feature_redirect_map")
@@ -139,23 +142,24 @@ cursor.execute("DELETE FROM currency_infos")
 # Never reuse an id for a different city, or old chats would move to it.
 # Ids 5, 6 and 8 to 13 belonged to Australian cities removed after Release 1.
 destinations = [
-    (1, "Australia", "Sydney", "New South Wales", -33.8688, 151.2093),
-    (2, "Australia", "Melbourne", "Victoria", -37.8136, 144.9631),
-    (3, "Australia", "Brisbane", "Queensland", -27.4698, 153.0251),
-    (4, "Australia", "Perth", "Western Australia", -31.9523, 115.8613),
-    (7, "Australia", "Cairns", "Queensland", -16.9186, 145.7781),
-    (14, "Japan", "Tokyo", "Tokyo Metropolis", 35.6762, 139.6503),
-    (15, "Japan", "Osaka", "Osaka Prefecture", 34.6937, 135.5023),
-    (16, "Japan", "Sapporo", "Hokkaido", 43.0618, 141.3545),
-    (17, "Japan", "Kyoto", "Kyoto Prefecture", 35.0116, 135.7681),
-    (18, "Japan", "Nara", "Nara Prefecture", 34.6851, 135.8048),
+    (1, "Australia", "Sydney", "New South Wales", -33.8688, 151.2093, "Australia/Sydney"),
+    (2, "Australia", "Melbourne", "Victoria", -37.8136, 144.9631, "Australia/Melbourne"),
+    (3, "Australia", "Brisbane", "Queensland", -27.4698, 153.0251, "Australia/Brisbane"),
+    (4, "Australia", "Perth", "Western Australia", -31.9523, 115.8613, "Australia/Perth"),
+    (7, "Australia", "Cairns", "Queensland", -16.9186, 145.7781, "Australia/Brisbane"),
+    (14, "Japan", "Tokyo", "Tokyo Metropolis", 35.6762, 139.6503, "Asia/Tokyo"),
+    (15, "Japan", "Osaka", "Osaka Prefecture", 34.6937, 135.5023, "Asia/Tokyo"),
+    (16, "Japan", "Sapporo", "Hokkaido", 43.0618, 141.3545, "Asia/Tokyo"),
+    (17, "Japan", "Kyoto", "Kyoto Prefecture", 35.0116, 135.7681, "Asia/Tokyo"),
+    (18, "Japan", "Nara", "Nara Prefecture", 34.6851, 135.8048, "Asia/Tokyo"),
 ]
 
 cursor.executemany(
-    "INSERT INTO destinations (id, country, city, region, latitude, longitude) "
-    "VALUES (?, ?, ?, ?, ?, ?) "
+    "INSERT INTO destinations (id, country, city, region, latitude, longitude, timezone) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?) "
     "ON CONFLICT(id) DO UPDATE SET country = excluded.country, city = excluded.city, "
-    "region = excluded.region, latitude = excluded.latitude, longitude = excluded.longitude",
+    "region = excluded.region, latitude = excluded.latitude, longitude = excluded.longitude, "
+    "timezone = excluded.timezone",
     destinations,
 )
 

@@ -2,22 +2,41 @@
 model (student-4, Aurelia Sari).
 """
 
-from datetime import datetime
-
 from agentic_loop.collectors import guide_collector
-from services import exchange_rates
+from services import exchange_rates, weather
 from services.ai_client import ask_ai
 from services.prompt_loader import load_prompt
 
 GUIDE_SOURCE_PATH = "/student-4/#guides"
 
 
-def _weather_active_month(items):
-    current_month = datetime.now().strftime("%B")
+def _weather_active_month(items, timezone_name):
+    current_month = weather.local_month(timezone_name)
     matching = [item for item in items if item["month"] == current_month]
     if matching:
         return matching[0]
     return items[0] if items else None
+
+
+def _live_weather_facts(destination):
+    """Uses the same cached forecast and rounding as the guide page, so the
+    assistant and the page never quote different conditions."""
+    try:
+        data = weather.latest(destination) if destination else None
+    except (weather.LiveDataDisabled, weather.WeatherUnavailable):
+        data = None
+    if data is None:
+        return (
+            "Live weather is not available right now, so do not describe current "
+            "conditions or a forecast. Only the typical monthly figures apply."
+        ), []
+
+    context = (
+        "Live weather:\n"
+        + "\n".join(f"- {line}" for line in weather.weather_lines(data))
+        + f"\n{weather.source_note(data)}"
+    )
+    return context, weather.fact_tokens(data)
 
 
 def _distinctive_words(text, min_length=6):
@@ -84,9 +103,11 @@ def gather_guide_facts(intent, destination_id):
         items = guide_collector.collect_weather(destination_id)
         if not items:
             return "", [], False
-        active = _weather_active_month(items)
+        destination = guide_collector.collect_destination(destination_id)
+        active = _weather_active_month(items, destination and destination.get("timezone"))
         context = (
-            "Monthly weather:\n"
+            f"It is currently {active['month']} there.\n"
+            "Typical monthly weather (long-term averages, not a forecast):\n"
             + "\n".join(
                 f"- {item['month']}: average daytime high {item['avg_temp']:g}C, {item['rainfall']:g}mm rainfall"
                 for item in items
@@ -97,7 +118,8 @@ def gather_guide_facts(intent, destination_id):
         # isn't the current (default) month, so every month's figures are
         # valid facts, not just the active one.
         fact_tokens = [f"{item['avg_temp']:g}" for item in items] + [f"{item['rainfall']:g}" for item in items]
-        return context, fact_tokens, True
+        live_context, live_tokens = _live_weather_facts(destination)
+        return f"{context}\n{live_context}", fact_tokens + live_tokens, True
 
     if intent == "safety":
         info = guide_collector.collect_safety(destination_id)

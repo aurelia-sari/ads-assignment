@@ -39,6 +39,8 @@ import re
 import sys
 import time
 import uuid
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -475,6 +477,42 @@ def run_live_rate_checks(sydney_id, tokyo_id):
     )
 
 
+def run_live_weather_checks(sydney_id, tokyo_id):
+    """Same states as the live rates. The month tab check runs either way,
+    since it needs only the seeded data and each city's timezone."""
+    status, response = _call("GET", f"{API_BASE}/guides/{tokyo_id}")
+    tokyo_month = datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%b")
+    active = re.findall(r"class='chip is-active'[^>]*hx-target='#weather-months'[^>]*>(\w+)<", response.text)
+    expect(active == [tokyo_month], f"Tokyo's weather opens on Tokyo's own month ({tokyo_month})")
+    expect(
+        f"/guides/{tokyo_id}/weather/live" in response.text,
+        "the weather section loads live weather separately, after the guide renders",
+    )
+
+    status, response = _call("GET", f"{API_BASE}/guides/{sydney_id}/weather/live", timeout=30)
+    state = response.json().get("status")
+    expect(state in ("ok", "disabled", "unavailable"), f"live weather reports a known state ({state})")
+    html = _call(
+        "GET", f"{API_BASE}/guides/{sydney_id}/weather/live", headers={"HX-Request": "true"}
+    )[1].text
+
+    if state == "disabled":
+        expect(status == 200, "live weather switched off still returns 200")
+        expect("switched off" in html, "the page says live weather is switched off")
+        return
+
+    if state == "unavailable":
+        expect(status == 503, "unreachable live weather returns 503, not a crash")
+        expect("could not be loaded" in html, "the page falls back to a clear note")
+        return
+
+    body = response.json()
+    expect(body["timezone"] == "Australia/Sydney", "Open-Meteo reports Sydney's own timezone")
+    expect(body["lines"][0].startswith("Now: ") and "°C" in body["lines"][0], "current conditions are listed")
+    expect(len(body["lines"]) == 4, "three forecast days follow the current conditions")
+    expect("Now in Sydney" in html and "wx-days" in html, "the page shows current conditions and a forecast")
+
+
 def run_mcp_rag_checks():
     status, response = _call("GET", f"{API_BASE}/ai-tools/status")
     expect(status == 200, "GET /ai-tools/status returns 200")
@@ -784,6 +822,7 @@ def run_checks():
         "the currency section loads live rates separately, after the guide renders",
     )
     run_live_rate_checks(sydney_id, tokyo_id)
+    run_live_weather_checks(sydney_id, tokyo_id)
 
     status, response = _call("GET", f"{API_BASE}/guides/999999999/currency")
     expect(status == 200, "GET /guides/<unknown id>/currency still returns 200")

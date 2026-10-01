@@ -61,7 +61,7 @@ def list_destinations():
 def get_destination(destination_id):
     conn = get_db_connection()
     row = conn.execute(
-        "SELECT id, country, city, region, latitude, longitude FROM destinations WHERE id = ?",
+        "SELECT id, country, city, region, latitude, longitude, timezone FROM destinations WHERE id = ?",
         (destination_id,),
     ).fetchone()
     conn.close()
