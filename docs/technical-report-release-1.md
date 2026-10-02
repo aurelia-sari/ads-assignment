@@ -54,10 +54,20 @@ host.docker.internal in one direction, localhost in the other._
 _One short subsection per student: what their feature gained._
 
 - **student-1 - Caroline Zhou (Trips & Itinerary)** - Trips & Itinerary reaches the shared MCP and RAG servers only through student-1-api. The MCP tools tab runs `list_trips` and `get_trip_itinerary` against student-1-db and shows boundary refusals by name. The Ask (grounded) tab answers trip-planning questions with citations and a confidence category, or an insufficient-context response. AI-Mode can now be switched off with `AI_MODE_ENABLED`, like MCP and RAG, so CI runs with all three disabled. Trip and itinerary CRUD and the Release 0 AI assistant are unchanged.
-- **student-2 - Kevin Kim (Attractions & Dining)** - _TODO_
+- **student-2 - Kevin Kim (Attractions & Dining)** - Attractions & Dining reaches the shared MCP and RAG servers through student-2-api. The MCP tab uses `search_places` to retrieve structured place results, while the RAG tab provides grounded answers with citations and a confidence category. Existing Places, Favourites and AI Mode functionality remains operational.
 - **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
 - **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. The MCP call uses the `lookup_destination_guide` tool to search destinations by city or country. RAG answers travel guide questions with citations and a confidence badge. Sign-up, sign-in, the guide views and the Release 0 AI Assistant are unchanged.
 - **student-5 - Aung Ko Khaing (Bookings & Budget)** - _TODO_
+
+#### student-2 requirements
+
+| ID | Requirement |
+|----|-------------|
+| R2-1 | `POST /mcp/search-places` invokes the shared `search_places` tool using a category and optional place name and returns the structured result |
+| R2-2 | `POST /rag/search` retrieves relevant context and `POST /rag/ask` returns a grounded answer with citations and a confidence category |
+| R2-3 | When relevant RAG context is unavailable, the insufficient-context response is preserved instead of generating an unsupported answer |
+| R2-4 | Unavailable MCP/RAG services, timeouts and invalid requests return controlled error responses rather than crashing the feature |
+| R2-5 | Existing Places, Favourites and AI Mode functionality remains operational after the Release 1 extension |
 
 #### student-4 requirements
 
@@ -153,7 +163,7 @@ retrieval and grounded-response process, and the MCP tool layer._
 |------|-------|-----------|---------------|-----------|
 | `list_trips` | student-1 | student-1-db | none | 20 |
 | `get_trip_itinerary` | student-1 | student-1-db | `trip_id` | 30 |
-| `search_places` | student-2 | student-2-db | none | 20 |
+| `search_places` | student-2 | student-2-db | `category`, `name` | 20 |
 | `find_travel_mates` | student-3 | student-3-db | none | 20 |
 | `lookup_destination_guide` | student-4 | student-4-db | `query` | 20 |
 | `search_flights` | student-5 | student-5-db | none | 20 |
@@ -183,6 +193,29 @@ model, because a small local model answers "high" almost unconditionally.
 | `medium` | top score >= 4.0 **and** coverage >= 40% |
 | `low` | above the 2.5 relevance floor but below medium |
 | `insufficient` | nothing clears the relevance floor - no model call is made |
+
+
+### student-2 integration
+
+```mermaid
+flowchart LR
+    subgraph Docker["Docker Compose"]
+        UI["student-2-frontend<br/>MCP tools, RAG grounded answers"] -->|"/api/student-2"| API["student-2-api"]
+        DB[("student-2-db")]
+    end
+
+    subgraph Host["Host, not containerised"]
+        MCP["MCP server :5400<br/>search_places"]
+        RAG["RAG server :5500<br/>BM25, citations, confidence"]
+        AI["AI-Mode :5300<br/>Ollama"]
+    end
+
+    API -->|"tools/call"| MCP
+    MCP -->|"GET /places"| DB
+
+    API -->|"POST /search, /ask"| RAG
+    RAG --> AI
+```
 
 ### 5.4 student-4 integration
 
