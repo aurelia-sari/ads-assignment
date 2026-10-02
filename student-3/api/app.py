@@ -223,7 +223,11 @@ REQUEST_ROW_TMPL = """
 
 MCP_RESULT_TMPL = """
 {% if result.isError %}
-<div class="card"><p class="error">MCP call refused ({{ result.boundary }}): {{ result.content[0].text }}</p></div>
+<div class="notice notice-error">
+    <strong>Tool call refused</strong>
+    <span class="notice__meta">Boundary: {{ result.boundary }}</span>
+    {{ result.content[0].text }}
+</div>
 {% else %}
 {% set data = result.structuredContent %}
 <div class="card">
@@ -243,19 +247,21 @@ MCP_RESULT_TMPL = """
 #rag tmpl
 RAG_RESULT_TMPL = """
 <div class="card">
-<p><strong>{{ "AI Answer" if result.grounded else "No answer available" }}</strong></p>
+<p><strong>{{ "Grounded answer" if result.grounded else "Not enough context" }}</strong>
+    <span class="pill pill-{{ result.confidence }}">{{ result.confidence }} confidence</span></p>
 <p>{{ result.answer }}</p>
-<p class="muted">
-    Confidence: <span class="pill pill-{{ result.confidence }}">{{ result.confidence }}</span>
-</p>
+{% if result.confidence_reason %}<p class="muted">{{ result.confidence_reason }}</p>{% endif %}
 {% if result.citations %}
-    <div class="chat-log">
+<div class="citations">
+    <strong>Sources</strong>
+    <ol class="citation-list">
     {% for c in result.citations %}
-        <p class="compat-reason">
-        [{{ c.number }}] {{ c.source }} &gt; {{ c.section }} &mdash; {{ c.excerpt }}
-        </p>
+        <li><code>{{ c.source }}</code> &rsaquo; {{ c.section }}
+            <span class="muted">(score {{ c.score }})</span>
+            <div class="muted">{{ c.excerpt }}</div></li>
     {% endfor %}
-    </div>
+    </ol>
+</div>
 {% endif %}
 </div>
 """

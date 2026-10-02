@@ -5,7 +5,7 @@ import os
 
 import requests
 
-MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://localhost:5400")
+MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://host.docker.internal:5400")
 TIMEOUT = 30
 _ids = itertools.count(1)
 
@@ -19,7 +19,7 @@ def call_tool(tool_name, arguments):
         "method": "tools/call",
         "params": {"name": tool_name, "arguments": arguments},
     }
-    r = requests.post(f"{MCP_SERVER_URL}/mcp", json=payload, timeout=30)
+    r = requests.post(f"{MCP_SERVER_URL}/mcp", json=payload, timeout=TIMEOUT)
     r.raise_for_status()
     body = r.json()
     if "error" in body:

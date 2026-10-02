@@ -1603,3 +1603,29 @@ label .optional {
 
 .chip:hover { border-color: var(--color-blue-500); background: #f2f7fd; }
 .chip--muted { color: var(--color-slate-500); border-style: dashed; }
+
+/* --- Release 1: RAG confidence pills and MCP/RAG panels (shared) --------- */
+.pill-high         { background:#dcf5ea; color:#0d6b48; }
+.pill-medium       { background:#fdf0d5; color:#7a5a12; }
+.pill-low          { background:#fde3d0; color:#9a4a12; }
+.pill-insufficient { background:#e6e8ec; color:#4a5568; }
+
+.panel-intro { margin-bottom: 1.1rem; }
+.panel-intro h3 { font-family: var(--font-display); color: var(--color-navy-900); margin-bottom: 0.3rem; }
+.panel-intro p { max-width: 70ch; font-size: 0.92rem; line-height: 1.5; }
+
+label .optional { font-weight: 400; color: var(--color-slate-500); opacity: 0.8; margin-left: 0.25rem; }
+
+.form-actions { display: flex; align-items: center; gap: 0.8rem; }
+
+.result-area { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--color-slate-200); }
+.result-empty {
+    color: var(--color-slate-500); font-size: 0.9rem; text-align: center;
+    padding: 1.5rem 1rem; border: 1px dashed var(--color-slate-200); border-radius: var(--radius-input);
+}
+
+.citations { margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--color-slate-200); font-size: 0.85rem; }
+.citations strong { display: block; margin-bottom: 0.25rem; color: var(--color-navy-800); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.citation-list { margin: 0; padding-left: 1.1rem; color: var(--color-slate-500); }
+.citation-list li { margin-bottom: 0.4rem; }
+.citation-list code { background: #eef1f5; padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.8rem; color: var(--color-navy-800); }

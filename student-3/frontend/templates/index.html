@@ -11,27 +11,29 @@
 </head>
 <body>
 <main class="app-shell" >
-
+ 
     <header class="app-header card">
         <a class="back-link" href="/"><span aria-hidden="true">&larr;</span> back to all features</a>
         <h1>Find Your Travel Mate <span class="brand-highlight">with NextStop</span></h1>
 <p>Student 3 &middot; Tanishpreet Kour</p>
     </header>
-
+ 
     <nav class="tab-nav">
         <button class="tab-btn is-active" data-tab="browse" type="button">Browse</button>
         <button class="tab-btn" data-tab="post" type="button">Post a Trip</button>
         <button class="tab-btn" data-tab="inbox" type="button">Inbox</button>
         <button class="tab-btn" data-tab="mine" type="button">My Posts</button>
         <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
+        <button class="tab-btn" data-tab="mcp" type="button">MCP tool</button>
+        <button class="tab-btn" data-tab="rag" type="button">Knowledge base</button>
     </nav>
-
+ 
     <!-- BROWSE page posts -->
     <section class="tab-panel is-active card" id="panel-browse">
         <div class="chat-head">
             <h3 style="margin:0">Browse trips</h3>
         </div>
-
+ 
         <form id="browse-filter-form" class="form-grid"
             hx-get="/api/student-3/trips"
             hx-target="#browse-list"
@@ -61,17 +63,17 @@
             </div>
         </form>
         <span class="spinner">scoring...</span>
-
+ 
         <div id="browse-list">
             <p class="muted">Loading trips...</p>
         </div>
     </section>
-
+ 
     <!-- to create a new trip_posts row -->
     <section class="tab-panel card" id="panel-post">
         <h3 style="margin-top:0">Post a trip</h3>
         <p class="muted">Looking for a travel companion? Post your trip so others can say hi.</p>
-
+ 
         <form hx-post="/api/student-3/trips"
             hx-target="#post-result"
             hx-swap="innerHTML"
@@ -101,24 +103,24 @@
             <button type="submit">Post trip</button>
             <span class="spinner">posting...</span>
         </form>
-
+ 
         <div id="post-result" style="margin-top:1rem"></div>
     </section>
-
-    <!-- to create a new trip_posts row -->
+ 
+    <!-- INBOX -->
     <section class="tab-panel card" id="panel-inbox">
         <div class="tab-nav" style="border-bottom:none; margin-bottom:1rem">
             <button class="tab-btn is-active" data-subtab="incoming" type="button">Incoming</button>
             <button class="tab-btn" data-subtab="outgoing" type="button">Outgoing</button>
         </div>
-
+ 
         <div class="tab-panel is-active" id="subpanel-incoming"
             hx-get="/api/student-3/connect/incoming"
             hx-trigger="load"
             hx-swap="innerHTML">
             <p class="muted">Loading incoming requests...</p>
         </div>
-
+ 
         <div class="tab-panel" id="subpanel-outgoing"
             hx-get="/api/student-3/connect/outgoing"
             hx-trigger="load"
@@ -126,7 +128,7 @@
             <p class="muted">Loading outgoing requests...</p>
         </div>
     </section>
-
+ 
     <!-- MY POSTS — edit / delete own trip_posts -->
     <section class="tab-panel card" id="panel-mine">
         <h3 style="margin-top:0">My posts</h3>
@@ -137,16 +139,16 @@
             <p class="muted">Loading your posts...</p>
         </div>
     </section>
-
-    <!-- AI MODE — travel-mate compatibility chat -->
+ 
+    <!-- AI MODE — travel-mate compatibility chat (Release 0) -->
     <section class="tab-panel card" id="panel-ai">
         <h3 style="margin-top:0">Travel Mate AI</h3>
         <p class="muted">Runs locally through AI-Mode and Ollama. Compares your trip post against other travellers and explains the match.</p>
-
+ 
         <div class="chat-log" id="chat-log">
             <p class="chat-log__empty">Post a trip first, then ask the AI to suggest compatible travel mates.</p>
         </div>
-
+ 
         <form hx-post="/api/student-3/ai/match-suggest"
             hx-target="#chat-log"
             hx-swap="beforeend"
@@ -161,35 +163,54 @@
             <button type="submit">Ask</button>
             <span class="spinner">thinking...</span>
         </form>
-
-<!--MCP block adding-->
-                <div class="card" style="margin-top:1rem">
-            <h4 style="margin-top:0">Find via MCP tool</h4>
-            <form hx-post="/api/student-3/mcp/find-mates"
-                hx-target="#mcp-result" hx-swap="innerHTML">
-                <input name="destination" placeholder="e.g. Bali (optional)" maxlength="80">
-                <button type="submit">Search via MCP</button>
-                <span class="spinner">searching...</span>
-            </form>
-            <div id="mcp-result" style="margin-top:0.75rem"></div>
+    </section>
+ 
+    <!-- MCP TOOL (Release 1) -->
+    <section class="tab-panel card" id="panel-mcp">
+        <div class="panel-intro">
+            <h3>Find travel mates via MCP</h3>
+            <p class="muted">Calls the shared MCP server's <code>find_travel_mates</code> tool through this feature's API. The tool is read-only and returns at most 20 rows.</p>
         </div>
-
-
-<!--Rag block -->
-        <div class="card" style="margin-top:1rem">
-            <h4 style="margin-top:0">Ask the NextStop knowledge base (RAG)</h4>
-            <form hx-post="/api/student-3/ai/ask-grounded"
-                hx-target="#rag-result" hx-swap="innerHTML">
-                <input name="question" required placeholder="e.g. Can I send a connect request to my own trip post?">
-                <button type="submit">Ask (grounded)</button>
-                <span class="spinner">retrieving...</span>
-            </form>
-            <div id="rag-result" style="margin-top:0.75rem"></div>
+        <form hx-post="/api/student-3/mcp/find-mates" hx-target="#mcp-result" hx-swap="innerHTML">
+            <div class="form-grid">
+                <div>
+                    <label for="mcp-destination">Destination <span class="optional">(optional)</span></label>
+                    <input id="mcp-destination" name="destination" placeholder="e.g. Bali" maxlength="80">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit">Run tool</button>
+                <span class="spinner">searching...</span>
+            </div>
+        </form>
+        <div class="result-area" id="mcp-result">
+            <p class="result-empty">Run the tool to see its result here.</p>
         </div>
     </section>
-
-
-
+ 
+    <!-- RAG KNOWLEDGE BASE (Release 1) -->
+    <section class="tab-panel card" id="panel-rag">
+        <div class="panel-intro">
+            <h3>Ask the NextStop knowledge base</h3>
+            <p class="muted">Answers come only from the indexed project documents, with source citations and a confidence level. If nothing relevant is found, it says so instead of guessing.</p>
+        </div>
+        <form hx-post="/api/student-3/ai/ask-grounded" hx-target="#rag-result" hx-swap="innerHTML">
+            <div class="form-grid">
+                <div style="grid-column:1/-1">
+                    <label for="rag-question">Question</label>
+                    <input id="rag-question" name="question" required placeholder="e.g. Can I send a connect request to my own trip post?">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit">Ask (grounded)</button>
+                <span class="spinner">retrieving...</span>
+            </div>
+        </form>
+        <div class="result-area" id="rag-result">
+            <p class="result-empty">Ask a question to see a cited answer here.</p>
+        </div>
+    </section>
+ 
 <!-- trip cards -->
 <template id="trip-card-template">
     <div class="card">
@@ -207,10 +228,8 @@
         <button class="btn-sm" data-action="say-hi">Say Hi</button>
     </div>
 </template>
-
+ 
 <script>
-
-
     // Top tabs
     const buttons = Array.from(document.querySelectorAll(".tab-nav > .tab-btn"));
     const panels = {
@@ -219,20 +238,21 @@
         inbox: document.getElementById("panel-inbox"),
         mine: document.getElementById("panel-mine"),
         ai: document.getElementById("panel-ai"),
+        mcp: document.getElementById("panel-mcp"),
+        rag: document.getElementById("panel-rag"),
     };
-
-
+ 
     function activate(name) {
         buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
         Object.entries(panels).forEach(([key, panel]) =>
             panel.classList.toggle("is-active", key === name)
         );
     }
-
+ 
     buttons.forEach((b) => {
         if (b.dataset.tab) b.addEventListener("click", () => activate(b.dataset.tab));
     });
-
+ 
     // Inbox sub-tabs (incoming / outgoing)
     const subButtons = Array.from(document.querySelectorAll("#panel-inbox .tab-btn[data-subtab]"));
     const subPanels = {
