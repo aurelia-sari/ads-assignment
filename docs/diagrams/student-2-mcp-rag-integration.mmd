@@ -1,0 +1,24 @@
+flowchart LR
+
+    subgraph Docker["Docker Compose"]
+        UI["student-2-frontend<br/>MCP tools, RAG grounded answers"]
+        API["student-2-api"]
+        DB[("student-2-db")]
+
+        UI -->|"/api/student-2"| API
+    end
+
+    subgraph Host["Host — not containerised"]
+        MCP["Shared MCP Server :5400<br/>search_places"]
+        RAG["Shared RAG Server :5500<br/>BM25 retrieval"]
+        AI["Shared AI-Mode :5300<br/>Ollama"]
+    end
+
+    API -->|"tools/call"| MCP
+    MCP -->|"GET /places"| DB
+
+    API -->|"POST /search<br/>POST /ask"| RAG
+    RAG -->|"grounded generation"| AI
+
+    MCP -->|"structured place result"| API
+    RAG -->|"answer + citations<br/>+ confidence"| API
