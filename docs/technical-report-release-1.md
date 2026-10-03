@@ -17,7 +17,7 @@
 > **All five students must attend the Week 9 showcase. Non-attendance is 0.**
 
 **GitHub Repository:** https://github.com/aurelia-sari/ads-assignment.git
-**Showcase video:** _TODO - max 10 minutes_
+**Showcase video:** https://drive.google.com/file/d/1x60FKDhiU1gznKfoVHy1eLSlX-3sdv6N/view?usp=sharing - max 10 minutes_
 
 ---
 
@@ -258,10 +258,14 @@ showing citations + confidence._
 | Student | MCP interaction | RAG interaction |
 |---------|-----------------|-----------------|
 | student-1 | ✅ captured | ✅ captured |
-| student-2 | ⬜ TODO | ⬜ TODO |
+| student-2 | ✅ `search_places` returned structured place results through student-2-api | ✅ Grounded answer returned through student-2-api with citations and confidence |
 | student-3 | ⬜ TODO | ⬜ TODO |
 | student-4 | ⬜ MCP Tools tab built, screenshot pending | ⬜ Ask (grounded) tab built, screenshot pending |
 | student-5 | ⬜ TODO | ⬜ TODO |
+
+**Student 2 validation evidence:**
+- `docs/evidence/student-2-release1-mcp.png` - The Attractions & Dining MCP tab invokes the registered `search_places` tool with a restaurant category and optional place name, returning a structured result from student-2-db through student-2-api.
+- `docs/evidence/student-2-release1-rag.png` - The Attractions & Dining RAG tab retrieves relevant context and returns a grounded answer with source citations and a confidence category through student-2-api.
 
 ### 6.2 Local terminal validation
 
@@ -280,7 +284,7 @@ boundary refusal, a grounded answer, an insufficient-context answer._
 | Workflow | Run link |
 |----------|----------|
 | student-1.yml | ✅ [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP and RAG disabled |
-| student-2.yml | ⬜ TODO |
+| student-2.yml | ✅ [run 36556065572](https://github.com/aurelia-sari/ads-assignment/actions/runs/36556065572) - MCP and RAG disabled; Student 2 build, health checks and smoke tests passed |
 | student-3.yml | ⬜ TODO |
 | student-4.yml | ⬜ Run link pending. Runs 147 unit tests, then the smoke test asserts disabled AI-Mode, MCP, RAG and live data |
 | student-5.yml | ⬜ TODO |
@@ -307,7 +311,7 @@ validation activity, and identifiable commits._
 | Student | Contribution | Commits |
 |---------|-------------|---------|
 | student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 MCP/RAG integration, CI disable switches, architecture diagrams | See 7.1 |
-| student-2 Kevin Kim | _TODO_ | |
+| student-2 Kevin Kim | MCP and RAG integration through student-2-api, MCP/RAG frontend workflows and validation, multi-city place seeding and fixes, and Release 1 technical report updates | PRs #30, #36, #48 |
 | student-3 Tanishpreet Kour | _TODO_ | |
 | student-4 Aurelia Sari | MCP and RAG proxy endpoints, MCP Tools and Ask (grounded) tabs and a CI pytest step (PR #31). Guide seeding with fixed ids and Australian and Japanese cities (PRs #34, #35). Live exchange rates, converter and AI conversions (PR #40). Live weather and city-timezone months (PR #41). RAG knowledge kept accurate (PR #32 and `chore/student-4-live-guides-docs`), with all loop probes still passing | PRs #31, #32, #34, #35, #40, #41 |
 | student-5 Aung Ko Khaing | _TODO_ | |
@@ -334,12 +338,28 @@ individual commits remain on the `release-1/shared-mcp-rag` branch.
 `docs/evidence/agentic-loop-release1-rag-mode.md`. Passing `student-1.yml` run
 with AI-Mode, MCP and RAG disabled: [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872).
 
+### 7.2 student-2 - Kevin Kim (Attractions & Dining)
+
+Merged to `main` through three pull requests. The main Release 1 integration
+was delivered in PR #30, followed by a seed-data fix in PR #36 and Student 2
+technical-report updates in PR #48.
+
+| Date | Area | Work | Commit |
+|------|------|------|--------|
+| 29 Sep | Feature + integration | Extended Attractions & Dining for Release 1 with MCP and RAG integration through student-2-api. Added the `search_places` MCP workflow, RAG context retrieval and grounded answers with citations, confidence and insufficient-context handling. Added MCP/RAG frontend workflows and expanded seeded places across Sydney, Tokyo, Osaka, Sapporo, Melbourne and Brisbane (PR #30) | [`d0a0497`](https://github.com/aurelia-sari/ads-assignment/commit/d0a0497) |
+| 1 Oct | Data | Corrected Student 2 seeded place data and image URLs in `init_db` after Release 1 integration (PR #36) | `Fixed init_db` |
+| 2 Oct | Documentation | Updated the Student 2 sections of the Release 1 technical report, including integration and validation evidence (PR #48) | `docs(student-2): update Release 1 technical report` |
+
+**Validation evidence:** `docs/evidence/student-2-release1-mcp.png`,
+`docs/evidence/student-2-release1-rag.png`. Passing `student-2.yml` run
+with MCP and RAG disabled: [run 36556065572](https://github.com/aurelia-sari/ads-assignment/actions/runs/36556065572).
+
 ---
 
 ## 8. Repository and showcase links
 
 - **Repository:** https://github.com/aurelia-sari/ads-assignment.git
-- **Showcase video:** _TODO_ (max 10 min; must show MCP + RAG through every
+- **Showcase video:** https://drive.google.com/file/d/1x60FKDhiU1gznKfoVHy1eLSlX-3sdv6N/view?usp=sharing (max 10 min; must show MCP + RAG through every
   feature's UI, terminal validation of both servers, and the loop in both modes)
 
 ---
@@ -354,6 +374,8 @@ surfaced:_
 | R1-A | The loop's OBSERVE step sometimes asserts facts not present in the collected evidence - one MCP run claimed `allow: get` appears in `nginx.conf`, which it never saw. The ACT evidence is collected by code and is accurate; the model's commentary drifts | Occasional | Low | Read ACT evidence as authoritative; OBSERVE is commentary. A larger review model reduces it | Caroline |
 | R1-B | BM25 retrieval matches terms, not meaning - a question phrased entirely in synonyms of the corpus wording can fall below the relevance floor and be refused despite being covered | Occasional | Medium | Confidence and the refusal are honest about it; an embedding retriever is the fix if it proves to matter | Caroline |
 | R1-C | The local AI services must be started separately from `docker compose up`. `dev.sh up` does it, but starting compose by hand leaves every AI path failing | Certain, by design | Low | Required by the brief - they cannot be compose services. Frontends show a clear unreachable notice naming the fix | Group |
+| R2-A | Student-2 place data and the curated Attractions & Dining RAG knowledge are maintained separately, so RAG knowledge can become outdated after place-data changes | Occasional | Medium | Update the shared knowledge when place data changes and reindex RAG before validation | Kevin |
+| R2-B | `search_places` reads the place collection before applying category/name filters in the MCP tool, which may become inefficient if the dataset grows substantially | Rare | Low | Results are currently row-capped and the seeded dataset is small; move filtering into student-2-db if the dataset grows | Kevin |
 | R4-A | `lookup_destination_guide` matches city and country only, so "Queensland" returns no rows | Occasional | Low | The input hint suggests a city or country | Aurelia |
 | R4-B | The hand-written RAG knowledge can drift from the code, as it did twice | Occasional | Medium | Update it with every feature change and recheck the probes | Aurelia |
 | R4-C | Release 0 guide endpoints return 503 fragments, which HTMX does not swap | Rare | Low | Return 200 notices, as the Release 1 and live endpoints do | Aurelia |
