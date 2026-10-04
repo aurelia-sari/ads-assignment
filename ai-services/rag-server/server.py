@@ -27,7 +27,7 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from retriever import Index
+from retriever import Index, tokenise
 
 app = Flask(__name__)
 CORS(app)
@@ -62,7 +62,7 @@ SYSTEM_PROMPT = (
 index = Index()
 
 
-def classify_confidence(hits):
+def classify_confidence(hits, question=""):
     """Derive a confidence category from the retrieval evidence.
 
     Deliberately computed from scores rather than asked of the model. A small
@@ -81,6 +81,18 @@ def classify_confidence(hits):
     if top["score"] < RELEVANCE_FLOOR:
         return "insufficient", (
             f"best score {top['score']} is below the relevance floor {RELEVANCE_FLOOR}"
+        )
+
+    # A short chunk that shares one rare word with the question can clear the
+    # floor on score alone: "What is the boiling point of tungsten?" scored
+    # 4.19 against a favourites passage because both contain "point". One
+    # matched term covering under half the question is a coincidence, not
+    # relevance, so it gets the insufficient-context response.
+    query_terms = len(set(tokenise(question)))
+    matched_terms = round(top["coverage"] * query_terms)
+    if query_terms and matched_terms < 2 and top["coverage"] < 0.5:
+        return "insufficient", (
+            f"best match shares only {matched_terms} of {query_terms} question terms"
         )
 
     if top["score"] >= HIGH_SCORE and top["coverage"] >= 0.5 and len(supporting) >= 2:
@@ -153,7 +165,7 @@ def search():
 
     top_k = int(payload.get("top_k", TOP_K))
     hits = index.search(question, top_k=top_k)
-    confidence, reason = classify_confidence(hits)
+    confidence, reason = classify_confidence(hits, question)
 
     return jsonify(
         {
@@ -180,7 +192,7 @@ def ask():
     top_k = int(payload.get("top_k", TOP_K))
 
     hits = index.search(question, top_k=top_k)
-    confidence, reason = classify_confidence(hits)
+    confidence, reason = classify_confidence(hits, question)
     citations = [to_citation(hit, number) for number, hit in enumerate(hits, start=1)]
 
     if confidence == "insufficient":
