@@ -93,6 +93,14 @@ def rag_ask():
         result = rag_client.ask(question, context=context)
     except rag_client.RAGDisabled:
         return ai_disabled_fragment("RAG"), 200
+    except requests.HTTPError as exc:
+        # The RAG server answered, so it is up. Its error body says what failed,
+        # usually AI-Mode being down after retrieval had already succeeded.
+        try:
+            hint = exc.response.json().get("hint", "")
+        except (ValueError, AttributeError):
+            hint = str(exc)
+        return error_fragment("The RAG server could not generate an answer.", hint), 503
     except requests.RequestException as exc:
         return error_fragment(
             "Could not reach the shared RAG server.",

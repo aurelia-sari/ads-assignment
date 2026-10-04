@@ -311,6 +311,16 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
     }
 });
 
+// The backend answers failures with an HTML notice and a 4xx/5xx status (for
+// example 503 when a host AI service is down). HTMX 1.9 discards error
+// responses by default, which left the tab blank; show the notice instead.
+document.body.addEventListener("htmx:beforeSwap", (event) => {
+    if (event.detail.xhr.status >= 400) {
+        event.detail.shouldSwap = true;
+        event.detail.isError = false;
+    }
+});
+
 const initial = window.location.hash.replace("#", "");
 activate(panels[initial] ? initial : "trips");
 
