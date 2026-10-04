@@ -53,7 +53,7 @@ flowchart TB
     subgraph RAGL["RAG retrieval and grounded response - shared RAG server :5500 (host)"]
         direction TB
         ASK["POST /ask<br/>question, context, top_k=4"]
-        RET["BM25 retrieval<br/>31 chunks from 7 markdown sources"]
+        RET["BM25 retrieval<br/>45 chunks from 7 markdown sources"]
         CONF{"confidence from<br/>retrieval scores"}
         INS["insufficient<br/>top score below floor 2.5<br/>no model call, no citations"]
         CAT["high: score >= 7.0, coverage >= 50%, 2+ passages<br/>medium: score >= 4.0, coverage >= 40%<br/>low: above floor 2.5"]
