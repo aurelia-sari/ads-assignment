@@ -3,34 +3,18 @@
 **41026 Advanced Software Development, Spring 2026**
 **Project: NextStop - Agentic AI travel planning application**
 
-> Working draft. Export to PDF for submission as `group-25.pdf`.
-> **Canvas accepts ONE group PDF, submitted by one person.** A duplicate group
-> submission will not be marked.
->
-> **Due: 4 October 2026, 11:59 PM AEST.**
->
-> Section numbers below map 1:1 to the eight report sections in the Release 1
-> brief, section 4. Sections marked **(Individual)** need one subsection per
-> student; a missing individual subsection costs that student marks, not the
-> group.
->
-> **All five students must attend the Week 9 showcase. Non-attendance is 0.**
-
-**GitHub Repository:** https://github.com/aurelia-sari/ads-assignment.git
-**Showcase video:** https://drive.google.com/file/d/1x60FKDhiU1gznKfoVHy1eLSlX-3sdv6N/view?usp=sharing - max 10 minutes_
-
 ---
 
 ## 1. Project overview and Release 1 scope
 
-_Concise overview of the Release 0 application, then what Release 1 adds.
-Must clearly separate each student's responsibilities from shared group ones._
-
 ### 1.1 Release 0 in brief
 
-_2-3 paragraphs. Five features, each three containerised microservices; shared
-AI-Mode; the two standing rules (each DB owns its schema; only AI-Mode talks to
-Ollama)._
+NextStop is a travel-planning application made of five student features: Trips
+& Itinerary, Attractions & Dining, Travel Mate, Accounts & Guides, and Bookings
+& Budget. Each is three containerised microservices (nginx + HTMX frontend,
+Flask backend/API, Flask + SQLite database), joined by a shared frontend, API
+and database and deployed by one `docker-compose.yml`. Each database owns its
+schema, and only the shared AI-Mode service talks to the local LLM.
 
 ### 1.2 What Release 1 adds
 
@@ -41,61 +25,38 @@ Ollama)._
 | Agentic loop MCP + RAG validation modes | Group | Caroline |
 | De-containerising AI-Mode, MCP, RAG, loop | Group | Caroline |
 | MCP + RAG access from each feature's frontend via its backend/API | Individual | All five |
-| `student-x.yml` updated, MCP/RAG disabled in CI | Individual | All five |
+| `student-x.yml` updated, AI services disabled in CI | Individual | All five |
 
-### 1.3 The containerisation boundary
+### 1.3 Per-student Release 1 scope **(Individual)**
 
-_The key structural change. Release 1 requires AI-Mode, MCP, RAG and the agentic
-loop to run on the host and NOT appear as docker-compose services. Explain
-host.docker.internal in one direction, localhost in the other._
-
-### 1.4 Per-student Release 1 scope **(Individual)**
-
-_One short subsection per student: what their feature gained._
-
-- **student-1 - Caroline Zhou (Trips & Itinerary)** - Trips & Itinerary reaches the shared MCP and RAG servers only through student-1-api. The MCP tools tab runs `list_trips` and `get_trip_itinerary` against student-1-db and shows boundary refusals by name. The Ask (grounded) tab answers trip-planning questions with citations and a confidence category, or an insufficient-context response. AI-Mode can now be switched off with `AI_MODE_ENABLED`, like MCP and RAG, so CI runs with all three disabled. Trip and itinerary CRUD and the Release 0 AI assistant are unchanged.
-- **student-2 - Kevin Kim (Attractions & Dining)** - Attractions & Dining reaches the shared MCP and RAG servers through student-2-api. The MCP tab uses `search_places` to retrieve structured place results, while the RAG tab provides grounded answers with citations and a confidence category. Existing Places, Favourites and AI Mode functionality remains operational.
-- **student-3 - Tanishpreet Kour (Travel Mate)** - _TODO_
-- **student-4 - Aurelia Sari (Accounts & Guides)** - Travel Guides reaches the shared MCP and RAG servers only through student-4-api. MCP searches destinations with `lookup_destination_guide`, and RAG answers guide questions with citations and a confidence badge. Guides also load live exchange rates and weather after the page renders, falling back to seeded data.
-- **student-5 - Aung Ko Khaing (Bookings & Budget)** - _TODO_
-
-#### student-2 requirements
-
-| ID | Requirement |
-|----|-------------|
-| R2-1 | `POST /mcp/search-places` invokes the shared `search_places` tool using a category and optional place name and returns the structured result |
-| R2-2 | `POST /rag/search` retrieves relevant context and `POST /rag/ask` returns a grounded answer with citations and a confidence category |
-| R2-3 | When relevant RAG context is unavailable, the insufficient-context response is preserved instead of generating an unsupported answer |
-| R2-4 | Unavailable MCP/RAG services, timeouts and invalid requests return controlled error responses rather than crashing the feature |
-| R2-5 | Existing Places, Favourites and AI Mode functionality remains operational after the Release 1 extension |
-
-#### student-4 requirements
-
-| ID | Requirement |
-|----|-------------|
-| R4-1 | `POST /mcp/destination-guide` proxies `lookup_destination_guide`, including boundary refusals |
-| R4-2 | `POST /rag/ask` returns the answer, citations and confidence, or the insufficient-context reply |
-| R4-3 | A disabled flag returns a clear notice without any network call. An unreachable service gives an unavailable notice, never a crash |
-| R4-4 | Live rates (Frankfurter) with a converter, and live weather (Open-Meteo), load after the page renders, are cached and fall back to seeded data |
-| R4-5 | The AI Assistant quotes the same live figures as the page and converts currency in code |
-| R4-6 | Release 0 guides, accounts and AI Assistant keep working, and CI runs with AI-Mode, MCP, RAG and live data disabled |
+- **student-1 - Caroline Zhou (Trips & Itinerary):** an MCP tools tab
+  (`list_trips`, `get_trip_itinerary`, refusals shown by boundary) and an Ask
+  (grounded) tab with citations, confidence and insufficient-context replies,
+  both through student-1-api. `AI_MODE_ENABLED` added so CI disables all three
+  AI services. Release 0 CRUD and AI assistant unchanged.
+- **student-2 - Kevin Kim (Attractions & Dining):** MCP `search_places` and
+  grounded RAG answers through student-2-api. Places, Favourites and AI Mode
+  unchanged.
+- **student-3 - Tanishpreet Kour (Travel Mate):** _TODO_
+- **student-4 - Aurelia Sari (Accounts & Guides):** MCP
+  `lookup_destination_guide` and grounded RAG guide answers through
+  student-4-api. Guides also load live exchange rates and weather, falling back
+  to seeded data.
+- **student-5 - Aung Ko Khaing (Bookings & Budget):** _TODO_
 
 ---
 
 ## 2. Release 1 requirements
-
-_Functional requirements. Number them R1-n so validation in section 6 can cite
-them._
 
 ### 2.1 Shared MCP server
 
 | ID | Requirement |
 |----|-------------|
 | R1-1 | Runs locally, non-containerised, not a compose service |
-| R1-2 | Exposes a registry of tools over JSON-RPC (`tools/list`, `tools/call`) |
+| R1-2 | Exposes a tool registry over JSON-RPC (`tools/list`, `tools/call`) |
 | R1-3 | Accepts valid requests and returns structured results |
 | R1-4 | Enforces declared tool boundaries and refuses calls that cross them |
-| R1-5 | Every feature can invoke tools via its frontend UI through its backend/API |
+| R1-5 | Every feature invokes tools from its frontend through its backend/API |
 
 ### 2.2 Shared RAG server
 
@@ -103,60 +64,84 @@ them._
 |----|-------------|
 | R1-6 | Runs locally, non-containerised, not a compose service |
 | R1-7 | Retrieves relevant project context for a question |
-| R1-8 | Generates answers grounded in retrieved context only |
+| R1-8 | Generates answers grounded only in retrieved context |
 | R1-9 | Every answer carries source citations |
 | R1-10 | Every answer carries a confidence category |
 | R1-11 | Returns an insufficient-context response when nothing relevant is retrieved |
 
-### 2.3 Per-feature integration and the agentic loop
+### 2.3 Integration and the agentic loop
 
 | ID | Requirement |
 |----|-------------|
-| R1-12 | Each feature's frontend reaches MCP and RAG only through its own backend/API |
-| R1-13 | Release 0 functionality and AI-Mode keep working after the extension |
-| R1-14 | Agentic loop gains separate MCP and RAG validation modes |
-| R1-15 | Loop runs locally, non-containerised, and produces output for both modes |
-| R1-16 | MCP and RAG integration retained but disabled during CI/CD |
+| R1-12 | Each frontend reaches MCP and RAG only through its own backend/API |
+| R1-13 | Release 0 functionality and AI-Mode keep working |
+| R1-14 | The agentic loop gains separate MCP and RAG validation modes |
+| R1-15 | The loop runs locally, non-containerised, with output for both modes |
+| R1-16 | MCP and RAG integration retained but disabled in CI/CD |
+
+### 2.4 Per-feature requirements
+
+| ID | Requirement |
+|----|-------------|
+| R2-1 | `POST /mcp/search-places` calls `search_places` (category, optional name) and returns the structured result |
+| R2-2 | `POST /rag/search` and `POST /rag/ask` return context and a grounded answer with citations and confidence, or the insufficient-context reply |
+| R2-3 | Unavailable services, timeouts and invalid requests return controlled errors |
+| R4-1 | `POST /mcp/destination-guide` proxies `lookup_destination_guide`, including refusals |
+| R4-2 | `POST /rag/ask` returns answer, citations and confidence, or the insufficient-context reply |
+| R4-3 | A disabled flag returns a notice with no network call; an unreachable service returns a notice, never a crash |
+| R4-4 | Live rates (Frankfurter, with converter) and weather (Open-Meteo) load after render, are cached, and fall back to seeded data |
+| R4-5 | The AI Assistant quotes the page's live figures and converts currency in code |
 
 ---
 
 ## 3. Non-functional requirements
 
-Measured on the reference machine (Apple M1, 8 GB, llama3.2 via Ollama), with
-the stack started by `./scripts/dev.sh up`.
+Measured on the reference machine (Apple M1, 8 GB, llama3.2).
 
-| # | Area | Requirement | How it is measured |
-|---|------|-------------|--------------------|
-| N1 | Security | Browsers never reach MCP, RAG or AI-Mode directly. Tool arguments are schema-checked before any read. All user and model text is HTML-escaped. No secrets in git | Frontends only call `/api/student-N/`. Injection probe (`trip_id="1; DROP TABLE trips"`) refused at `schema-checked`. `.env` is gitignored. Gap: host services listen on all interfaces without auth (R1-F) |
-| N2 | MCP tool boundaries | Every tool call is read-only, allowlisted, schema-checked and row-capped | 6 boundary probes in the loop's MCP mode, each must be refused at the expected boundary |
-| N3 | RAG grounding and traceability | Every grounded answer cites the passages it used | Citations non-empty whenever `grounded=true`; retrieval checks assert the top source |
-| N4 | Reliability | Every outbound AI call has a timeout, and a failure returns a notice, never a crash or a hang | MCP upstream reads time out at 8 s, backend MCP calls at 30 s, RAG generation at 180 s. Stop-each-service test: all failures returned a notice |
-| N5 | Performance | MCP tool call p95 < 500 ms; refusal without a model call < 100 ms; grounded answer < 10 s | MCP `list_trips`: median 8 ms direct, 13 ms via student-1-api (n=20). RAG retrieval 1 ms; insufficient-context reply 1-11 ms. Grounded `/ask`: median 3.7 s, max 6.8 s (n=8) |
-| N6 | Usability | Every grounded answer shows its sources and a confidence label; a refusal is visibly different; an outage names the fix | Screenshots in 6.1. Insufficient-context replies carry no citations and a red label. Outage notices say `start it with ./scripts/ai_services.sh up` |
-| N7 | Maintainability | Adding a tool or a knowledge source needs no change to boundary or retrieval code | A tool is one `@register` entry (name, owner, target, schema, row limit). A source is one markdown file, indexed at start-up or via `/reindex`. student-1's MCP and RAG clients total under 100 lines |
-| N8 | Interoperability | One protocol per service, shared by every feature: MCP JSON-RPC 2.0 (`initialize`, `tools/list`, `tools/call`, protocol `2024-11-05`); RAG plain JSON over HTTP | The loop calls all 6 tools through `tools/call` with no per-tool code. Each feature reuses the same request shapes |
-| N9 | Availability | If a host AI service is down, Release 0 features keep working and the AI tab says what is down within 1 s | Stopping MCP, RAG and AI-Mode in turn: each notice returned in under 0.12 s; trip CRUD unaffected. CI disables all three by flag |
+| # | Area | Requirement | Measured |
+|---|------|-------------|----------|
+| N1 | Security | Browsers never reach AI services directly; tool arguments schema-checked before any read; output HTML-escaped; no secrets in git | Frontends call only `/api/student-N/`. `trip_id="1; DROP TABLE trips"` refused at `schema-checked`. `.env` gitignored. Gap: R1-F |
+| N2 | MCP tool boundaries | Every call read-only, allowlisted, schema-checked, row-capped | All 6 loop boundary probes refused at the expected boundary |
+| N3 | RAG grounding | Every grounded answer cites its passages | Citations present whenever `grounded=true`; 5/5 retrieval checks hit the expected source |
+| N4 | Reliability | Every AI call has a timeout; failures return a notice, never a crash | Timeouts: MCP upstream 8 s, backend MCP 30 s, RAG generation 180 s |
+| N5 | Performance | MCP call p95 < 500 ms; refusal < 100 ms; grounded answer < 10 s | MCP median 8 ms (13 ms via backend, n=20). Refusal 1-11 ms. Grounded median 3.7 s, max 6.8 s (n=8) |
+| N6 | Usability | Answers show sources and confidence; refusals look different; outages name the fix | Screenshots (6.1). Outage notice: `start it with ./scripts/ai_services.sh up` |
+| N7 | Maintainability | New tools and knowledge need no boundary or retrieval changes | A tool is one `@register` entry; a source is one markdown file |
+| N8 | Interoperability | One protocol per service: MCP JSON-RPC 2.0 (protocol `2024-11-05`); RAG JSON over HTTP | The loop calls all 6 tools with no per-tool code |
+| N9 | Availability | With an AI service down, Release 0 keeps working and the tab says what is down within 1 s | MCP, RAG, AI-Mode stopped in turn: notice in < 0.12 s, trip CRUD unaffected |
 
 ---
 
 ## 4. Release 1 architecture
 
-_Required: overall architecture diagram showing components, connections and the
-containerisation boundary._
+![Release 1 architecture](evidence/release-1-architecture.png)
 
-- [x] `docs/diagrams/release-1-architecture.mmd` (rendered: `docs/evidence/release-1-architecture.png`)
-- [ ] Updated repository structure (mirror the README tree)
+Compose runs the containerised application: the shared frontend, API and
+database, each feature's three microservices, and student-4's `mailpit`.
+AI-Mode, MCP, RAG and the loop run on the host and are not compose services.
+Backends reach them at `host.docker.internal`; the MCP server reads feature
+databases back through their published `localhost` ports.
 
-_Prose: what is containerised, what is not, and how the two halves connect._
+```text
+ads-assignment/
+├── .github/workflows/       student-1.yml .. student-5.yml
+├── ai-services/             NOT containerised, run on the host
+│   ├── ai-mode/             AI-Mode (:5300)
+│   ├── mcp-server/          MCP server (:5400)
+│   ├── rag-server/          RAG server (:5500), knowledge/ corpus
+│   └── agentic-loop/        Plan -> Act -> Observe -> Adapt, MCP + RAG modes
+├── docs/                    diagrams/, evidence/, this report
+├── scripts/                 dev.sh, ai_services.sh, smoke_test.py
+├── shared/                  home page, CSS theme, access API and DB
+├── student-1/ .. student-5/ frontend/, api/, db/, tests/
+└── docker-compose.yml       containerised services only
+```
 
 ---
 
 ## 5. MCP and RAG design
 
-_Required: a flow diagram covering frontend/backend interactions, the RAG
-retrieval and grounded-response process, and the MCP tool layer._
-
-- [x] `docs/diagrams/mcp-rag-flow.mmd` (rendered: `docs/evidence/mcp-rag-flow.png`)
+![MCP and RAG interaction flow](evidence/mcp-rag-flow.png)
 
 ### 5.1 Registered MCP tools
 
@@ -174,29 +159,26 @@ retrieval and grounded-response process, and the MCP tool layer._
 | Boundary | Rule |
 |----------|------|
 | `registered` | The tool must exist in the registry |
-| `read-only` | Only GET is issued upstream; `boundaries.py` offers no write path |
-| `allowlisted` | The target must be the service the tool declared |
-| `schema-checked` | Arguments must match the declared input schema |
-| `capped` | Results truncated to the tool's row limit |
+| `read-only` | Only GET is issued upstream; there is no write path |
+| `allowlisted` | The target must be the tool's declared service |
+| `schema-checked` | Arguments must match the declared schema |
+| `capped` | Results truncated to the row limit |
 
 ### 5.3 RAG retrieval and grounding
 
-_Knowledge sources: 7 curated markdown files, 45 chunks. BM25, no embedding
-model - justify: explainable citations, instant start on 8 GB, no extra model
-dependency._
-
-**Confidence categories** - computed from retrieval scores, not asked of the
-model, because a small local model answers "high" almost unconditionally.
+Seven curated markdown files (45 chunks) are retrieved with BM25: citations stay
+explainable, start-up is instant on 8 GB, and no embedding model is needed.
+Confidence is computed from retrieval scores, because a small model rates
+itself "high" almost unconditionally.
 
 | Category | Rule |
 |----------|------|
 | `high` | top score >= 7.0, coverage >= 50%, >= 2 corroborating passages |
 | `medium` | top score >= 4.0 **and** coverage >= 40% |
 | `low` | above the 2.5 relevance floor but below medium |
-| `insufficient` | nothing clears the relevance floor, or the best passage shares only one question term and covers under half the question - no model call is made |
+| `insufficient` | below the floor, or one shared term covering under half the question - no model call |
 
-
-### student-2 integration
+### 5.4 student-2 integration
 
 ```mermaid
 flowchart LR
@@ -218,7 +200,7 @@ flowchart LR
     RAG --> AI
 ```
 
-### 5.4 student-4 integration
+### 5.5 student-4 integration
 
 ```mermaid
 flowchart LR
@@ -242,180 +224,143 @@ flowchart LR
     API -.->|"flag false"| OFF["Disabled notice,<br/>no network call"]
 ```
 
-The browser only ever calls student-4-api. `AI_MODE_ENABLED`, `MCP_ENABLED`, `RAG_ENABLED` and `GUIDES_LIVE_DATA` each switch one path off. The seeded guide renders first and never waits for a live call.
+Each of `AI_MODE_ENABLED`, `MCP_ENABLED`, `RAG_ENABLED` and `GUIDES_LIVE_DATA`
+switches one path off; the seeded guide never waits for a live call.
 
 ---
 
 ## 6. Validation and results
 
-_Required evidence, all three bullets:_
-
-### 6.1 MCP and RAG through every feature's frontend UI and backend/API **(Individual)**
-
-_One screenshot pair per student: an MCP tool result, and a grounded RAG answer
-showing citations + confidence._
+### 6.1 MCP and RAG through each feature's frontend and backend/API **(Individual)**
 
 | Student | MCP interaction | RAG interaction |
 |---------|-----------------|-----------------|
-| student-1 | ✅ captured | ✅ captured |
-| student-2 | ✅ `search_places` returned structured place results through student-2-api | ✅ Grounded answer returned through student-2-api with citations and confidence |
+| student-1 | ✅ `student-1-mcp-list-trips.png` | ✅ `student-1-rag-grounded-answer.png`, `student-1-rag-insufficient-context.png` |
+| student-2 | ✅ `student-2-release1-mcp.png` - `search_places` result via student-2-api | ✅ `student-2-release1-rag.png` - grounded answer with citations and confidence |
 | student-3 | ⬜ TODO | ⬜ TODO |
-| student-4 | ⬜ MCP Tools tab built, screenshot pending | ⬜ Ask (grounded) tab built, screenshot pending |
+| student-4 | ⬜ screenshot pending | ⬜ screenshot pending |
 | student-5 | ⬜ TODO | ⬜ TODO |
 
-**Student 2 validation evidence:**
-- `docs/evidence/student-2-release1-mcp.png` - The Attractions & Dining MCP tab invokes the registered `search_places` tool with a restaurant category and optional place name, returning a structured result from student-2-db through student-2-api.
-- `docs/evidence/student-2-release1-rag.png` - The Attractions & Dining RAG tab retrieves relevant context and returns a grounded answer with source citations and a confidence category through student-2-api.
+`student-1-release0-trips.png` shows Release 0 trips still working.
 
 ### 6.2 Local terminal validation
 
-Full transcripts: `docs/evidence/release1-terminal-validation.md`. Run from the host
-against both servers and through student-1-api:
+Transcripts: `docs/evidence/release1-terminal-validation.md`.
 
 | Check | Result |
 |-------|--------|
-| MCP `/health`, `tools/list` | running, not containerised, 6 tools with schemas and row limits |
-| MCP `tools/call` | `list_trips` and `get_trip_itinerary` return `structuredContent` rows from student-1-db |
-| MCP boundary refusals | unregistered tool -> `registered`; non-integer and undeclared arguments -> `schema-checked` |
-| RAG `/health`, `/index`, `/search` | 7 sources indexed with BM25; scores and coverage per passage |
-| RAG grounded `/ask` | answer with 4 citations, confidence `high` |
+| MCP `/health`, `tools/list` | running, not containerised, 6 tools |
+| MCP `tools/call` | `structuredContent` rows from student-1-db |
+| MCP refusals | unregistered tool -> `registered`; bad and undeclared arguments -> `schema-checked` |
+| RAG `/search` | BM25 scores and coverage per passage |
+| RAG grounded `/ask` | 4 citations, confidence `high` |
 | RAG insufficient `/ask` | `grounded=false`, no citations, `model=null` |
-| Through student-1-api | the same results as HTML fragments, plus the Release 0 chatbot still answering |
+| Via student-1-api | same results as HTML fragments; Release 0 chatbot answering |
 
-### 6.3 Agentic loop, both validation modes
+### 6.3 Agentic loop, both modes
 
-- `docs/evidence/agentic-loop-release1-mcp-mode.md` - all 6 tools returned rows;
-  all 6 boundary probes refused at the expected boundary
-- `docs/evidence/agentic-loop-release1-rag-mode.md` - 5/5 retrieval checks hit
-  the expected source; both insufficient-context checks correctly refused
+- MCP mode (`agentic-loop-release1-mcp-mode.md`): all 6 tools returned rows; all
+  6 boundary probes refused at the expected boundary.
+- RAG mode (`agentic-loop-release1-rag-mode.md`): 5/5 retrieval checks hit the
+  expected source; both insufficient-context checks refused.
 
-### 6.4 Successful `student-x.yml` runs with MCP/RAG disabled **(Individual)**
+### 6.4 `student-x.yml` runs with AI services disabled **(Individual)**
 
-| Workflow | Run link |
-|----------|----------|
-| student-1.yml | ✅ [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP and RAG disabled |
-| student-2.yml | ✅ [run 36556065572](https://github.com/aurelia-sari/ads-assignment/actions/runs/36556065572) - MCP and RAG disabled; Student 2 build, health checks and smoke tests passed |
+| Workflow | Run |
+|----------|-----|
+| student-1.yml | ✅ [36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP, RAG disabled |
+| student-2.yml | ✅ [36556065572](https://github.com/aurelia-sari/ads-assignment/actions/runs/36556065572) - MCP, RAG disabled; build, health, smoke tests passed |
 | student-3.yml | ⬜ TODO |
-| student-4.yml | ⬜ Run link pending. Runs 147 unit tests, then the smoke test asserts disabled AI-Mode, MCP, RAG and live data |
+| student-4.yml | ⬜ link pending - 147 unit tests, smoke test asserts AI-Mode, MCP, RAG and live data disabled |
 | student-5.yml | ⬜ TODO |
 
 ### 6.5 Deployment via the Release 0 docker-compose.yml
 
-`docker compose up` deploys 19 containers: the 18 application containers
-(shared frontend, API and database, plus each feature's frontend, backend/API
-and database) and `mailpit`, student-4's local email service. AI-Mode, the MCP
-server, the RAG server and the agentic loop do not appear in
-`docker compose config --services`. Every backend/API gets `AI_MODE_URL`,
-`MCP_SERVER_URL` and `RAG_SERVER_URL`, all pointing at `host.docker.internal`,
-from the shared `x-api-env` block, extending the connection approach Release 0
-used for AI-Mode. Evidence: `docs/evidence/release1-terminal-validation.md`
-section 5.
+`docker compose up` deploys 19 containers: 18 application containers plus
+`mailpit`. None of AI-Mode, MCP, RAG or the loop is a compose service. Every
+backend gets `AI_MODE_URL`, `MCP_SERVER_URL` and `RAG_SERVER_URL` at
+`host.docker.internal` from the shared `x-api-env` block, extending Release 0's
+AI-Mode connection approach (transcripts, section 5).
 
 ---
 
 ## 7. Individual contributions **(Individual)**
 
-_One log per student: feature updates, Release 1 work, integration and
-validation activity, and identifiable commits._
-
 | Student | Contribution | Commits |
 |---------|-------------|---------|
-| student-1 Caroline Zhou | Shared MCP + RAG servers, loop validation modes, de-containerisation, student-1 MCP/RAG integration, CI disable switches, architecture diagrams | See 7.1 |
-| student-2 Kevin Kim | MCP and RAG integration through student-2-api, MCP/RAG frontend workflows and validation, multi-city place seeding and fixes, and Release 1 technical report updates | PRs #30, #36, #48 |
+| student-1 Caroline Zhou | Shared MCP + RAG servers, loop modes, de-containerisation, student-1 integration, CI switches, diagrams | 7.1 |
+| student-2 Kevin Kim | MCP and RAG through student-2-api, frontend workflows, multi-city seeding, report | 7.2 |
 | student-3 Tanishpreet Kour | _TODO_ | |
-| student-4 Aurelia Sari | MCP and RAG proxy endpoints, MCP Tools and Ask (grounded) tabs and a CI pytest step (PR #31). Guide seeding with fixed ids and Australian and Japanese cities (PRs #34, #35). Live exchange rates, converter and AI conversions (PR #40). Live weather and city-timezone months (PR #41). RAG knowledge kept accurate (PR #32 and `chore/student-4-live-guides-docs`), with all loop probes still passing | PRs #31, #32, #34, #35, #40, #41 |
+| student-4 Aurelia Sari | MCP/RAG endpoints, tabs and CI pytest step (#31); guide seeding with Australian and Japanese cities (#34, #35); live rates, converter and AI conversions (#40); live weather (#41); RAG knowledge kept accurate (#32) | PRs #31, #32, #34, #35, #40, #41 |
 | student-5 Aung Ko Khaing | _TODO_ | |
 
-### 7.1 student-1 - Caroline Zhou (Trips & Itinerary)
+### 7.1 student-1 - Caroline Zhou
 
-Merged to `main` through four pull requests. PR #26 was squash-merged; its
-individual commits remain on the `release-1/shared-mcp-rag` branch.
+PR #26 was squash-merged; its commits remain on `release-1/shared-mcp-rag`.
 
-| Date | Area | Work | Commit |
-|------|------|------|--------|
-| 11 Sep | Group | Shared MCP server (:5400): six read-only tools over JSON-RPC, boundary enforcement. Shared RAG server (:5500): BM25 retrieval, citations, score-derived confidence, insufficient-context response | [`a486755`](https://github.com/aurelia-sari/ads-assignment/commit/a486755) |
-| 11 Sep | Group | Agentic loop MCP and RAG validation modes; AI-Mode, MCP, RAG and loop moved out of compose onto the host | [`ba7adbf`](https://github.com/aurelia-sari/ads-assignment/commit/ba7adbf) |
-| 11 Sep | Group + feature | MCP and RAG disabled in CI via `MCP_ENABLED`/`RAG_ENABLED`; removed ai-mode service dropped from all five workflows | [`ead51a8`](https://github.com/aurelia-sari/ads-assignment/commit/ead51a8) |
-| 11 Sep | Feature | student-1 frontend reaches MCP and RAG only through student-1-api: MCP tools and Ask (grounded) tabs | [`8e17d3a`](https://github.com/aurelia-sari/ads-assignment/commit/8e17d3a) |
-| 11 Sep | Group | Release 1 topology in the README; loop runs in both modes captured as evidence; this report's scaffold | [`e819bda`](https://github.com/aurelia-sari/ads-assignment/commit/e819bda), [`6d348d5`](https://github.com/aurelia-sari/ads-assignment/commit/6d348d5), [`a9c15d2`](https://github.com/aurelia-sari/ads-assignment/commit/a9c15d2) |
-| 11 Sep | Merge | PR #26 - all of the above | [`0bc3317`](https://github.com/aurelia-sari/ads-assignment/commit/0bc3317) |
-| 28 Sep | Feature | `AI_MODE_ENABLED` switch so AI-Mode is also disabled in CI, as the brief requires (PR #27) | [`45b6510`](https://github.com/aurelia-sari/ads-assignment/commit/45b6510) |
-| 28 Sep | Feature + validation | MCP and RAG tabs redesigned; panels moved inside the page shell; `get_trip_itinerary` result fixed; terminal validation of MCP and RAG, backend responses, CRUD smoke test and frontend screenshots captured (PR #28) | [`a925637`](https://github.com/aurelia-sari/ads-assignment/commit/a925637) |
-| 28 Sep | Group | Release 1 architecture and MCP/RAG flow diagrams (PR #29) | [`5534cde`](https://github.com/aurelia-sari/ads-assignment/commit/5534cde) |
+| Date | Work | Commit |
+|------|------|--------|
+| 11 Sep | MCP server: six read-only tools, boundary enforcement. RAG server: BM25, citations, confidence, insufficient-context | [`a486755`](https://github.com/aurelia-sari/ads-assignment/commit/a486755) |
+| 11 Sep | Loop MCP and RAG modes; AI services moved out of compose | [`ba7adbf`](https://github.com/aurelia-sari/ads-assignment/commit/ba7adbf) |
+| 11 Sep | MCP and RAG disabled in CI in all five workflows | [`ead51a8`](https://github.com/aurelia-sari/ads-assignment/commit/ead51a8) |
+| 11 Sep | student-1 MCP tools and Ask (grounded) tabs via student-1-api | [`8e17d3a`](https://github.com/aurelia-sari/ads-assignment/commit/8e17d3a) |
+| 11 Sep | README topology, loop evidence, report scaffold | [`e819bda`](https://github.com/aurelia-sari/ads-assignment/commit/e819bda), [`6d348d5`](https://github.com/aurelia-sari/ads-assignment/commit/6d348d5), [`a9c15d2`](https://github.com/aurelia-sari/ads-assignment/commit/a9c15d2) |
+| 11 Sep | PR #26 merge | [`0bc3317`](https://github.com/aurelia-sari/ads-assignment/commit/0bc3317) |
+| 28 Sep | `AI_MODE_ENABLED` CI switch (#27) | [`45b6510`](https://github.com/aurelia-sari/ads-assignment/commit/45b6510) |
+| 28 Sep | Tab redesign, itinerary result fix, validation evidence (#28) | [`a925637`](https://github.com/aurelia-sari/ads-assignment/commit/a925637) |
+| 28 Sep | Architecture and MCP/RAG flow diagrams (#29) | [`5534cde`](https://github.com/aurelia-sari/ads-assignment/commit/5534cde) |
+| 4 Oct | Measured NFRs, terminal summary, Appendix A (#52) | [`501d3ae`](https://github.com/aurelia-sari/ads-assignment/commit/501d3ae) |
+| 4 Oct | RAG single-term refusal fix (#50); outage notices shown in page (#51) | [`05f1084`](https://github.com/aurelia-sari/ads-assignment/commit/05f1084), [`1ac520e`](https://github.com/aurelia-sari/ads-assignment/commit/1ac520e) |
 
-**Validation evidence:** `docs/evidence/release1-terminal-validation.md`,
-`docs/evidence/student-1-*.png`, `docs/evidence/agentic-loop-release1-mcp-mode.md`,
-`docs/evidence/agentic-loop-release1-rag-mode.md`. Passing `student-1.yml` run
-with AI-Mode, MCP and RAG disabled: [run 36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872).
+### 7.2 student-2 - Kevin Kim
 
-### 7.2 student-2 - Kevin Kim (Attractions & Dining)
-
-Merged to `main` through three pull requests. The main Release 1 integration
-was delivered in PR #30, followed by a seed-data fix in PR #36 and Student 2
-technical-report updates in PR #48.
-
-| Date | Area | Work | Commit |
-|------|------|------|--------|
-| 29 Sep | Feature + integration | Extended Attractions & Dining for Release 1 with MCP and RAG integration through student-2-api. Added the `search_places` MCP workflow, RAG context retrieval and grounded answers with citations, confidence and insufficient-context handling. Added MCP/RAG frontend workflows and expanded seeded places across Sydney, Tokyo, Osaka, Sapporo, Melbourne and Brisbane (PR #30) | [`d0a0497`](https://github.com/aurelia-sari/ads-assignment/commit/d0a0497) |
-| 1 Oct | Data | Corrected Student 2 seeded place data and image URLs in `init_db` after Release 1 integration (PR #36) | `Fixed init_db` |
-| 2 Oct | Documentation | Updated the Student 2 sections of the Release 1 technical report, including integration and validation evidence (PR #48) | `docs(student-2): update Release 1 technical report` |
-
-**Validation evidence:** `docs/evidence/student-2-release1-mcp.png`,
-`docs/evidence/student-2-release1-rag.png`. Passing `student-2.yml` run
-with MCP and RAG disabled: [run 36556065572](https://github.com/aurelia-sari/ads-assignment/actions/runs/36556065572).
+| Date | Work | Commit |
+|------|------|--------|
+| 29 Sep | MCP `search_places` and RAG grounded answers through student-2-api; frontend workflows; places seeded across six cities (#30) | [`d0a0497`](https://github.com/aurelia-sari/ads-assignment/commit/d0a0497) |
+| 1 Oct | Seeded place data and image URLs corrected (#36) | `Fixed init_db` |
+| 2 Oct | Student-2 report sections and evidence (#48) | `docs(student-2): update Release 1 technical report` |
 
 ---
 
 ## 8. Repository and showcase links
 
 - **Repository:** https://github.com/aurelia-sari/ads-assignment.git
-- **Showcase video:** https://drive.google.com/file/d/1x60FKDhiU1gznKfoVHy1eLSlX-3sdv6N/view?usp=sharing (max 10 min; must show MCP + RAG through every
-  feature's UI, terminal validation of both servers, and the loop in both modes)
+- **Showcase video (max 10 min):** https://drive.google.com/file/d/1x60FKDhiU1gznKfoVHy1eLSlX-3sdv6N/view?usp=sharing
 
 ---
 
 ## 9. Known issues and limitations
 
-_Carry the Release 0 table format. Seeded from what Release 1 has already
-surfaced:_
-
 | ID | Issue | Likelihood | Impact | Mitigation | Owner |
 |----|-------|-----------|--------|------------|-------|
-| R1-A | The loop's OBSERVE step sometimes asserts facts not present in the collected evidence - one MCP run claimed `allow: get` appears in `nginx.conf`, which it never saw. The ACT evidence is collected by code and is accurate; the model's commentary drifts | Occasional | Low | Read ACT evidence as authoritative; OBSERVE is commentary. A larger review model reduces it | Caroline |
-| R1-B | BM25 retrieval matches terms, not meaning - a question phrased entirely in synonyms of the corpus wording can fall below the relevance floor and be refused despite being covered | Occasional | Medium | Confidence and the refusal are honest about it; an embedding retriever is the fix if it proves to matter | Caroline |
-| R1-C | The local AI services must be started separately from `docker compose up`. `dev.sh up` does it, but starting compose by hand leaves every AI path failing | Certain, by design | Low | Required by the brief - they cannot be compose services. Frontends show a clear unreachable notice naming the fix | Group |
-| R2-A | Student-2 place data and the curated Attractions & Dining RAG knowledge are maintained separately, so RAG knowledge can become outdated after place-data changes | Occasional | Medium | Update the shared knowledge when place data changes and reindex RAG before validation | Kevin |
-| R2-B | `search_places` reads the place collection before applying category/name filters in the MCP tool, which may become inefficient if the dataset grows substantially | Rare | Low | Results are currently row-capped and the seeded dataset is small; move filtering into student-2-db if the dataset grows | Kevin |
-| R4-A | `lookup_destination_guide` matches city and country only, so "Queensland" returns no rows | Occasional | Low | The input hint suggests a city or country | Aurelia |
-| R4-B | The hand-written RAG knowledge can drift from the code, as it did twice | Occasional | Medium | Update it with every feature change and recheck the probes | Aurelia |
-| R4-C | Release 0 guide endpoints return 503 fragments, which HTMX does not swap | Rare | Low | Return 200 notices, as the Release 1 and live endpoints do | Aurelia |
-| R4-D | Live data depends on free external APIs, and Frankfurter can take 5 to 7 seconds | Occasional | Low | Caching, the last good data and a seeded fallback | Aurelia |
-| R4-E | Book flights follows student-5's cities, which changed after release | Occasional | Low | Updated. Tokyo, Osaka and Sapporo added, Cairns removed | Aurelia |
-| R4-F | AI answers can contradict the guide, such as "you do not need cash in Sydney" or July's rain for August | Rare | Low | Fixed. Contradicting claims and figures from elsewhere are rejected, then the guide is quoted. The checks are pattern-based | Aurelia |
-| R4-G | Monthly weather had shared or unsourced figures | Certain | Low | Fixed. Each city now uses its own BOM or JMA station averages, named in the seed | Aurelia |
-| R1-D | When a trip id is passed as live context, the small local model (llama3.2) sometimes cites an unrelated retrieved passage and leaves a stray citation marker, though the same question without a trip answers correctly | Occasional | Low | Live context is labelled separately from the cited passages. Ask without a trip for general questions; a larger model reduces it | Caroline |
-| R1-E | The local model occasionally replies that it cannot answer even though relevant passages were retrieved and cited (1 in 7 runs of the same question in testing). Retrieval and confidence are computed by code and stay correct; only the generated text varies | Occasional | Low | Asking again normally succeeds. A lower temperature or a larger model would reduce it | Caroline |
-| R1-F | AI-Mode, MCP and RAG listen on all network interfaces with no authentication, so on a shared network another machine could call them | Possible | Medium | Local-only demo. Binding to `127.0.0.1` (works with Docker Desktop) or adding a token would close it | Caroline |
+| R1-A | Loop OBSERVE commentary can assert facts absent from the evidence | Occasional | Low | ACT evidence, collected by code, is authoritative | Caroline |
+| R1-B | BM25 matches terms, not meaning; synonym-only questions can be refused | Occasional | Medium | Refusal is honest; an embedding retriever would fix it | Caroline |
+| R1-C | AI services start separately from `docker compose up` | Certain | Low | Required by the brief; `dev.sh up` starts both; outage notice names the fix | Group |
+| R1-D | With a trip as live context, llama3.2 sometimes cites an unrelated passage | Occasional | Low | Context is labelled non-citable; a larger model helps | Caroline |
+| R1-E | The model occasionally declines despite relevant passages (1 in 7 test runs) | Occasional | Low | Retrying succeeds; retrieval and confidence stay correct | Caroline |
+| R1-F | Host AI services listen on all interfaces without authentication | Possible | Medium | Local demo only; bind to `127.0.0.1` or add a token | Caroline |
+| R2-A | Place data and RAG knowledge are maintained separately and can drift | Occasional | Medium | Update knowledge and reindex with data changes | Kevin |
+| R2-B | `search_places` filters after reading the whole collection | Rare | Low | Row-capped, small data; move filtering into student-2-db if it grows | Kevin |
+| R4-A | `lookup_destination_guide` matches city and country only, not regions | Occasional | Low | Input hint suggests a city or country | Aurelia |
+| R4-B | Hand-written RAG knowledge can drift from the code (it did twice) | Occasional | Medium | Update with each change; recheck the probes | Aurelia |
+| R4-C | Release 0 guide endpoints return 503 fragments HTMX does not swap | Rare | Low | Return 200 notices, as Release 1 endpoints do | Aurelia |
+| R4-D | Live data relies on free APIs; Frankfurter can take 5-7 s | Occasional | Low | Caching, last good data, seeded fallback | Aurelia |
+| R4-E | Resolved: Book flights cities, AI answers contradicting the guide, unsourced weather figures | - | Low | Fixed; checks are pattern-based | Aurelia |
 
 ---
 
 ## Appendix A: local execution constraints
 
 - **Not containerised.** AI-Mode (:5300), MCP (:5400), RAG (:5500) and the loop
-  run on the host from one virtualenv (`ai-services/.venv`, Python 3.9), managed
-  by `./scripts/ai_services.sh install | up | down | status`. `docker compose up`
-  alone starts none of them; `./scripts/dev.sh up` starts both halves.
-- **One `.env`, two perspectives.** Host services use `localhost` (Ollama at
-  `localhost:11434`). Containers reach the host through `host.docker.internal`,
-  which only resolves inside a container. MCP reads feature databases back
-  through their published ports `localhost:5201-5205`.
-- **Ports must be free.** 5300, 5400, 5500 and 11434 on the host; 8080-8085,
-  5000-5205 and 8025/1025 for compose.
-- **Model size.** On 8 GB RAM, `llama3.2` (2 GB) is the largest workable model;
-  `llama3.1:8b` needs a 6.2 GB working set and swaps. The first answer after
-  start-up is slow while the model loads.
-- **Loop.** Runs on the host with `./scripts/dev.sh loop mcp|rag|all`, needs the
-  stack and all three services up, and calls Ollama directly for its review
-  model.
-- **CI.** None of the host services exists on a runner, so each `student-x.yml`
-  sets `AI_MODE_ENABLED`, `MCP_ENABLED` and `RAG_ENABLED` to `false`.
+  run from `ai-services/.venv` (Python 3.9) via `./scripts/ai_services.sh`;
+  `./scripts/dev.sh up` starts both halves.
+- **One `.env`, two perspectives.** Host services use `localhost`; containers
+  use `host.docker.internal`, which only resolves inside a container.
+- **Ports.** 5300, 5400, 5500 and 11434 on the host; 8080-8085, 5000-5205 and
+  8025/1025 for compose.
+- **Model size.** On 8 GB, `llama3.2` (2 GB) is the largest workable model;
+  `llama3.1:8b` swaps. The first answer is slow while the model loads.
+- **Loop.** `./scripts/dev.sh loop mcp|rag|all` needs every service up and calls
+  Ollama directly for its review model.
+- **CI.** Each `student-x.yml` sets `AI_MODE_ENABLED`, `MCP_ENABLED` and
+  `RAG_ENABLED` to `false`.
