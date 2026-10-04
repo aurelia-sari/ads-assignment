@@ -122,20 +122,20 @@ them._
 
 ## 3. Non-functional requirements
 
-_The brief names nine areas and asks for measurable requirements where
-practical. One row each; add the measure, not just the aspiration._
+Measured on the reference machine (Apple M1, 8 GB, llama3.2 via Ollama), with
+the stack started by `./scripts/dev.sh up`.
 
 | # | Area | Requirement | How it is measured |
 |---|------|-------------|--------------------|
-| N1 | Security | _TODO_ | |
+| N1 | Security | Browsers never reach MCP, RAG or AI-Mode directly. Tool arguments are schema-checked before any read. All user and model text is HTML-escaped. No secrets in git | Frontends only call `/api/student-N/`. Injection probe (`trip_id="1; DROP TABLE trips"`) refused at `schema-checked`. `.env` is gitignored. Gap: host services listen on all interfaces without auth (R1-F) |
 | N2 | MCP tool boundaries | Every tool call is read-only, allowlisted, schema-checked and row-capped | 6 boundary probes in the loop's MCP mode, each must be refused at the expected boundary |
 | N3 | RAG grounding and traceability | Every grounded answer cites the passages it used | Citations non-empty whenever `grounded=true`; retrieval checks assert the top source |
-| N4 | Reliability | _TODO_ | |
-| N5 | Performance | _TODO - measure a /ask round trip locally_ | |
-| N6 | Usability | _TODO_ | |
-| N7 | Maintainability | _TODO_ | |
-| N8 | Interoperability | _TODO_ | |
-| N9 | Availability | _TODO - behaviour when a local AI service is down_ | |
+| N4 | Reliability | Every outbound AI call has a timeout, and a failure returns a notice, never a crash or a hang | MCP upstream reads time out at 8 s, backend MCP calls at 30 s, RAG generation at 180 s. Stop-each-service test: all failures returned a notice |
+| N5 | Performance | MCP tool call p95 < 500 ms; refusal without a model call < 100 ms; grounded answer < 10 s | MCP `list_trips`: median 8 ms direct, 13 ms via student-1-api (n=20). RAG retrieval 1 ms; insufficient-context reply 1-11 ms. Grounded `/ask`: median 3.7 s, max 6.8 s (n=8) |
+| N6 | Usability | Every grounded answer shows its sources and a confidence label; a refusal is visibly different; an outage names the fix | Screenshots in 6.1. Insufficient-context replies carry no citations and a red label. Outage notices say `start it with ./scripts/ai_services.sh up` |
+| N7 | Maintainability | Adding a tool or a knowledge source needs no change to boundary or retrieval code | A tool is one `@register` entry (name, owner, target, schema, row limit). A source is one markdown file, indexed at start-up or via `/reindex`. student-1's MCP and RAG clients total under 100 lines |
+| N8 | Interoperability | One protocol per service, shared by every feature: MCP JSON-RPC 2.0 (`initialize`, `tools/list`, `tools/call`, protocol `2024-11-05`); RAG plain JSON over HTTP | The loop calls all 6 tools through `tools/call` with no per-tool code. Each feature reuses the same request shapes |
+| N9 | Availability | If a host AI service is down, Release 0 features keep working and the AI tab says what is down within 1 s | Stopping MCP, RAG and AI-Mode in turn: each notice returned in under 0.12 s; trip CRUD unaffected. CI disables all three by flag |
 
 ---
 
@@ -269,8 +269,18 @@ showing citations + confidence._
 
 ### 6.2 Local terminal validation
 
-_`curl` transcripts against :5400 and :5500 - health, tools/list, a tool call, a
-boundary refusal, a grounded answer, an insufficient-context answer._
+Full transcripts: `docs/evidence/release1-terminal-validation.md`. Run from the host
+against both servers and through student-1-api:
+
+| Check | Result |
+|-------|--------|
+| MCP `/health`, `tools/list` | running, not containerised, 6 tools with schemas and row limits |
+| MCP `tools/call` | `list_trips` and `get_trip_itinerary` return `structuredContent` rows from student-1-db |
+| MCP boundary refusals | unregistered tool -> `registered`; non-integer and undeclared arguments -> `schema-checked` |
+| RAG `/health`, `/index`, `/search` | 7 sources indexed with BM25; scores and coverage per passage |
+| RAG grounded `/ask` | answer with 4 citations, confidence `high` |
+| RAG insufficient `/ask` | `grounded=false`, no citations, `model=null` |
+| Through student-1-api | the same results as HTML fragments, plus the Release 0 chatbot still answering |
 
 ### 6.3 Agentic loop, both validation modes
 
@@ -385,11 +395,27 @@ surfaced:_
 | R4-G | Monthly weather had shared or unsourced figures | Certain | Low | Fixed. Each city now uses its own BOM or JMA station averages, named in the seed | Aurelia |
 | R1-D | When a trip id is passed as live context, the small local model (llama3.2) sometimes cites an unrelated retrieved passage and leaves a stray citation marker, though the same question without a trip answers correctly | Occasional | Low | Live context is labelled separately from the cited passages. Ask without a trip for general questions; a larger model reduces it | Caroline |
 | R1-E | The local model occasionally replies that it cannot answer even though relevant passages were retrieved and cited (1 in 7 runs of the same question in testing). Retrieval and confidence are computed by code and stay correct; only the generated text varies | Occasional | Low | Asking again normally succeeds. A lower temperature or a larger model would reduce it | Caroline |
+| R1-F | AI-Mode, MCP and RAG listen on all network interfaces with no authentication, so on a shared network another machine could call them | Possible | Medium | Local-only demo. Binding to `127.0.0.1` (works with Docker Desktop) or adding a token would close it | Caroline |
 
 ---
 
 ## Appendix A: local execution constraints
 
-_Required by the brief: "local execution constraints for MCP, RAG, and the
-agentic loop". Ports 5300/5400/5500, the host venv, the one-`.env`-two-
-perspectives rule, Ollama on 8 GB._
+- **Not containerised.** AI-Mode (:5300), MCP (:5400), RAG (:5500) and the loop
+  run on the host from one virtualenv (`ai-services/.venv`, Python 3.9), managed
+  by `./scripts/ai_services.sh install | up | down | status`. `docker compose up`
+  alone starts none of them; `./scripts/dev.sh up` starts both halves.
+- **One `.env`, two perspectives.** Host services use `localhost` (Ollama at
+  `localhost:11434`). Containers reach the host through `host.docker.internal`,
+  which only resolves inside a container. MCP reads feature databases back
+  through their published ports `localhost:5201-5205`.
+- **Ports must be free.** 5300, 5400, 5500 and 11434 on the host; 8080-8085,
+  5000-5205 and 8025/1025 for compose.
+- **Model size.** On 8 GB RAM, `llama3.2` (2 GB) is the largest workable model;
+  `llama3.1:8b` needs a 6.2 GB working set and swaps. The first answer after
+  start-up is slow while the model loads.
+- **Loop.** Runs on the host with `./scripts/dev.sh loop mcp|rag|all`, needs the
+  stack and all three services up, and calls Ollama directly for its review
+  model.
+- **CI.** None of the host services exists on a runner, so each `student-x.yml`
+  sets `AI_MODE_ENABLED`, `MCP_ENABLED` and `RAG_ENABLED` to `false`.
