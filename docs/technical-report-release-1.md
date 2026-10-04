@@ -193,7 +193,7 @@ model, because a small local model answers "high" almost unconditionally.
 | `high` | top score >= 7.0, coverage >= 50%, >= 2 corroborating passages |
 | `medium` | top score >= 4.0 **and** coverage >= 40% |
 | `low` | above the 2.5 relevance floor but below medium |
-| `insufficient` | nothing clears the relevance floor - no model call is made |
+| `insufficient` | nothing clears the relevance floor, or the best passage shares only one question term and covers under half the question - no model call is made |
 
 
 ### student-2 integration
