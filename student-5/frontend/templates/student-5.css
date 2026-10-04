@@ -1,0 +1,45 @@
+/* Student 5 - Aung Ko Khaing
+   Styling for the Release 1 RAG/MCP additions to the AI assistant chat
+   fragment (confidence badge, citation list, MCP note list).
+*/
+
+.confidence-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.confidence-insufficient { background: #f1f1f1; color: #666; }
+.confidence-low          { background: #fde8e8; color: #b42318; }
+.confidence-medium       { background: #fef3cd; color: #92650c; }
+.confidence-high         { background: #e6f6ea; color: #15803d; }
+.confidence-unknown      { background: #eee; color: #555; }
+
+.citations,
+.mcp-notes {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fafafa;
+  border-left: 3px solid #ddd;
+  font-size: 0.82rem;
+}
+
+.citations-label {
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 0.2rem;
+}
+
+.citations ul,
+.mcp-notes ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.mcp-notes {
+  border-left-color: #b9d7ff;
+}
