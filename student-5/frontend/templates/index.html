@@ -320,9 +320,7 @@
                 <label for="mcp-tool-select">Tool</label>
                 <select id="mcp-tool-select" onchange="renderMcpToolFields()">
                     <option value="search_flights">search_flights (student-5-db)</option>
-                    <option value="lookup_destination_guide">lookup_destination_guide (student-4-db)</option>
-                    <option value="search_places">search_places (student-2-db)</option>
-                    <option value="list_trips">list_trips (student-1-db)</option>
+                    <option value="search_hotels">search_hotels (student-5-db)</option>
                 </select>
             </div>
         </div>
@@ -1126,12 +1124,6 @@ async function sendChat(event) {
             throw new Error(text || "AI request failed.");
         }
 
-        /*
-         * The backend returns the two chat message fragments.
-         * We already inserted the user message, so only display
-         * the generated response.
-         */
-
         const parser = new DOMParser();
         const documentFragment = parser.parseFromString(text, "text/html");
         const bot = documentFragment.querySelector(".chat-msg.bot");
@@ -1167,28 +1159,13 @@ const MCP_TOOL_SCHEMAS = {
         ],
         invalid: { budget_aud: "not-a-number" }
     },
-    lookup_destination_guide: {
-        description: "student-4's destination guide lookup (student-4-db). 'query' is required.",
-        fields: [
-            { name: "query", label: "City or country", type: "text", placeholder: "e.g. Melbourne", required: true }
-        ],
-        invalid: {}
-    },
-    search_places: {
-        description: "student-2's attractions/dining search (student-2-db).",
-        fields: [
-            { name: "name", label: "Place name", type: "text", placeholder: "e.g. Museum" },
-            { name: "category", label: "Category", type: "text", placeholder: "e.g. attraction" }
-        ],
-        invalid: { category: 12345 }
-    },
-    list_trips: {
-        description: "student-1's trip list (student-1-db).",
+    search_hotels: {
+        description: "Search this feature's own seeded hotels (student-5-db).",
         fields: [
             { name: "destination", label: "Destination", type: "text", placeholder: "e.g. Melbourne" },
-            { name: "status", label: "Status", type: "select", options: ["", "planned", "booked", "completed", "cancelled"] }
+            { name: "budget_aud", label: "Max budget (AUD)", type: "number" }
         ],
-        invalid: { status: "not-a-real-status" }
+        invalid: { budget_aud: "not-a-number" }
     }
 };
 

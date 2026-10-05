@@ -199,3 +199,22 @@ def lookup_destination_guide(args, tool):
 def search_flights(args, tool):
     rows = boundaries.read("student-5-db", "/flights/search", params=args)
     return boundaries.cap(rows, tool["rowLimit"])
+
+@register(
+    "search_hotels",
+    "Search available hotels by destination and total-stay budget ceiling.",
+    owner="student-5",
+    target="student-5-db",
+    input_schema={
+        "properties": {
+            "destination": {"type": "string", "maxLength": 60,
+                            "description": "Partial destination city."},
+            "budget_aud": {"type": "integer", "minimum": 1, "maximum": 100000,
+                           "description": "Maximum total stay price in AUD."},
+        },
+        "required": [],
+    },
+)
+def search_hotels(args, tool):
+    rows = boundaries.read("student-5-db", "/hotels/search", params=args)
+    return boundaries.cap(rows, tool["rowLimit"])
