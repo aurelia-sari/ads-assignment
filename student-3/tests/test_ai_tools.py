@@ -109,7 +109,7 @@ def test_mcp_boundary_refusal_names_the_boundary(client, enabled, monkeypatch):
                "content": [{"type": "text", "text": "argument 'destination' exceeds 60 characters"}]}
     monkeypatch.setattr(mcp_client, "call_tool", lambda n, a: refusal)
     html = client.post("/mcp/find-mates", data={"destination": "x" * 61}).get_data(as_text=True)
-    assert "MCP call refused (schema-checked)" in html
+    assert "Tool call refused" in html and "Boundary: schema-checked" in html
 
 
 def test_mcp_transport_failure_returns_502(client, enabled, monkeypatch):
@@ -138,7 +138,7 @@ def test_rag_grounded_answer_shows_confidence_and_citations(client, enabled, mon
                        "section": "Connect requests", "excerpt": "Only the owner can accept."}],
     })
     html = client.post("/ai/ask-grounded", data={"question": "own post?"}).get_data(as_text=True)
-    assert "AI Answer" in html
+    assert "Grounded answer" in html
     assert "pill-high" in html
     assert "travel/travel-mate-matching.md" in html
 
@@ -148,7 +148,7 @@ def test_rag_insufficient_context_has_no_citations(client, enabled, monkeypatch)
         "grounded": False, "answer": "I don't have enough information.",
         "confidence": "insufficient", "citations": []})
     html = client.post("/ai/ask-grounded", data={"question": "capital of Peru?"}).get_data(as_text=True)
-    assert "No answer available" in html
+    assert "Not enough context" in html
     assert "pill-insufficient" in html
     assert "compat-reason" not in html
 

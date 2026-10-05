@@ -7,7 +7,7 @@ import os
 
 import requests
 
-AI_MODE_URL = os.getenv("AI_MODE_URL", "http://ai-mode:5300")
+AI_MODE_URL = os.getenv("AI_MODE_URL", "http://host.docker.internal:5300")
     
     
 def ask_ai(question, system, max_tokens=500):

@@ -37,7 +37,9 @@ schema, and only the shared AI-Mode service talks to the local LLM.
 - **student-2 - Kevin Kim (Attractions & Dining):** MCP `search_places` and
   grounded RAG answers through student-2-api. Places, Favourites and AI Mode
   unchanged.
-- **student-3 - Tanishpreet Kour (Travel Mate):** _TODO_
+
+- **student-3 - Tanishpreet Kour (Travel Mate):** An MCP tool tab calling `find_travel_mates` and a grounded RAG Knowledge base tab (with citations, confidence, insufficient-context reply), both via `student-3-api` and disabled with a 503 notice when `MCP_ENABLED` / `RAG_ENABLED` are false, as in CI. The connect flow now has an in-card message thread (send, reply, delete sender's own) showing sender names from shared-api. Browse, Post, My Posts and the Release 0 AI match flow are unchanged.
+
 - **student-4 - Aurelia Sari (Accounts & Guides):** MCP
   `lookup_destination_guide` and grounded RAG guide answers through
   student-4-api. Guides also load live exchange rates and weather, falling back
@@ -199,8 +201,59 @@ flowchart LR
     API -->|"POST /search, /ask"| RAG
     RAG --> AI
 ```
+### 5.5 student-3 integration
+```mermaid
+flowchart LR
+   Browser(["Browser"])
 
-### 5.5 student-4 integration
+
+   subgraph Compose["Docker Compose - containerised"]
+       direction TB
+       FE["student-3-frontend<br/>nginx :8083<br/>index.html + HTMX<br/>tabs: Browse, Post, Inbox, My Posts,<br/>AI mode, MCP tool, Knowledge base"]
+       API["student-3-api<br/>Flask :5103<br/>MCP_ENABLED / RAG_ENABLED flags<br/>R0 orchestrator: Plan-Act-Observe-Adapt"]
+       DB[("student-3-db<br/>Flask + SQLite :5203<br/>trip_posts, connect_requests")]
+       SA["shared-api :5000<br/>traveller names"]
+   end
+
+
+   subgraph Host["Host - NOT containerised, NOT compose services"]
+       direction TB
+       AM["AI-Mode :5300<br/>/recommend"]
+       MCP["Shared MCP server :5400<br/>tool: find_travel_mates<br/>JSON-RPC tools/call"]
+       RAG["Shared RAG server :5500<br/>BM25 over knowledge/*.md<br/>/ask"]
+       OL["Ollama :11434<br/>llama3.2"]
+   end
+
+
+   Browser --> FE
+   FE -->|"HTMX /api/student-3/..."| API
+
+
+   API -->|"CRUD: /trips, /connect"| DB
+   API -->|"traveller lookups"| SA
+   API ==>|"R0: /ai/match-suggest, /trips/ai-score<br/>candidates scored via AI-Mode"| AM
+   AM -->|"chat completion"| OL
+
+
+   API ==>|"R1: POST /mcp/find-mates<br/>host.docker.internal:5400"| MCP
+   MCP -.->|"read-only GET /trip_posts<br/>allowlisted, schema-checked, capped 20<br/>localhost:5203"| DB
+
+
+   API ==>|"R1: POST /ai/ask-grounded<br/>host.docker.internal:5500"| RAG
+   RAG -->|"grounded prompt, only if<br/>confidence is not insufficient"| AM
+
+
+   classDef cont fill:#E1F5EE,stroke:#0F6E56,color:#085041
+   classDef host fill:#EEEDFE,stroke:#534AB7,color:#3C3489
+   class FE,API,DB,SA cont
+   class AM,MCP,RAG,OL host
+
+```
+**Travel Mate request flow and containerisation boundary.**
+The frontend posts to `/api/student-3/...`, proxied by nginx to `student-3-api`. For MCP, the API sends a JSON-RPC `tools/call` to the shared server, which validates arguments against the tool schema (destination up to 60 characters, status enum), reads `student-3-db` over HTTP, caps results at 20 rows and returns `structuredContent` or an `isError` result naming the refusing boundary. For RAG, the API calls `/ask`: BM25 retrieval, a confidence category computed from scores, and generation through AI-Mode only when confidence is not insufficient. Only `student-3-db` opens `student3.db`.
+
+
+### 5.6 student-4 integration
 
 ```mermaid
 flowchart LR
@@ -237,11 +290,14 @@ switches one path off; the seeded guide never waits for a live call.
 |---------|-----------------|-----------------|
 | student-1 | ✅ `student-1-mcp-list-trips.png` | ✅ `student-1-rag-grounded-answer.png`, `student-1-rag-insufficient-context.png` |
 | student-2 | ✅ `student-2-release1-mcp.png` - `search_places` result via student-2-api | ✅ `student-2-release1-rag.png` - grounded answer with citations and confidence |
-| student-3 | ⬜ TODO | ⬜ TODO |
+| student-3 | ✅ `student-3-release1-mcp.png` - `find_travel_mates` result via student-3-api; `student-3-release1-mcp-refused.png` - refusal for a destination over 60 characters | ✅ `student-3-release1-rag.png` - grounded answer with citations and confidence; `student-3-release1-rag-insufficient.png` - insufficient-context reply |
+ |
 | student-4 | ⬜ screenshot pending | ⬜ screenshot pending |
 | student-5 | ⬜ TODO | ⬜ TODO |
 
 `student-1-release0-trips.png` shows Release 0 trips still working.
+
+`student-3-release0-browse.png` and `student-3-release1-thread.png` show Release 0 Browse and the new message thread working.
 
 ### 6.2 Local terminal validation
 
@@ -270,7 +326,7 @@ Transcripts: `docs/evidence/release1-terminal-validation.md`.
 |----------|-----|
 | student-1.yml | ✅ [36380145872](https://github.com/aurelia-sari/ads-assignment/actions/runs/36380145872) - AI-Mode, MCP, RAG disabled |
 | student-2.yml | ✅ [36556065572](https://github.com/aurelia-sari/ads-assignment/actions/runs/36556065572) - MCP, RAG disabled; build, health, smoke tests passed |
-| student-3.yml | ⬜ TODO |
+| student-3.yml | ✅ [<run id>](https://github.com/aurelia-sari/ads-assignment/actions/runs/<run id>) - MCP, RAG disabled; build, health, smoke tests passed |
 | student-4.yml | ⬜ link pending - 147 unit tests, smoke test asserts AI-Mode, MCP, RAG and live data disabled |
 | student-5.yml | ⬜ TODO |
 
@@ -282,6 +338,18 @@ backend gets `AI_MODE_URL`, `MCP_SERVER_URL` and `RAG_SERVER_URL` at
 `host.docker.internal` from the shared `x-api-env` block, extending Release 0's
 AI-Mode connection approach (transcripts, section 5).
 
+### 6.6 student-3 feature validation **(Individual)**
+
+After Release 1 the Travel Mate frontend, API and database containers still serve every Release 0 function. A trip posted in the UI appears in `student-3-db` and is gone after deletion in My Posts, and a message sent in the connect thread is stored in `connect_requests` and shown with the sender's name. `smoke_test.py` passes (CRUD, 10+ seeded records per table, wiring, 503 from MCP and RAG when `CI=true`), as do the unit tests with the shared servers stubbed.
+
+| Layer | Evidence |
+|-------|----------|
+| Frontend | `student-3-release0-browse.png`, `-post.png`, `-inbox.png`, `-mine.png`, `-ai-mode.png`, `student-3-release1-thread.png` |
+| Backend/API | `curl` of `:5103/health`, `/trips`, `/ai/status` |
+| Through nginx | `curl localhost:<port>/api/student-3/trips` |
+| Database | `curl :5203/health` (row counts) plus the UI-to-DB round trip screenshots |
+| Automated | `smoke_test.py` output and the green `pytest` run |
+
 ---
 
 ## 7. Individual contributions **(Individual)**
@@ -290,7 +358,7 @@ AI-Mode connection approach (transcripts, section 5).
 |---------|-------------|---------|
 | student-1 Caroline Zhou | Shared MCP + RAG servers, loop modes, de-containerisation, student-1 integration, CI switches, diagrams | 7.1 |
 | student-2 Kevin Kim | MCP and RAG through student-2-api, frontend workflows, multi-city seeding, report | 7.2 |
-| student-3 Tanishpreet Kour | _TODO_ | |
+| student-3 Tanishpreet Kour | MCP and RAG tabs and endpoints, RAG knowledge document (`travel-mate-matching.md`), connect message thread with sender names, MCP/RAG clients, CI switches, tests, student-3 evidence | 7.3 |
 | student-4 Aurelia Sari | MCP/RAG endpoints, tabs and CI pytest step (#31); guide seeding with Australian and Japanese cities (#34, #35); live rates, converter and AI conversions (#40); live weather (#41); RAG knowledge kept accurate (#32) | PRs #31, #32, #34, #35, #40, #41 |
 | student-5 Aung Ko Khaing | _TODO_ | |
 
@@ -320,6 +388,17 @@ PR #26 was squash-merged; its commits remain on `release-1/shared-mcp-rag`.
 | 1 Oct | Seeded place data and image URLs corrected (#36) | `Fixed init_db` |
 | 2 Oct | Student-2 report sections and evidence (#48) | `docs(student-2): update Release 1 technical report` |
 
+### 7.3 student-3 - Tanishpreet Kour
+
+| Date | Work | Commit |
+|------|------|--------|
+| <date> | MCP route `/mcp/find-mates`, MCP tab, `mcp_client` | [`<hash>`](https://github.com/aurelia-sari/ads-assignment/commit/<hash>) |
+| <date> | RAG route `/ai/ask-grounded`, Knowledge base tab, `rag_client` | [`<hash>`](https://github.com/aurelia-sari/ads-assignment/commit/<hash>) |
+| <date> | Connect message thread and sender names via shared-api | [`<hash>`](https://github.com/aurelia-sari/ads-assignment/commit/<hash>) |
+| <date> | `MCP_ENABLED` / `RAG_ENABLED` flags, `/ai/status`, 503 handling | [`<hash>`](https://github.com/aurelia-sari/ads-assignment/commit/<hash>) |
+| <date> | `test_ai_tools.py`, `test_clients.py`, CI-aware smoke test | [`<hash>`](https://github.com/aurelia-sari/ads-assignment/commit/<hash>) |
+| <date> | `student-3.yml` with MCP and RAG disabled | [`<hash>`](https://github.com/aurelia-sari/ads-assignment/commit/<hash>) |
+
 ---
 
 ## 8. Repository and showcase links
@@ -341,6 +420,12 @@ PR #26 was squash-merged; its commits remain on `release-1/shared-mcp-rag`.
 | R1-F | Host AI services listen on all interfaces without authentication | Possible | Medium | Local demo only; bind to `127.0.0.1` or add a token | Caroline |
 | R2-A | Place data and RAG knowledge are maintained separately and can drift | Occasional | Medium | Update knowledge and reindex with data changes | Kevin |
 | R2-B | `search_places` filters after reading the whole collection | Rare | Low | Row-capped, small data; move filtering into student-2-db if it grows | Kevin |
+| R3-A | The API takes the traveller from a fixed `CURRENT_TRAVELLER_ID` setting, not the logged-in session, so every browser acts as the same user | Certain | Low | Set per environment in compose; read the student-4 session in the API once it is exposed | Tanishpreet |
+| R3-B | The MCP tab only sends a destination; `status` is fixed to `open`, so the status check (open, matched, closed) is not reachable from the UI | Certain | Low | Shown through `curl` and the agentic loop's boundary probes instead | Tanishpreet |
+| R3-C | Chat messages are stored as `connect_requests` rows and the thread is rebuilt in the API on every send, reply or delete | Certain | Low | Keeps the Release 0 schema untouched; a dedicated messages table would be the next step | Tanishpreet |
+| R3-D | Sender names need one `shared-api` call per message, and fall back to "Unknown traveller" if it is down | Occasional | Low | 3 s timeout so the thread never hangs; names return once shared-api is back | Tanishpreet |
+| R3-E | The Travel Mate knowledge document is written by hand, so answers can drift from how the feature really behaves | Occasional | Medium | Update it with each change to the connect flow and run `/reindex`; re-ask the sample questions | Tanishpreet |
+| R3-F | Seeded trip posts stay `open` after their dates pass, so Browse and the AI scoring can include past trips | Certain | Low | Affects seed data only; filtering on end date is a small follow-up | Tanishpreet |
 | R4-A | `lookup_destination_guide` matches city and country only, not regions | Occasional | Low | Input hint suggests a city or country | Aurelia |
 | R4-B | Hand-written RAG knowledge can drift from the code (it did twice) | Occasional | Medium | Update with each change; recheck the probes | Aurelia |
 | R4-C | Release 0 guide endpoints return 503 fragments HTMX does not swap | Rare | Low | Return 200 notices, as Release 1 endpoints do | Aurelia |
@@ -364,3 +449,32 @@ PR #26 was squash-merged; its commits remain on `release-1/shared-mcp-rag`.
   Ollama directly for its review model.
 - **CI.** Each `student-x.yml` sets `AI_MODE_ENABLED`, `MCP_ENABLED` and
   `RAG_ENABLED` to `false`.
+
+## Appendix B: student-3 repository structure
+
+```text
+student-3/
+├── api/
+│   ├── app.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── agentic_loop/
+│   │   ├── collectors/trip_collector.py
+│   │   └── core/{classifier.py, orchestrator.py}
+│   ├── services/
+│   │   ├── ai_client.py  database_api.py  mcp_client.py
+│   │   └── prompt_loader.py  rag_client.py
+│   ├── views/ai_formatter.py
+│   └── prompts/implementation/match_system.txt
+├── db/
+│   ├── app.py  init_db.py  requirements.txt  Dockerfile
+├── frontend/
+│   ├── Dockerfile  nginx.conf
+│   └── templates/index.html
+└── tests/
+    ├── smoke_test.py
+    ├── test_ai_tools.py  test_clients.py  test_agentic_loop.py
+    └── README.md
+```
+
+The shared MCP server, RAG server, AI-Mode and agentic loop are under `ai-services/` (section 4). The Travel Mate RAG knowledge document is `ai-services/rag-server/knowledge/travel/travel-mate-matching.md`.
