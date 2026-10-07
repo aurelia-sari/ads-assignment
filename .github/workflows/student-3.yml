@@ -58,6 +58,7 @@ jobs:
         # containerised, so they do not exist on a CI runner - leaving
         # them enabled would mean every AI path waits for a timeout.
         env:
+          AI_MODE_ENABLED: 'false'
           MCP_ENABLED: 'false'
           RAG_ENABLED: 'false'
         run: |
