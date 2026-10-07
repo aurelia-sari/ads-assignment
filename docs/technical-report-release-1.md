@@ -370,7 +370,7 @@ PR #26 was squash-merged; its commits remain on `release-1/shared-mcp-rag`.
 | R4-D | Live data relies on free APIs; Frankfurter can take 5-7 s | Occasional | Low | Caching, last good data, seeded fallback | Aurelia |
 | R4-E | Resolved: Book flights cities, AI answers contradicting the guide, unsourced weather figures | - | Low | Fixed; checks are pattern-based | Aurelia |
 | R5-A | The RAG server's `/search` and `/ask` responses use different field names for retrieved passages (`hits` vs an array under the answer's `citations`), and the passage-text key isn't documented | Occasional | Low | Frontend checks several fallback key names (`excerpt`, `text`, `passage`, …); confirmed against live `curl` output during integration | Aung |
-
+|R5-B| Cross-feature MCP lookups every error into an empty list thus can't distinguish "no rows" from "server down" | Occasional | Low | a status flag to the UI would help | Aung |
 ---
 
 ## Appendix A: local execution constraints
