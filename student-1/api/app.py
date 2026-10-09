@@ -6,7 +6,9 @@ service.
 
 Release 1 adds two more outbound paths, both to shared non-containerised
 services: the MCP server for tool calls and the RAG server for grounded
-answers. The frontend reaches neither directly - it goes through here.
+answers. Release 2 adds a third, the shared Multi-Agent Server, for the
+Planner -> Worker -> Reviewer -> Human Review workflow. The frontend reaches
+none of them directly - it goes through here.
 """
 
 from pathlib import Path
@@ -19,6 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+from routes.ai_agents import ai_agents_bp
 from routes.ai_chat import ai_chat_bp
 from routes.ai_tools import ai_tools_bp
 from routes.itinerary import itinerary_bp
@@ -33,6 +36,7 @@ def create_app():
     app.register_blueprint(itinerary_bp)
     app.register_blueprint(ai_chat_bp)
     app.register_blueprint(ai_tools_bp)
+    app.register_blueprint(ai_agents_bp)
 
     return app
 

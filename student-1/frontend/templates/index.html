@@ -29,6 +29,7 @@
         <button class="tab-btn" data-tab="ai" type="button">AI assistant</button>
         <button class="tab-btn" data-tab="mcp" type="button">MCP tools</button>
         <button class="tab-btn" data-tab="rag" type="button">Ask (grounded)</button>
+        <button class="tab-btn" data-tab="agents" type="button">Agents</button>
     </nav>
 
     <!-- Trips: full CRUD ------------------------------------------------ -->
@@ -216,6 +217,64 @@
             </div>
         </form>
     </section>
+
+    <!-- Multi-agent workflow (Release 2) ------------------------------------ -->
+    <section class="tab-panel card" id="panel-agents">
+        <div class="panel-intro">
+            <h3>Agents: plan, work, review, then you decide</h3>
+            <p class="muted">
+                The shared Multi-Agent Server runs three agents on your task. The
+                <strong>Planner</strong> picks the evidence and sets acceptance
+                criteria, the <strong>Worker</strong> answers from that evidence
+                only (your trip data, read through MCP, and the knowledge base),
+                and the <strong>Reviewer</strong> checks the answer. Nothing is
+                released until you approve, correct, partially accept or reject it.
+            </p>
+        </div>
+
+        <div class="suggestions" aria-label="Suggested tasks">
+            <span class="suggestions__label">Try</span>
+            <button type="button" class="chip" data-task="Summarise this trip for the traveller: where, when, budget and what is planned day by day" data-trip="1">Summarise trip 1</button>
+            <button type="button" class="chip" data-task="Check this itinerary for gaps: any trip dates without a planned day, and anything that looks over budget" data-trip="1">Check trip 1 for gaps</button>
+            <button type="button" class="chip" data-task="Which trips are booked but not yet completed, and when do they start?" data-trip="">Upcoming booked trips</button>
+        </div>
+
+        <form id="agents-form"
+              hx-post="/api/student-1/ai/agents"
+              hx-target="#agents-panel"
+              hx-swap="innerHTML">
+            <label for="agents-task">Task for the agents</label>
+            <textarea id="agents-task" name="task" rows="2" maxlength="1000" required
+                      placeholder="e.g. Summarise trip 3 and flag any days with nothing planned"></textarea>
+            <div class="form-grid">
+                <div>
+                    <label for="agents-trip-id">Trip ID <span class="optional">optional</span></label>
+                    <input id="agents-trip-id" type="number" name="trip_id" min="1" placeholder="all trips if blank">
+                </div>
+                <div class="agents-check">
+                    <label><input type="checkbox" name="use_rag" checked> Also offer the knowledge base (RAG)</label>
+                </div>
+            </div>
+            <input type="hidden" name="reviewer" class="reviewer-name">
+            <div class="form-actions">
+                <button type="submit">Run agents</button>
+                <span class="spinner">Planner &rarr; Worker &rarr; Reviewer, about 30-60 seconds on a local model...</span>
+            </div>
+        </form>
+
+        <div id="agents-panel" class="result-area">
+            <p class="result-empty">Run a task, or open a recent workflow below. Each step of the
+            workflow appears here, followed by your review.</p>
+        </div>
+
+        <h4>Recent workflows</h4>
+        <div id="agents-recent"
+             hx-get="/api/student-1/ai/agents"
+             hx-trigger="intersect once, refresh"
+             hx-swap="innerHTML">
+            <p class="muted">loading...</p>
+        </div>
+    </section>
 </main>
 
 <script>
@@ -226,6 +285,7 @@ const panels = {
     ai: document.getElementById("panel-ai"),
     mcp: document.getElementById("panel-mcp"),
     rag: document.getElementById("panel-rag"),
+    agents: document.getElementById("panel-agents"),
 };
 
 function activate(name) {
@@ -235,7 +295,7 @@ function activate(name) {
     );
     window.location.hash = name;
 
-    const focusTargets = { ai: "ai-question", rag: "rag-question", mcp: "mcp-destination" };
+    const focusTargets = { ai: "ai-question", rag: "rag-question", mcp: "mcp-destination", agents: "agents-task" };
     const input = document.getElementById(focusTargets[name]);
     if (input) input.focus();
 }
@@ -319,6 +379,52 @@ document.body.addEventListener("htmx:beforeSwap", (event) => {
         event.detail.shouldSwap = true;
         event.detail.isError = false;
     }
+});
+
+// Agents: a suggestion fills the task and trip, and runs it.
+const agentsForm = document.getElementById("agents-form");
+
+document.querySelectorAll("#panel-agents .chip").forEach((chip) =>
+    chip.addEventListener("click", () => {
+        agentsForm.querySelector('[name="task"]').value = chip.dataset.task;
+        agentsForm.querySelector('[name="trip_id"]').value = chip.dataset.trip;
+        agentsForm.requestSubmit();
+    })
+);
+
+// Decisions are attributed to a person. Prefill the reviewer name from the
+// signed-in account so the audit log names who approved what; the visible
+// field on the review form can still be changed.
+function reviewerName() {
+    const user = (window.NextStopSession && NextStopSession.getSession()) || {};
+    const full = [user.first_name, user.last_name].filter(Boolean).join(" ");
+    return user.name || user.full_name || full || user.email || "";
+}
+
+function fillReviewer(root) {
+    root.querySelectorAll(".reviewer-name").forEach((field) => {
+        if (!field.value) field.value = reviewerName();
+    });
+}
+fillReviewer(document);
+
+document.body.addEventListener("htmx:afterSwap", (event) => {
+    if (event.target.id === "agents-panel") {
+        fillReviewer(event.target);
+        event.target.scrollIntoView({ behavior: "smooth", block: "start" });
+        htmx.trigger("#agents-recent", "refresh");
+    }
+});
+
+// The edited-response box only applies to a partial acceptance. Disabled
+// fields are not submitted, so it cannot leak into another decision.
+document.body.addEventListener("change", (event) => {
+    if (event.target.name !== "decision") return;
+    const form = event.target.closest("form");
+    const edit = form.querySelector(".agent-edit");
+    const partial = event.target.value === "partial";
+    edit.hidden = !partial;
+    edit.querySelector("textarea").disabled = !partial;
 });
 
 const initial = window.location.hash.replace("#", "");
