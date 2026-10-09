@@ -1629,3 +1629,49 @@ label .optional { font-weight: 400; color: var(--color-slate-500); opacity: 0.8;
 .citation-list { margin: 0; padding-left: 1.1rem; color: var(--color-slate-500); }
 .citation-list li { margin-bottom: 0.4rem; }
 .citation-list code { background: #eef1f5; padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.8rem; color: var(--color-navy-800); }
+
+/* --- Release 2: multi-agent workflow (shared) -----------------------------
+   Every feature shows the same Planner -> Worker -> Reviewer -> Human Review
+   workflow, so the run card lives here rather than in five copies. */
+.agent-run { border: 1px solid var(--color-slate-200); border-radius: var(--radius-input); padding: 1rem 1.1rem; background: var(--color-white); }
+.agent-run__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.agent-run__head p { margin: 0.2rem 0 0; font-size: 0.8rem; }
+
+.agent-stages { display: flex; flex-wrap: wrap; gap: 0.35rem; list-style: none; padding: 0; margin: 0.9rem 0; counter-reset: stage; }
+.agent-stages li {
+    counter-increment: stage; font-size: 0.8rem; padding: 0.25rem 0.65rem; border-radius: 999px;
+    border: 1px solid var(--color-slate-200); color: var(--color-slate-500);
+}
+.agent-stages li::before { content: counter(stage) ". "; }
+.agent-stages li.is-done    { background: #dcf5ea; border-color: #b6e6cf; color: #0d6b48; }
+.agent-stages li.is-current { background: #e5eefa; border-color: var(--color-blue-500); color: var(--color-navy-700); font-weight: 600; }
+.agent-stages li.is-failed  { background: #fbe0de; border-color: #f0b8b3; color: #8f231c; font-weight: 600; }
+
+.agent-block { margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px solid var(--color-slate-200); font-size: 0.9rem; }
+.agent-block h4 { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--color-navy-800); display: inline-flex; align-items: center; gap: 0.5rem; }
+.agent-block ul, .agent-block ol { margin: 0.3rem 0; padding-left: 1.2rem; }
+.agent-block summary { cursor: pointer; }
+.agent-label { margin: 0.6rem 0 0.1rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-slate-500); }
+
+.agent-response { white-space: pre-wrap; line-height: 1.5; border-left: 3px solid var(--color-navy-800); padding-left: 0.7rem; }
+.agent-released { background: #f2faf6; border: 1px solid #b6e6cf; border-radius: var(--radius-input); padding: 0.8rem; }
+.agent-released .agent-response { border-left-color: #0d6b48; }
+
+.agent-evidence-list { list-style: none; padding-left: 0 !important; }
+.agent-evidence-list li { margin-bottom: 0.6rem; }
+.agent-evidence { max-height: 12rem; overflow: auto; font-size: 0.75rem; background: var(--color-cream-50); padding: 0.5rem; border-radius: 4px; white-space: pre-wrap; }
+
+.agent-criteria { list-style: none; padding-left: 0 !important; }
+.agent-criteria li { padding: 0.15rem 0 0.15rem 1.3rem; position: relative; }
+.agent-criteria li::before { position: absolute; left: 0; }
+.agent-criteria li.is-met::before   { content: "\2713"; color: #0d6b48; }
+.agent-criteria li.is-unmet::before { content: "\2717"; color: #8f231c; }
+
+.agent-decisions { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; border: 0; padding: 0; margin: 0.4rem 0 0.8rem; }
+.agent-decisions label { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 500; margin: 0; }
+.agent-review-form textarea { width: 100%; }
+.agents-check { display: flex; align-items: flex-end; }
+.agents-check label { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 400; }
+
+.agent-history { font-size: 0.78rem; }
+.agent-history code { word-break: break-all; }

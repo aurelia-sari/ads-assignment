@@ -78,6 +78,7 @@ jobs:
           AI_MODE_ENABLED: 'false'
           MCP_ENABLED: 'false'
           RAG_ENABLED: 'false'
+          MULTI_AGENT_ENABLED: 'false'
           GUIDES_LIVE_DATA: 'false'
         run: |
           docker compose up -d \

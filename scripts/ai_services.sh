@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Start and stop the Release 1 local AI services.
+# Start and stop the local AI services.
 #
 # Release 1 requires AI-Mode, the MCP server and the RAG server to run on the
-# host and NOT as docker-compose services, so they are managed here instead of
+# host and NOT as docker-compose services, and Release 2 adds the Multi-Agent
+# Server under the same rule, so they are managed here instead of
 # by compose. The containerised feature microservices reach them through
 # host.docker.internal.
 #
-#   ./scripts/ai_services.sh up       start all three in the background
+#   ./scripts/ai_services.sh up       start all four in the background
 #   ./scripts/ai_services.sh down     stop them
 #   ./scripts/ai_services.sh status   show whether each is responding
-#   ./scripts/ai_services.sh logs ai-mode|mcp-server|rag-server
+#   ./scripts/ai_services.sh logs ai-mode|mcp-server|rag-server|multi-agent-server
 #   ./scripts/ai_services.sh install  create the venv and install requirements
 
 set -euo pipefail
@@ -25,6 +26,7 @@ SERVICES=(
     "ai-mode:ai-services/ai-mode:app.py:5300"
     "mcp-server:ai-services/mcp-server:server.py:5400"
     "rag-server:ai-services/rag-server:server.py:5500"
+    "multi-agent-server:ai-services/multi-agent-server:server.py:5600"
 )
 
 require_venv() {
@@ -64,13 +66,14 @@ case "${1:-}" in
         # .env holds the CONTAINER-facing spellings, because docker-compose
         # needs them: a backend in a container reaches these services at
         # host.docker.internal. These processes run on the host, where that
-        # name does not resolve, so the same three URLs are re-pointed at
+        # name does not resolve, so the same URLs are re-pointed at
         # localhost for our own use. One .env, two perspectives.
         [ -f .env ] && set -a && . ./.env && set +a
         export OLLAMA_BASE_URL="${OLLAMA_BASE_URL_LOCAL:-http://localhost:11434/v1}"
         export AI_MODE_URL="http://localhost:5300"
         export MCP_SERVER_URL="http://localhost:5400"
         export RAG_SERVER_URL="http://localhost:5500"
+        export MULTI_AGENT_URL="http://localhost:5600"
 
         for service in "${SERVICES[@]}"; do
             IFS=: read -r name dir entry port <<< "$service"

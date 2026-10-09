@@ -6,6 +6,7 @@
 #   ./scripts/dev.sh health    show the health of every service
 #   ./scripts/dev.sh smoke N   run the CRUD smoke test for student N
 #   ./scripts/dev.sh loop      run the Plan -> Act -> Observe -> Adapt loop
+#   ./scripts/dev.sh agents    Multi-Agent Server terminal client (run, list, show, history, decide)
 #   ./scripts/dev.sh logs [service]
 #
 # The AI services (AI-Mode, MCP, RAG) and the agentic loop are not containerised
@@ -51,7 +52,7 @@ case "${1:-}" in
         echo
         echo "Integrated application: http://localhost:8080"
         echo "Waiting for services to report healthy..."
-        python3 scripts/wait_for_health.py 5000 5200 5300 5400 5500 5101 5201 || true
+        python3 scripts/wait_for_health.py 5000 5200 5300 5400 5500 5600 5101 5201 || true
         ;;
     down)
         docker compose down --volumes
@@ -74,6 +75,13 @@ case "${1:-}" in
         # Runs on the host now, not through compose: Release 1 requires the
         # agentic loop to be non-containerised.
         ( cd ai-services/agentic-loop && exec ../.venv/bin/python main.py "${@:2}" )
+        ;;
+    agents)
+        require_ai_services
+        # The terminal path into the same Multi-Agent Server the feature
+        # backends call, so both leave identical audit trails.
+        MULTI_AGENT_URL="http://localhost:5600" \
+            ai-services/.venv/bin/python ai-services/multi-agent-server/cli.py "${@:2}"
         ;;
     logs)
         docker compose logs -f --tail 100 "${2:-}"
