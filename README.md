@@ -71,6 +71,7 @@ Other commands:
 │   ├── ai-mode/             shared AI-Mode service (Flask, port 5300)
 │   ├── mcp-server/          shared MCP server (Flask + JSON-RPC, port 5400)
 │   ├── rag-server/          shared RAG server (Flask + BM25, port 5500)
+│   ├── multi-agent-server/  shared Multi-Agent Server (Planner, Worker, Reviewer, port 5600)
 │   │   └── knowledge/       the curated corpus retrieval runs over
 │   ├── agentic-loop/        Plan -> Act -> Observe -> Adapt loop (terminal)
 │   └── prompts/             prompt engineering artefacts
@@ -240,6 +241,47 @@ curl -s -X POST localhost:5500/ask -H 'Content-Type: application/json' \
 ```
 
 After editing the knowledge base, `POST /reindex` rebuilds without a restart.
+
+## The shared Multi-Agent Server (Release 2)
+
+One non-containerised server on **:5600**, used by all five features, managed
+by `ai_services.sh` like the others. A workflow runs:
+
+```
+Planner  -> chooses evidence sources, writes steps and acceptance criteria
+evidence -> fetches only the chosen sources: MCP tool calls, RAG retrieval,
+            or data the feature's backend supplied
+Worker   -> answers from that evidence only, citing it as [E1], [E2]
+Reviewer -> checks the answer against the plan and evidence (model review
+            plus deterministic citation checks)
+Human    -> approve | correct (Worker and Reviewer re-run) | partial | reject
+```
+
+Nothing is released until a human decides. Every agent reaches the model
+through AI-Mode. Each workflow is saved to
+`ai-services/.runtime/multi-agent/workflows/<id>.json`, and every step any
+agent or human takes is appended to `ai-services/.runtime/multi-agent/audit.jsonl`,
+which is the coordination/audit evidence for the report.
+
+From the terminal:
+
+```bash
+./scripts/dev.sh agents run --feature student-1 \
+  --task "Summarise trip 12: where, when, budget, day by day" \
+  --mcp 'get_trip_itinerary={"trip_id": 12}' --no-rag
+./scripts/dev.sh agents list
+./scripts/dev.sh agents history <workflow-id>
+./scripts/dev.sh agents decide <workflow-id> approve --reviewer <name>
+```
+
+From a feature backend/API, `POST /workflows` with `feature`, `task`, and
+optionally `evidence` (`[{label, content}]`), `mcp_calls`
+(`[{tool, arguments}]`) and `use_rag`. Then `POST /workflows/<id>/decision`
+with `decision`, `reviewer`, and `feedback` (correct) or `notes` (partial,
+reject). A run makes three model calls, so allow a generous timeout (the CLI
+uses 600 s). Backends honour `MULTI_AGENT_ENABLED`, which CI sets to `false`.
+
+Tests (no Ollama needed): `ai-services/.venv/bin/python -m pytest ai-services/multi-agent-server/tests -q`
 
 ## AI-Mode
 

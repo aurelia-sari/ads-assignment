@@ -24,6 +24,7 @@ x-api-env: &api-env
   AI_MODE_URL: ${AI_MODE_URL:-http://host.docker.internal:5300}
   MCP_SERVER_URL: ${MCP_SERVER_URL:-http://host.docker.internal:5400}
   RAG_SERVER_URL: ${RAG_SERVER_URL:-http://host.docker.internal:5500}
+  MULTI_AGENT_URL: ${MULTI_AGENT_URL:-http://host.docker.internal:5600}
   # CI runs the containerised microservices without the host-local AI services,
   # so AI-Mode, MCP and RAG are switched off there rather than left to time out
   # against a host.docker.internal that has nothing behind it. The integration
@@ -32,6 +33,7 @@ x-api-env: &api-env
   AI_MODE_ENABLED: ${AI_MODE_ENABLED:-true}
   MCP_ENABLED: ${MCP_ENABLED:-true}
   RAG_ENABLED: ${RAG_ENABLED:-true}
+  MULTI_AGENT_ENABLED: ${MULTI_AGENT_ENABLED:-true}
   SHARED_API_URL: http://shared-api:5000
 
 # host.docker.internal is how a container reaches a service on the host. The
