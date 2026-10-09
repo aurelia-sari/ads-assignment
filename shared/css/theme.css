@@ -1673,5 +1673,17 @@ label .optional { font-weight: 400; color: var(--color-slate-500); opacity: 0.8;
 .agents-check { display: flex; align-items: flex-end; }
 .agents-check label { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 400; }
 
-.agent-history { font-size: 0.78rem; }
-.agent-history code { word-break: break-all; }
+/* Tables are nowrap theme-wide, which let a long JSON detail push the audit
+   log out of its card. Fixed columns, and only the detail column wraps. */
+.agent-history { font-size: 0.78rem; table-layout: fixed; }
+.agent-history th:nth-child(1) { width: 6.5rem; }
+.agent-history th:nth-child(2) { width: 22%; }
+.agent-history th:nth-child(3) { width: 6.5rem; }
+.agent-history td:nth-child(2),
+.agent-history td:nth-child(4) { white-space: normal; overflow-wrap: anywhere; }
+.agent-history code { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* On a phone the detail column would shrink to a word per line, so below
+   this width the table keeps its shape and scrolls inside .table-wrap. */
+.agent-history { min-width: 40rem; }
+.agent-history-wrap { border: 0; border-radius: 0; }
+.agent-recent td:first-child { white-space: normal; min-width: 14rem; }
