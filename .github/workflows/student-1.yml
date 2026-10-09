@@ -75,6 +75,46 @@ jobs:
       - name: Validate CRUD through the database and backend APIs
         run: python3 scripts/smoke_test.py 1
 
+      # Release 2, criterion 4: post-commit tests for two endpoint functions
+      # of student-1-api, create_trip (POST /trips) and list_trip_days
+      # (GET /trips/<id>/days), run against the containers started above.
+      - name: Install the endpoint test dependencies
+        run: python -m pip install -r student-1/tests/requirements.txt
+
+      - name: Test two student-1-api endpoint functions
+        run: >-
+          python -m pytest -v
+          student-1/tests/test_endpoints.py
+          --junitxml=reports/student-1-endpoint-tests.xml
+
+      - name: Publish the endpoint test report
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          path = Path("reports/student-1-endpoint-tests.xml")
+          if not path.exists():
+              print("## student-1 endpoint tests\n\nNo report: the tests did not run.")
+              raise SystemExit
+          suite = ET.parse(path).getroot().find("testsuite")
+          print("## student-1 endpoint tests (create_trip, list_trip_days)\n")
+          print(f"{suite.get('tests')} tests, {suite.get('failures')} failures, "
+                f"{suite.get('errors')} errors, {float(suite.get('time')):.2f}s\n")
+          print("| Test | Result |\n|---|---|")
+          for case in suite.iter("testcase"):
+              failed = case.find("failure") is not None or case.find("error") is not None
+              print(f"| `{case.get('name')}` | {'FAIL' if failed else 'pass'} |")
+          PY
+
+      - name: Upload the endpoint test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-1-endpoint-tests
+          path: reports/student-1-endpoint-tests.xml
+          if-no-files-found: ignore
+
       - name: Confirm the frontend microservice serves its page
         run: curl --fail --silent --show-error http://localhost:8081 > /dev/null
 
