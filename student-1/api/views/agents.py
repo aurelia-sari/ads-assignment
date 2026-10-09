@@ -271,9 +271,14 @@ def workflow_list(workflows):
         for w in workflows
     )
     return (
-        "<table><thead><tr><th>Task</th><th>Status</th><th>Reviewer verdict</th>"
-        f"<th>Updated (UTC)</th><th></th></tr></thead><tbody>{rows}</tbody></table>"
+        "<div class='table-wrap'><table class='agent-recent'><thead><tr><th>Task</th><th>Status</th>"
+        "<th>Reviewer verdict</th><th>Updated (UTC)</th><th></th></tr></thead>"
+        f"<tbody>{rows}</tbody></table></div>"
     )
+
+
+def _clip(text, limit):
+    return text if len(text) <= limit else text[:limit].rstrip() + " \u2026"
 
 
 def history_table(entries):
@@ -284,11 +289,12 @@ def history_table(entries):
         f"<td>{escape(e['ts'][11:19])}</td>"
         f"<td>{escape(e['actor'])}</td>"
         f"<td>{escape(e['event'])}</td>"
-        f"<td><code>{escape(json.dumps(e['detail'])[:220])}</code></td>"
+        f"<td><code>{escape(_clip(json.dumps(e['detail']), 400))}</code></td>"
         "</tr>"
         for e in entries
     )
     return (
-        "<table class='agent-history'><thead><tr><th>Time (UTC)</th><th>Actor</th>"
-        f"<th>Event</th><th>Detail</th></tr></thead><tbody>{rows}</tbody></table>"
+        "<div class='table-wrap agent-history-wrap'><table class='agent-history'>"
+        "<thead><tr><th>Time (UTC)</th><th>Actor</th><th>Event</th><th>Detail</th></tr>"
+        f"</thead><tbody>{rows}</tbody></table></div>"
     )
