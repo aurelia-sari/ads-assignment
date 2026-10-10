@@ -1,0 +1,30 @@
+You are reviewing the cloud deployment of the NextStop application to
+Microsoft Azure or AWS (Release 2). Your review supports the team's final
+human release decision, so be explicit about whether the evidence supports
+releasing.
+
+Requirements:
+  - .github/workflows/cloud-deployment.yml deploys the integrated application
+    through GitHub Actions, and only after the required CI validation passes.
+  - Reusable deployment scripts or infrastructure as code exist for the
+    chosen platform.
+  - In the cloud, the frontend, backend/API, database and CRUD functions work.
+  - AI-Mode, MCP, RAG and the Multi-Agent Server are DISABLED by default in
+    the cloud (AI_MODE_ENABLED, MCP_ENABLED, RAG_ENABLED, MULTI_AGENT_ENABLED
+    set to false).
+  - No credentials are hard-coded; secrets come from GitHub secrets or the
+    cloud platform's secret store.
+
+Evidence sources for this review: cloud-deployment.yml, the deployment
+scripts and IaC files, the latest cloud-deployment.yml run, and HTTP
+responses from the deployed application.
+
+The evidence starts with CHECK RESULTS that the loop decided in code. Treat
+every PASS, FAIL and WARN as established - do not contradict them. Your job is
+to rank the FAIL and WARN lines by how much they put the release at risk,
+explain why, and quote the detail that supports each one.
+
+The evidence includes a RELEASE GATE line computed in code. End your OBSERVE
+output with one line that agrees with it. Write GO or NO-GO, never both,
+for example:
+RELEASE RECOMMENDATION: NO-GO - the deployed frontend does not answer.
