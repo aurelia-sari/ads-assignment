@@ -384,13 +384,44 @@ file which actually contains the answer, that answers carry citations and a
 confidence category, and that off-corpus questions are refused rather than
 answered.
 
+Release 2 adds three review modes:
+
+- **Multi-Agent Workflow Review** (`multiagent`) reads every workflow and its
+  audit log from the Multi-Agent Server. It checks that no workflow reached a
+  final status without a human decision and that each audit log is complete
+  and in order. It probes the server's validation (no model calls, no state
+  change) and reports fallback rates, citation-check failures, approvals
+  over Reviewer concerns, and which features have integrated.
+- **Testing Review** (`testing`) checks `.pre-commit-config.yaml` for Ruff
+  security rules, detect-secrets with a baseline, and pip-audit, and reads
+  any saved scan report in `docs/evidence`. For each `student-x.yml` it
+  counts the distinct backend/API endpoints its CI tests call (two are
+  required), checks that a report is published, and fetches the latest run
+  on main.
+- **Cloud Deployment Review** (`cloud`) checks `cloud-deployment.yml` (and
+  that it is gated on CI), the deployment scripts/IaC, the four AI flags being
+  `false`, and hard-coded credentials. With `CLOUD_APP_URL` set (or the URL
+  saved in `docs/evidence/cloud-app-url.txt`) it also probes the deployed app:
+  the frontend, every backend/API, a CRUD read, and every AI path answering
+  "disabled". It ends with the **human release decision** (go / no-go /
+  defer, with name and reason) written into the run record.
+
+In these modes the pass/fail verdicts are decided in code, not by the model.
+They appear as a CHECK RESULTS block at the top of the evidence. The cloud
+mode also computes a RELEASE GATE: if the model's recommendation contradicts
+it, the run record says so and the gate stands, and a human GO over a NO-GO
+gate is recorded as an override. Tests: `ai-services/.venv/bin/python -m pytest ai-services/agentic-loop/tests -q`
+
 The loop runs on the host, not in a container.
 
 ```bash
-./scripts/dev.sh loop            # interactive menu
-./scripts/dev.sh loop mcp        # MCP validation mode
-./scripts/dev.sh loop rag        # RAG grounding validation mode
-./scripts/dev.sh loop all 2      # two iterations over all six targets
+./scripts/dev.sh loop               # interactive menu
+./scripts/dev.sh loop mcp           # MCP validation mode
+./scripts/dev.sh loop rag           # RAG grounding validation mode
+./scripts/dev.sh loop multiagent    # Multi-Agent Workflow Review
+./scripts/dev.sh loop testing       # Testing Review
+CLOUD_APP_URL=https://... ./scripts/dev.sh loop cloud   # Cloud Deployment Review + release decision
+./scripts/dev.sh loop all 2         # two iterations over all nine targets
 ```
 
 Every run writes a markdown record to `ai-services/agentic-loop/runs/`. Copy the
