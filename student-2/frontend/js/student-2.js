@@ -483,6 +483,7 @@ function initialiseRag() {
 function initialiseFrontendModes() {
     initialiseMcp();
     initialiseRag();
+    window.initialiseAgents?.();
 }
 
 document.addEventListener(
