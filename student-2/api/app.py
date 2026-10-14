@@ -28,6 +28,7 @@ from routes.normal_ui import normal_ui_bp
 from routes.ai_mode import ai_mode_bp
 from routes.mcp import mcp_bp
 from routes.rag import rag_bp
+from routes.agents import agents_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -50,6 +51,7 @@ app.register_blueprint(normal_ui_bp)
 app.register_blueprint(ai_mode_bp)
 app.register_blueprint(mcp_bp)
 app.register_blueprint(rag_bp)
+app.register_blueprint(agents_bp)
 
 # Health
 @app.get("/health")
