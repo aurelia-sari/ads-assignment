@@ -14,6 +14,12 @@ from pathlib import Path
 import requests
 import yaml
 
+from release2_collectors import (
+    collect_cloud_evidence,
+    collect_multiagent_evidence,
+    collect_testing_evidence,
+)
+
 # ai-services/agentic-loop/collectors.py -> the repo root is three levels up.
 REPO_ROOT = Path(os.getenv("REPO_ROOT", Path(__file__).resolve().parents[2]))
 
@@ -373,4 +379,8 @@ COLLECTORS = {
     # Release 1 validation modes.
     "mcp": ("the shared MCP server", "review/mcp_review_prompt.txt", collect_mcp_evidence),
     "rag": ("the shared RAG server and its grounded responses", "review/rag_review_prompt.txt", collect_rag_evidence),
+    # Release 2 review modes.
+    "multiagent": ("the shared Multi-Agent Server and its workflow history", "review/multiagent_review_prompt.txt", collect_multiagent_evidence),
+    "testing": ("the pre-commit security scans and post-commit CI/CD endpoint tests", "review/testing_review_prompt.txt", collect_testing_evidence),
+    "cloud": ("the cloud deployment and its validation evidence", "review/cloud_review_prompt.txt", collect_cloud_evidence),
 }

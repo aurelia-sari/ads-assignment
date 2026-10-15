@@ -12,6 +12,11 @@ ISSUE:
 - what the evidence contradicts, or what the plan asked for that the evidence
   does not cover
 
+If the evidence begins with CHECK RESULTS, those PASS, FAIL and WARN lines
+were decided in code from the detail beneath them. Copy every FAIL and WARN
+into ISSUE and every PASS into PASS, then add only what the detail shows
+beyond them. Never mark a CHECK RESULTS line as "not shown by the evidence".
+
 If a planned check could not be evaluated from this evidence, put it under
 ISSUE as "not shown by the evidence", not under PASS. Do not credit a check
 that the evidence is silent about.

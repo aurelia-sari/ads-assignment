@@ -15,6 +15,7 @@ STEP_COLOURS = {
     "ACT": "\033[93m",
     "OBSERVE": "\033[95m",
     "ADAPT": "\033[92m",
+    "DECISION": "\033[91m",
 }
 RESET = "\033[0m"
 
@@ -37,7 +38,10 @@ def print_menu():
         "  4  DevOps pipeline\n"
         "  5  MCP server validation          (Release 1)\n"
         "  6  RAG grounding validation       (Release 1)\n"
-        "  7  All six, in sequence\n"
+        "  7  Multi-Agent Workflow Review    (Release 2)\n"
+        "  8  Testing Review                 (Release 2)\n"
+        "  9  Cloud Deployment Review        (Release 2, ends with your release decision)\n"
+        "  10 All nine, in sequence\n"
         "  0  Exit"
     )
 
@@ -63,6 +67,8 @@ def write_run_record(iterations):
             "### Observe", "", iteration.observations, "",
             "### Adapt", "", iteration.adaptation, "",
         ]
+        if iteration.release_decision:
+            lines += ["### Human release decision", "", iteration.release_decision, ""]
 
     path.write_text("\n".join(lines), encoding="utf-8")
     return path

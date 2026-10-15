@@ -1,0 +1,64 @@
+<div class="panel-intro"><h3>Agents: plan, work, review, then you decide</h3>
+<p class="muted">Plan an Attractions &amp; Dining request with Planner, Worker and Reviewer agents. Student-2 supplies city-filtered <code>search_places</code> evidence to the shared server; a human decides which response to release.</p></div>
+<section class="agents-connection" aria-labelledby="agents-connection-heading">
+    <h4 id="agents-connection-heading">Shared server connection</h4>
+    <p id="agents-connection" role="status">Checking connection…</p>
+    <button type="button" id="agents-check">Check Connection</button>
+</section>
+<form id="agents-run-form" class="ai-question-form">
+    <label for="agents-task">User Request</label>
+    <textarea id="agents-task" rows="2" maxlength="600" required placeholder="Plan a day of attractions and dining in Sydney using available places."></textarea>
+    <div class="suggestions agents-examples"><span class="suggestions__label">Try</span>
+        <button type="button" class="chip" data-agent-sample="Sydney">Sydney day out</button>
+        <button type="button" class="chip" data-agent-sample="Tokyo">Tokyo attractions &amp; dining</button>
+        <button type="button" class="chip" data-agent-sample="Melbourne">Melbourne activity</button>
+    </div>
+    <div class="form-grid">
+        <div><label for="agents-city">City (optional)</label><select id="agents-city"><option value="">Select option</option><option>Sydney</option><option>Melbourne</option><option>Brisbane</option><option>Tokyo</option><option>Osaka</option><option>Sapporo</option></select></div>
+        <div><label for="agents-category">Place category (optional)</label>
+            <select id="agents-category"><option value="">Select option</option><option value="all">Attractions, restaurants &amp; activities</option><option value="attraction">Attraction</option><option value="restaurant">Restaurant</option><option value="activity">Activity</option></select></div>
+        <div><label for="agents-name">Place name (optional)</label><input id="agents-name" maxlength="60" placeholder="e.g. Sydney Opera House"></div>
+    </div>
+    <p class="muted">All filters are optional. City and category are inferred from your request; use the filters to narrow your search. Include one city in your request when City is blank. Recorded opening hours do not confirm current availability.</p>
+    <div class="ai-submit-row"><button type="submit" id="agents-run">Run Workflow</button><span id="agents-running" role="status"></span></div>
+</form>
+<div class="result-area"><p class="result-empty" id="agents-empty">Run a task or open a recent workflow below. The agents’ results and your review appear here.</p><article class="agent-run" id="agents-result-card" hidden>
+<section aria-labelledby="agents-progress-heading">
+    <h4 id="agents-progress-heading">Workflow</h4>
+    <ol class="agent-stages" id="agents-stages"><li>Planner</li><li>Evidence</li><li>Worker</li><li>Reviewer</li><li>Human Review</li></ol>
+    <p>Workflow ID: <code id="agents-id">Not started</code></p>
+    <p>Current status: <strong id="agents-status" role="status">Idle</strong></p>
+    <div class="ai-submit-row"><button type="button" id="agents-refresh" disabled>Get Workflow Status</button></div>
+    <details><summary>Find or resume a saved workflow</summary>
+        <label for="agents-resume-id">Workflow ID</label><input id="agents-resume-id" maxlength="63" placeholder="wf-…">
+        <div class="ai-submit-row"><button type="button" id="agents-resume">Load Workflow</button></div>
+    </details>
+    <p id="agents-message" role="status"></p>
+</section>
+<section class="agent-block" aria-labelledby="agents-planner-heading"><h4 id="agents-planner-heading">1. Planner</h4><div id="agents-planner">Waiting for a plan.</div></section>
+<section class="agent-block" aria-labelledby="agents-worker-heading"><h4 id="agents-worker-heading">2. Worker</h4><div id="agents-worker" class="agents-markdown">Waiting for a response.</div><p id="agents-coverage" class="muted"></p></section>
+<section class="agent-block" aria-labelledby="agents-reviewer-heading"><h4 id="agents-reviewer-heading">3. Reviewer</h4><div id="agents-reviewer">Waiting for a review.</div></section>
+<section class="agent-block"><h4>Worker evidence checks · student-2</h4><div id="agents-validation">Run a city-scoped workflow to check places and hours.</div>
+<details><summary>City-scoped place evidence</summary><div id="agents-evidence"></div></details></section>
+<form id="agents-review-form" class="agent-block agent-review-form">
+    <h4>Human Review</h4>
+    <p class="muted">Enabled after all agents finish. Partially Accept and Reject require review comments.</p>
+    <fieldset id="agents-review-fields" disabled>
+        <legend>Human Decision</legend>
+        <div class="agents-decisions">
+            <label><input type="radio" name="agent-decision" value="Accept" checked> Accept</label>
+            <label><input type="radio" name="agent-decision" value="Partially Accept"> Partially Accept</label>
+            <label><input type="radio" name="agent-decision" value="Reject"> Reject</label>
+        </div>
+        <label for="agents-reviewer-name">Reviewer name</label><input id="agents-reviewer-name" maxlength="100" required autocomplete="name" placeholder="Enter your name" aria-describedby="agents-reviewer-hint">
+        <p id="agents-reviewer-hint" class="muted">Enter your name to record who reviewed this result.</p>
+        <label for="agents-notes">Review comments</label><textarea id="agents-notes" rows="3" maxlength="2000"></textarea>
+        <div id="agents-edit-area" hidden><label for="agents-edited-response">Corrected response (Markdown table)</label><textarea id="agents-edited-response" rows="6" maxlength="12000" placeholder="Place | City | Opening hours | Reason | Evidence"></textarea><p class="muted">Used only for Partially Accept. Copy the exact place names and recorded hours from the evidence above.</p></div>
+        <div class="ai-submit-row"><button type="submit" id="agents-submit">Submit Decision</button></div>
+    </fieldset>
+</form>
+<section class="agent-block" aria-labelledby="agents-final-heading"><h4 id="agents-final-heading">Saved Final Decision</h4><div id="agents-final">No decision saved yet.</div><p id="agents-submission" role="status"></p></section>
+<details class="agent-block"><summary>Original workflow JSON &amp; evidence</summary><pre id="agents-json">No workflow yet.</pre></details>
+<details class="agent-block" id="agents-log-details"><summary>Detailed audit log</summary><pre id="agents-log">Load a workflow to view its log.</pre></details>
+</article></div>
+<section class="agents-recent-section"><h4>Recent workflows</h4><button type="button" id="agents-recent-refresh">Refresh Recent Workflows</button><p id="agents-recent-status" role="status"></p><div id="agents-recent"></div></section>

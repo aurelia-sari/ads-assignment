@@ -507,3 +507,69 @@
         }
 
     
+
+/* Agents uses the existing theme; rules are scoped to this new panel. */
+#panel-agents.is-active { display: grid; gap: 1.25rem; padding: clamp(1.25rem, 3vw, 2.5rem); }
+#panel-agents > h3, #panel-agents > p { margin: 0; }
+#panel-agents, #panel-agents > *, #panel-agents .form-grid > * { min-width: 0; }
+#panel-agents { overflow-wrap: anywhere; }
+#panel-agents .agents-block { margin: 0; padding: 1.5rem; border: 1px solid var(--color-slate-200); border-radius: var(--radius-input); background: var(--color-cream-50); }
+#panel-agents h4 { margin: 0 0 1rem; font-family: var(--font-display); color: var(--color-ink-900); }
+#panel-agents p, #panel-agents li { line-height: 1.6; }
+#panel-agents input, #panel-agents select, #panel-agents textarea { box-sizing: border-box; max-width: 100%; }
+#panel-agents textarea { resize: vertical; }
+#panel-agents .ai-submit-row { flex-wrap: wrap; margin-bottom: 1rem; }
+#panel-agents button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+#panel-agents button:disabled, #panel-agents fieldset:disabled { opacity: .62; cursor: not-allowed; }
+#panel-agents fieldset { min-width: 0; margin: 0; padding: 1rem; border: 1px solid var(--color-slate-200); border-radius: var(--radius-input); }
+#panel-agents .agents-decisions { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+#panel-agents .agents-decisions label { display: inline-flex; align-items: center; gap: .5rem; }
+#panel-agents input[type="radio"] { width: auto; accent-color: var(--color-navy-800); }
+#panel-agents summary { cursor: pointer; font-weight: 600; }
+#panel-agents pre, #agents-worker, #agents-final { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+#panel-agents pre { font-size: .85rem; max-width: 100%; }
+#agents-recent { display: grid; gap: .75rem; margin-top: 1rem; }
+@media (max-width: 760px) {
+    #panel-agents .agents-block { padding: 1.15rem; }
+    #panel-agents .form-grid { grid-template-columns: minmax(0, 1fr); }
+    #panel-agents .agents-decisions { flex-direction: column; }
+}
+
+/* Agents refinement: shared student-1 layout classes, scoped to student-2. */
+#panel-agents .agent-run { padding: 1.1rem; }
+#panel-agents .agents-connection { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; font-size: .85rem; }
+#panel-agents .agents-connection h4, #panel-agents .agents-connection p { margin: 0; }
+#panel-agents .agent-block h4 { margin-bottom: .5rem; }
+#panel-agents .agent-block ul, #panel-agents .agent-block ol { padding-left: 1.3rem; }
+#panel-agents .agents-examples { margin-top: .8rem; }
+#panel-agents .agents-markdown { white-space: normal; }
+#panel-agents .agents-markdown p { margin: .5rem 0; }
+#panel-agents .agents-markdown table { width: 100%; table-layout: fixed; }
+#panel-agents .agents-markdown th, #panel-agents .agents-markdown td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; padding: .6rem; }
+#panel-agents .agents-markdown th { font-size: .8rem; }
+#panel-agents .agents-markdown pre { white-space: pre-wrap; }
+#panel-agents [hidden] { display: none !important; }
+#panel-agents #agents-final { white-space: normal; }
+@media (max-width: 760px) {
+    #panel-agents .agents-markdown thead { display: none; }
+    #panel-agents .agents-markdown table, #panel-agents .agents-markdown tbody, #panel-agents .agents-markdown tr, #panel-agents .agents-markdown td { display: block; width: auto; }
+    #panel-agents .agents-markdown tr { border: 1px solid var(--color-slate-200); border-radius: var(--radius-input); margin: .7rem 0; }
+    #panel-agents .agents-markdown td::before { content: attr(data-label) ": "; font-weight: 600; }
+    #panel-agents .agent-run { padding: .8rem; }
+}
+
+/* Recent workflows uses the existing theme table and button styles. */
+#panel-agents .agents-recent-table { width: 100%; table-layout: fixed; }
+#panel-agents .agents-recent-table th, #panel-agents .agents-recent-table td { white-space: normal; overflow-wrap: anywhere; vertical-align: middle; }
+#panel-agents .agents-recent-table th:first-child { width: 35%; }
+#panel-agents .agents-recent-table th:last-child { width: 5rem; }
+#panel-agents .agents-recent-table small { display: block; margin-top: .3rem; color: var(--color-slate-500); font-size: .75rem; }
+@media (max-width: 760px) {
+    #panel-agents .agents-recent-table thead { display: none; }
+    #panel-agents .agents-recent-table, #panel-agents .agents-recent-table tbody, #panel-agents .agents-recent-table tr, #panel-agents .agents-recent-table td { display: block; width: auto; }
+    #panel-agents .agents-recent-table tr { margin: .7rem 0; padding: .6rem; border: 1px solid var(--color-slate-200); border-radius: var(--radius-input); }
+    #panel-agents .agents-recent-table td::before { content: attr(data-label) ": "; font-weight: 600; }
+}
+
+/* Keep the compact recent-workflow action on one line. */
+#panel-agents .agents-recent-table button { white-space: nowrap; overflow-wrap: normal; padding: .35rem .7rem; }

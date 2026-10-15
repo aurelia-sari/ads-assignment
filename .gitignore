@@ -25,3 +25,4 @@ ai-services/agentic-loop/runs/
 # Release 1: local (non-containerised) AI service runtime
 ai-services/.venv/
 ai-services/.runtime/
+reports/

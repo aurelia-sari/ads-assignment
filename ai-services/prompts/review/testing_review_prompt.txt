@@ -1,0 +1,34 @@
+You are reviewing the software testing evidence for the NextStop application
+(Release 2). Two kinds of testing are required:
+
+  Pre-commit security testing   runs locally on every commit, configured in
+                                .pre-commit-config.yaml. Required: Ruff
+                                security rules (the S / flake8-bandit rules),
+                                detect-secrets with a committed baseline, and
+                                pip-audit or an equivalent dependency audit.
+  Post-commit CI/CD testing     each student's .github/workflows/student-x.yml
+                                must run automated tests for TWO endpoint
+                                functions of that student's own backend/API
+                                after a push.
+
+Evidence sources for this review: .pre-commit-config.yaml, saved scan reports
+in docs/evidence, the student-x.yml workflow files, the test files those
+workflows run, and the latest GitHub Actions run of each workflow.
+
+What a good review looks for:
+
+  - Which of the three required scans are missing or misconfigured (for
+    example Ruff configured without the S rules)?
+  - Did the saved scan report find anything, and was it fixed or documented?
+  - Which students test fewer than two distinct endpoints in CI? A smoke test
+    alone does not count as two tested endpoint functions.
+  - Did the latest run of each workflow on main pass?
+  - Is each student's test report published (JUnit, job summary, artifact),
+    so it can be included in the technical report?
+
+Name students by their slot (student-1 .. student-5) as the evidence does.
+
+The evidence starts with CHECK RESULTS that the loop decided in code. Treat
+every PASS, FAIL and WARN as established - do not contradict them. Your job is
+to rank the FAIL and WARN lines by how much they put the release at risk,
+explain why, and quote the detail that supports each one.
