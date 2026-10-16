@@ -220,9 +220,9 @@ EXPOSE {api_port}
 CMD ["python", "app.py"]
 """
 
-API_REQUIREMENTS = """flask==3.0.3
-flask-cors==4.0.1
-requests==2.32.3
+API_REQUIREMENTS = """flask==3.1.3
+flask-cors==6.0.5
+requests==2.34.2
 """
 
 API_APP = '''"""{feature} backend/API (student-{n}, {owner}).
@@ -580,7 +580,7 @@ def scaffold(n, feature, owner, noun):
     print(f"student-{n}: {feature} ({owner})")
 
     write(root / "db" / "Dockerfile", DB_DOCKERFILE.format(**fields))
-    write(root / "db" / "requirements.txt", "flask==3.0.3\n")
+    write(root / "db" / "requirements.txt", "flask==3.1.3\n")
     write(root / "db" / "init_db.py", DB_INIT.format(**fields))
     write(root / "db" / "app.py", DB_APP.format(**fields))
 
