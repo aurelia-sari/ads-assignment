@@ -94,7 +94,7 @@ cursor.execute("DELETE FROM users")
 now = datetime.now(timezone.utc)
 
 # traveller6-10 stay unverified on purpose, testing the pending path.
-SEED_PASSWORD = "Password123!"
+SEED_PASSWORD = "Password123!"  # noqa: S105 documented demo seed password
 seed_password_hash = generate_password_hash(SEED_PASSWORD)
 
 users = (

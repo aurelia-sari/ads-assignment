@@ -164,7 +164,7 @@ def create_user():
     conn = get_db_connection()
     try:
         cursor = conn.execute(
-            f"INSERT INTO users ({', '.join(USER_FIELDS)}) "
+            f"INSERT INTO users ({', '.join(USER_FIELDS)}) "  # noqa: S608 column names come from a fixed list and values are bound
             f"VALUES ({', '.join('?' for _ in USER_FIELDS)})",
             tuple(payload.get(f) for f in USER_FIELDS),
         )
@@ -545,4 +545,4 @@ def confirm_password_reset():
     return jsonify({"reset": True})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5200)
+    app.run(host="0.0.0.0", port=5200)  # noqa: S104 container must listen on all interfaces

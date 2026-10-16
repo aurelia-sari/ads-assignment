@@ -1,0 +1,42 @@
+Pre-commit security scan evidence
+Generated 2026-10-16 on branch chore/pre-commit-security-scanning
+
+Before the fixes
+  Ruff S rules        63 findings
+  detect-secrets      77 possible secrets
+  pip-audit           known vulnerabilities in every pinned requirements file
+
+Full scan with pre-commit run --all-files --verbose
+
+Ruff security rules......................................................Passed
+- hook id: ruff-security
+- duration: 1.09s
+
+.                                                                        [100%]
+1 passed in 0.30s
+
+detect-secrets...........................................................Passed
+- hook id: detect-secrets
+- duration: 14.14s
+
+.                                                                        [100%]
+1 passed in 13.08s
+
+pip-audit................................................................Passed
+- hook id: pip-audit
+- duration: 30.94s
+
+.....................                                                    [100%]
+21 passed in 30.15s
+
+Conditional pip-audit with only README.md staged
+
+Ruff security rules......................................................Passed
+detect-secrets...........................................................Passed
+pip-audit............................................(no files to check)Skipped
+
+Conditional pip-audit with student-4/api/requirements.txt staged
+
+Ruff security rules......................................................Passed
+detect-secrets...........................................................Passed
+pip-audit................................................................Passed

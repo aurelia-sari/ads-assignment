@@ -69,6 +69,6 @@ def health():
 # Entry Point
 if __name__ == "__main__":
     app.run(
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104 container must listen on all interfaces
         port=5102,
     )

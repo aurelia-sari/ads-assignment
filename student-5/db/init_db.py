@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS search_history (
 
 # Clear existing seed data
 for table in ["budgets", "flights", "hotels", "trip_selections", "search_history"]:
-    cursor.execute(f"DELETE FROM {table}")
+    cursor.execute(f"DELETE FROM {table}")  # noqa: S608 table names come from a fixed list
 
 now = "2026-09-30T00:00:00"
 

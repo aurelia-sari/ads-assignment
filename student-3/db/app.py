@@ -168,7 +168,7 @@ def update_trip_post(post_id):
         return jsonify({"error": "Trip post not found"}), 404
  
     conn.execute(
-        f"UPDATE trip_posts SET {', '.join(f'{f} = ?' for f in updates)} "
+        f"UPDATE trip_posts SET {', '.join(f'{f} = ?' for f in updates)} "  # noqa: S608 column names come from a fixed list and values are bound
         "WHERE post_id = ?",
         (*updates.values(), post_id),
     )
@@ -317,7 +317,7 @@ def update_connect_request(request_id):
         return jsonify({"error": "Connect request not found"}), 404
  
     conn.execute(
-        f"UPDATE connect_requests SET {', '.join(f'{f} = ?' for f in updates)} "
+        f"UPDATE connect_requests SET {', '.join(f'{f} = ?' for f in updates)} "  # noqa: S608 column names come from a fixed list and values are bound
         "WHERE request_id = ?",
         (*updates.values(), request_id),
     )
@@ -347,4 +347,4 @@ def delete_connect_request(request_id):
  
  
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5203)
+    app.run(host="0.0.0.0", port=5203)  # noqa: S104 container must listen on all interfaces

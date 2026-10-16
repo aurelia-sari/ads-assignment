@@ -235,4 +235,4 @@ def session_status(user_id):
         return jsonify({"error": "shared-db unavailable", "detail": str(exc)}), 503
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000)  # noqa: S104 container must listen on all interfaces

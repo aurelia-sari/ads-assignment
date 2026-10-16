@@ -90,8 +90,8 @@ def _gh_latest_run(workflow_file):
     if not shutil.which("gh"):
         return "latest run: not checked (GitHub CLI not installed)"
     try:
-        result = subprocess.run(
-            ["gh", "run", "list", "--workflow", workflow_file, "--branch", "main",
+        result = subprocess.run(  # noqa: S603 fixed gh command with no shell
+            ["gh", "run", "list", "--workflow", workflow_file, "--branch", "main",  # noqa: S607 gh is found on PATH by the which check above
              "--limit", "1", "--json", "conclusion,status,createdAt,url"],
             cwd=REPO_ROOT, capture_output=True, text=True, timeout=30,
         )

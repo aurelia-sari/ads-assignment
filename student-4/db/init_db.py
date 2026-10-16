@@ -165,7 +165,7 @@ cursor.executemany(
 
 destination_ids = [destination[0] for destination in destinations]
 placeholders = ", ".join("?" for _ in destination_ids)
-cursor.execute(f"DELETE FROM destinations WHERE id NOT IN ({placeholders})", destination_ids)
+cursor.execute(f"DELETE FROM destinations WHERE id NOT IN ({placeholders})", destination_ids)  # noqa: S608 only placeholders are formatted and values are bound
 
 # Chats for a removed destination are already hidden from Past chats, so
 # delete them rather than leave orphan rows.

@@ -83,9 +83,13 @@ Other commands:
 │   ├── ADR-001-service-boundaries.md
 │   └── technical-report.md  the Release 0 report skeleton
 ├── scripts/                 dev.sh, ai_services.sh, smoke_test.py, wait_for_health.py
+├── security/                pre-commit scan launcher and one test per scan
 ├── shared/                  unified index.html, shared CSS theme, access API, access DB
 ├── student-1/ .. student-5/ frontend/, api/, db/, tests/ per student
 ├── docker-compose.yml       one shared configuration for the whole application
+├── .pre-commit-config.yaml  pre-commit security hooks
+├── pyproject.toml           Ruff security rule settings
+├── requirements-dev.txt     pre-commit for local development
 └── .env.example
 ```
 
@@ -439,6 +443,61 @@ python3 scripts/smoke_test.py 1
 
 Workflows trigger on pushes to `main` and on pull requests that touch that
 student's directory, the shared directories, or the compose file.
+
+## Pre-commit security scanning
+
+Every commit runs three local security scans. A finding blocks the commit.
+
+| Hook | Scans | When |
+|---|---|---|
+| `ruff-security` | Ruff `S` rules (flake8-bandit) over the whole repository | every commit |
+| `detect-secrets` | tracked files for secrets not in `.secrets.baseline` | every commit |
+| `pip-audit` | every `requirements*.txt` for known vulnerabilities | only when a `requirements*.txt` file is staged, because it needs network access |
+
+Install once per clone from the repository root.
+
+```bash
+python -m pip install -r requirements-dev.txt
+pre-commit install
+```
+
+If pip reports an externally managed environment, which is common with
+Homebrew Python on macOS, install it with pipx instead.
+
+```bash
+pipx install pre-commit==4.6.2
+pre-commit install
+```
+
+The first commit after installing takes a few minutes while pre-commit builds
+its tool environments. Later commits reuse them.
+
+After pulling this change, rerun the local AI service install and rebuild the
+containers, because the dependency pins were upgraded. The install is safe to
+run again, it keeps the existing venv and upgrades the packages.
+
+```bash
+./scripts/ai_services.sh install
+docker compose up --build
+```
+
+Run every scan by hand.
+
+```bash
+pre-commit run --all-files
+```
+
+Each hook calls `security/run_scan.py`, which runs the matching test in
+`security/tests/`. Ruff settings live in `pyproject.toml`.
+
+Fixing a finding
+
+- Ruff. Fix the code. For a genuine false positive add `# noqa: S<code>` with a
+  short reason on that line, for example a container binding to `0.0.0.0`.
+- detect-secrets. Remove the secret. For a false positive run
+  `detect-secrets scan --baseline .secrets.baseline`, then
+  `detect-secrets audit .secrets.baseline`, and commit the baseline.
+- pip-audit. Raise the pin to a fixed version and rerun the service's tests.
 
 ## Working on your feature
 

@@ -54,8 +54,8 @@ def fetch(photo_id, width, height):
         raise RuntimeError("curl is not installed")
 
     url = f"{BASE}{photo_id}?w={width}&h={height}&fit=crop&q=80"
-    result = subprocess.run(
-        ["curl", "-sSL", "--fail", "--max-time", "30",
+    result = subprocess.run(  # noqa: S603 fixed curl command with no shell
+        ["curl", "-sSL", "--fail", "--max-time", "30",  # noqa: S607 curl is found on PATH by the which check above
          "-A", "NextStop/1.0", url],
         capture_output=True,
     )

@@ -19,7 +19,8 @@ def get_places():
     """Fetch all places from the database service."""
 
     response = requests.get(
-        f"{DATABASE_SERVICE_URL}/places"
+        f"{DATABASE_SERVICE_URL}/places",
+        timeout=10,
     )
     response.raise_for_status()
 
@@ -30,7 +31,8 @@ def get_place(place_id):
     """Fetch a single place from the database service."""
 
     return requests.get(
-        f"{DATABASE_SERVICE_URL}/places/{place_id}"
+        f"{DATABASE_SERVICE_URL}/places/{place_id}",
+        timeout=10,
     )
 
 
@@ -41,6 +43,7 @@ def create_place(payload):
     return requests.post(
         f"{DATABASE_SERVICE_URL}/places",
         json=payload,
+        timeout=10,
     )
 
 
@@ -51,6 +54,7 @@ def update_place(place_id, payload):
     return requests.put(
         f"{DATABASE_SERVICE_URL}/places/{place_id}",
         json=payload,
+        timeout=10,
     )
 
 
@@ -59,7 +63,8 @@ def delete_place(place_id):
     """Delete a place through the database service."""
 
     return requests.delete(
-        f"{DATABASE_SERVICE_URL}/places/{place_id}"
+        f"{DATABASE_SERVICE_URL}/places/{place_id}",
+        timeout=10,
     )
 
 # View favorites
@@ -74,6 +79,7 @@ def get_favourites(user_id=None):
     response = requests.get(
         f"{DATABASE_SERVICE_URL}/favourites",
         params=params,
+        timeout=10,
     )
 
     response.raise_for_status()
@@ -88,6 +94,7 @@ def create_favourite(payload):
     return requests.post(
         f"{DATABASE_SERVICE_URL}/favourites",
         json=payload,
+        timeout=10,
     )
 
 

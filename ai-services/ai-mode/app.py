@@ -175,4 +175,4 @@ def recommend():
         )
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("AI_MODE_PORT", "5300")))
+    app.run(host="0.0.0.0", port=int(os.getenv("AI_MODE_PORT", "5300")))  # noqa: S104 reached from containers through host.docker.internal

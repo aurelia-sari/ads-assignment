@@ -112,7 +112,7 @@ def create_trip():
 
     conn = get_db_connection()
     cursor = conn.execute(
-        f"INSERT INTO trips ({', '.join(TRIP_FIELDS)}) "
+        f"INSERT INTO trips ({', '.join(TRIP_FIELDS)}) "  # noqa: S608 column names come from a fixed list and values are bound
         f"VALUES ({', '.join('?' for _ in TRIP_FIELDS)})",
         tuple(payload[f] for f in TRIP_FIELDS),
     )
@@ -143,7 +143,7 @@ def update_trip(trip_id):
         return jsonify({"error": "Trip not found"}), 404
 
     conn.execute(
-        f"UPDATE trips SET {', '.join(f'{f} = ?' for f in updates)} WHERE trip_id = ?",
+        f"UPDATE trips SET {', '.join(f'{f} = ?' for f in updates)} WHERE trip_id = ?",  # noqa: S608 column names come from a fixed list and values are bound
         (*updates.values(), trip_id),
     )
     conn.commit()
@@ -220,7 +220,7 @@ def create_day():
         return jsonify({"error": "Trip not found for this itinerary day"}), 404
 
     cursor = conn.execute(
-        f"INSERT INTO itinerary_days ({', '.join(DAY_FIELDS)}) "
+        f"INSERT INTO itinerary_days ({', '.join(DAY_FIELDS)}) "  # noqa: S608 column names come from a fixed list and values are bound
         f"VALUES ({', '.join('?' for _ in DAY_FIELDS)})",
         tuple(payload.get(f, "") for f in DAY_FIELDS),
     )
@@ -251,7 +251,7 @@ def update_day(day_id):
         return jsonify({"error": "Itinerary day not found"}), 404
 
     conn.execute(
-        f"UPDATE itinerary_days SET {', '.join(f'{f} = ?' for f in updates)} "
+        f"UPDATE itinerary_days SET {', '.join(f'{f} = ?' for f in updates)} "  # noqa: S608 column names come from a fixed list and values are bound
         "WHERE day_id = ?",
         (*updates.values(), day_id),
     )
@@ -279,4 +279,4 @@ def delete_day(day_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5201)
+    app.run(host="0.0.0.0", port=5201)  # noqa: S104 container must listen on all interfaces

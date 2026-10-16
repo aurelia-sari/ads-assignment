@@ -50,8 +50,8 @@ FRONTEND_BASE = os.getenv("STUDENT4_FRONTEND_URL", "http://localhost:8084")
 SHARED_FRONTEND_BASE = os.getenv("SHARED_FRONTEND_URL", "http://localhost:8080")
 AI_MODE_BASE = os.getenv("AI_MODE_URL", "http://localhost:5300")
 
-PASSWORD = "Str0ng!Pass1"
-SEED_PASSWORD = "Password123!"
+PASSWORD = "Str0ng!Pass1"  # noqa: S105 test account password
+SEED_PASSWORD = "Password123!"  # noqa: S105 test account password
 
 
 class SmokeFailure(Exception):
@@ -221,7 +221,7 @@ def run_forgot_password_checks(email):
     status, response = validate_reset_token("not-a-real-token")
     expect(status == 404, "GET /auth/reset-password/validate/<token> returns 404 for an unknown token")
 
-    status, response = confirm_reset(token, "N3wStr0ng!Pass", confirm_password="Different1!")
+    status, response = confirm_reset(token, "N3wStr0ng!Pass", confirm_password="Different1!")  # noqa: S106 test account password
     expect(status == 400, "POST /auth/reset-password with mismatched passwords returns 400")
 
     status, response = confirm_reset(token, "weak")
@@ -881,7 +881,7 @@ def run_checks():
         "error message names the T&C requirement",
     )
 
-    status, response = register(email, password="weak")
+    status, response = register(email, password="weak")  # noqa: S106 test account password
     expect(status == 400, "POST /auth/register with a weak password returns 400")
 
     status, response = register("not-an-email", name="Smoke Test")
@@ -934,7 +934,7 @@ def run_checks():
     expect(status == 401, "POST /auth/login with the wrong password returns 401")
     wrong_password_error = response.json().get("error")
     expect(
-        wrong_password_error == "Invalid email or password.",
+        wrong_password_error == "Invalid email or password.",  # noqa: S105 error message text not a password
         "wrong-password error message is the generic one",
     )
 
