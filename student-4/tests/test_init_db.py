@@ -19,7 +19,7 @@ INIT_DB = Path(__file__).resolve().parents[1] / "db" / "init_db.py"
 
 
 def run_seed(data_dir):
-    subprocess.run(
+    subprocess.run(  # noqa: S603 runs the seed script with the current interpreter
         [sys.executable, str(INIT_DB)],
         env={**os.environ, "DATA_DIR": str(data_dir)},
         check=True,
@@ -169,11 +169,11 @@ def test_reseed_is_idempotent(seeded):
     data_dir, conn = seeded
     tables = ("destinations", "currency_infos", "transportation_infos", "visa_requirements",
               "weather_infos", "safety_infos", "feature_redirect_map")
-    before = {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in tables}
+    before = {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in tables}  # noqa: S608 table names come from a fixed list
     conn.close()
 
     conn = run_seed(data_dir)
-    after = {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in tables}
+    after = {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in tables}  # noqa: S608 table names come from a fixed list
     conn.close()
     assert after == before
 

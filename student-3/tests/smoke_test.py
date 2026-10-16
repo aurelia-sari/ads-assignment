@@ -27,11 +27,11 @@ class SmokeFailure(Exception):
  
 def request(method, url, payload=None):
     data = json.dumps(payload).encode() if payload is not None else None
-    req = urllib.request.Request(url, data=data, method=method)
+    req = urllib.request.Request(url, data=data, method=method)  # noqa: S310 URL is a fixed local http address
     if data:
         req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:  # noqa: S310 URL is a fixed local http address
             return response.status, response.read().decode()
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode()
@@ -114,9 +114,9 @@ def check_ai_integrations():
     ci_mode = os.environ.get("CI", "").lower() == "true"
 
     for path, body in (("/mcp/find-mates", b"destination="), ("/ai/ask-grounded", b"question=test")):
-        req = urllib.request.Request(f"{API_BASE}{path}", data=body, method="POST")
+        req = urllib.request.Request(f"{API_BASE}{path}", data=body, method="POST")  # noqa: S310 URL is a fixed local http address
         try:
-            with urllib.request.urlopen(req, timeout=60) as response:
+            with urllib.request.urlopen(req, timeout=60) as response:  # noqa: S310 URL is a fixed local http address
                 status = response.status
         except urllib.error.HTTPError as exc:
             status = exc.code

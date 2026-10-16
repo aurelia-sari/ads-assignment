@@ -268,7 +268,7 @@ def create_place():
 
     conn = get_db_connection()
     cursor = conn.execute(
-        f"INSERT INTO places ({', '.join(PLACE_FIELDS)}) "
+        f"INSERT INTO places ({', '.join(PLACE_FIELDS)}) "  # noqa: S608 column names come from a fixed list and values are bound
         f"VALUES ({', '.join('?' for _ in PLACE_FIELDS)})",
         tuple(values[f] for f in PLACE_FIELDS),
     )
@@ -305,7 +305,7 @@ def update_place(place_id):
     values = coerce_place_fields(updates, fields=updates.keys())
 
     conn.execute(
-        f"UPDATE places SET {', '.join(f'{f} = ?' for f in values)} WHERE id = ?",
+        f"UPDATE places SET {', '.join(f'{f} = ?' for f in values)} WHERE id = ?",  # noqa: S608 column names come from a fixed list and values are bound
         (*values.values(), place_id),
     )
     conn.commit()
@@ -539,4 +539,4 @@ def delete_recommendation(recommendation_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5202)
+    app.run(host="0.0.0.0", port=5202)  # noqa: S104 container must listen on all interfaces

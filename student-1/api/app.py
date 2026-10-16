@@ -44,4 +44,4 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5101)
+    app.run(host="0.0.0.0", port=5101)  # noqa: S104 container must listen on all interfaces

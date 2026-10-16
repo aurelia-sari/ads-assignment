@@ -302,4 +302,4 @@ def decide(workflow_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("MULTI_AGENT_PORT", "5600")))
+    app.run(host="0.0.0.0", port=int(os.getenv("MULTI_AGENT_PORT", "5600")))  # noqa: S104 reached from containers through host.docker.internal

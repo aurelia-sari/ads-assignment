@@ -766,4 +766,4 @@ def reset_password():
     return jsonify({"reset": True}), 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5104)
+    app.run(host="0.0.0.0", port=5104)  # noqa: S104 container must listen on all interfaces

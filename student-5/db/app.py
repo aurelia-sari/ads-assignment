@@ -44,7 +44,7 @@ def health():
     conn = get_db_connection()
     counts = {}
     for table in ("budgets", "flights", "hotels", "trip_selections", "search_history"):
-        counts[table] = conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()["n"]
+        counts[table] = conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()["n"]  # noqa: S608 table names come from a fixed list
     conn.close()
     return jsonify({"service": "student-5-db", "status": "running", "counts": counts})
 
@@ -140,7 +140,7 @@ def update_budget(trip_id):
         if updates:
             set_clause = ", ".join(f"{f} = ?" for f in updates)
             conn.execute(
-                f"UPDATE budgets SET {set_clause}, updated_at = ? WHERE budget_id = ?",
+                f"UPDATE budgets SET {set_clause}, updated_at = ? WHERE budget_id = ?",  # noqa: S608 column names come from a fixed list and values are bound
                 (*updates.values(), timestamp, budget_id),
             )
         else:
@@ -196,7 +196,7 @@ def search_flights():
 
     conn = get_db_connection()
     rows = conn.execute(
-        f"SELECT * FROM flights {where} ORDER BY flight_id", params
+        f"SELECT * FROM flights {where} ORDER BY flight_id", params  # noqa: S608 clauses are fixed strings and values are bound
     ).fetchall()
     conn.close()
 
@@ -237,7 +237,7 @@ def search_hotels():
 
     conn = get_db_connection()
     rows = conn.execute(
-        f"SELECT * FROM hotels {where} ORDER BY hotel_id", params
+        f"SELECT * FROM hotels {where} ORDER BY hotel_id", params  # noqa: S608 clauses are fixed strings and values are bound
     ).fetchall()
     conn.close()
 
@@ -361,4 +361,4 @@ def create_search_history():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5205)
+    app.run(host="0.0.0.0", port=5205)  # noqa: S104 container must listen on all interfaces

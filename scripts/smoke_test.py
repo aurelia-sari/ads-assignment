@@ -54,12 +54,12 @@ class SmokeFailure(Exception):
 
 def request(method, url, payload=None):
     data = json.dumps(payload).encode() if payload is not None else None
-    req = urllib.request.Request(url, data=data, method=method)
+    req = urllib.request.Request(url, data=data, method=method)  # noqa: S310 URL is a fixed local http address
     if data:
         req.add_header("Content-Type", "application/json")
 
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:  # noqa: S310 URL is a fixed local http address
             body = response.read().decode()
             return response.status, body
     except urllib.error.HTTPError as exc:
@@ -162,7 +162,7 @@ def check_student_2():
         / "smoke_test.py"
     )
 
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 runs a fixed test file with the current interpreter
         [sys.executable, str(test_file)]
     )
 
@@ -184,7 +184,7 @@ def check_student_4():
         / "smoke_test.py"
     )
 
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 runs a fixed test file with the current interpreter
         [sys.executable, str(test_file)]
     )
 
@@ -211,7 +211,7 @@ def check_student_5():
         / "smoke_test.py"
     )
  
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 runs a fixed test file with the current interpreter
         [sys.executable, str(test_file)]
     )
  
@@ -292,7 +292,7 @@ def check_student_3():
         / "smoke_test.py"
     )
 
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 runs a fixed test file with the current interpreter
         [sys.executable, str(test_file)]
     )
 

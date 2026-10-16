@@ -311,4 +311,4 @@ def list_user_guide_chat_sessions(user_id):
     return jsonify([dict(row) for row in rows])
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5204)
+    app.run(host="0.0.0.0", port=5204)  # noqa: S104 container must listen on all interfaces

@@ -615,7 +615,7 @@ def ask_grounded():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5103)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5103)))  # noqa: S104 container must listen on all interfaces
 
 
 

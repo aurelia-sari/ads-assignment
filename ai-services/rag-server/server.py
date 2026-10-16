@@ -265,4 +265,4 @@ def ask():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("RAG_PORT", "5500")))
+    app.run(host="0.0.0.0", port=int(os.getenv("RAG_PORT", "5500")))  # noqa: S104 reached from containers through host.docker.internal
