@@ -24,7 +24,8 @@ def test_no_new_secrets(tmp_path):
     scratch = tmp_path / "baseline.json"
     shutil.copy(BASELINE, scratch)
     result = subprocess.run(  # noqa: S603 fixed command with no user input
-        [sys.executable, "-m", "detect_secrets", "scan", "--baseline", str(scratch)],
+        [sys.executable, "-m", "detect_secrets", "scan", "--baseline", str(scratch),
+         "--exclude-files", r"^\.secrets\.baseline$"],
         cwd=ROOT, capture_output=True, text=True,
     )
     assert result.returncode == 0, "detect-secrets failed\n\n" + result.stdout + result.stderr
