@@ -461,6 +461,26 @@ python -m pip install -r requirements-dev.txt
 pre-commit install
 ```
 
+If pip reports an externally managed environment, which is common with
+Homebrew Python on macOS, install it with pipx instead.
+
+```bash
+pipx install pre-commit==4.6.2
+pre-commit install
+```
+
+The first commit after installing takes a few minutes while pre-commit builds
+its tool environments. Later commits reuse them.
+
+After pulling this change, rerun the local AI service install and rebuild the
+containers, because the dependency pins were upgraded. The install is safe to
+run again, it keeps the existing venv and upgrades the packages.
+
+```bash
+./scripts/ai_services.sh install
+docker compose up --build
+```
+
 Run every scan by hand.
 
 ```bash
