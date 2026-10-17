@@ -85,7 +85,7 @@ Resolution: _student-1 to fill in: fixed, or reason this is acceptable as is_
 ### Student 2
 Findings: Ruff, detect-secrets and pip-audit findings, listed in the table above.
 
-Resolution: _student-2 to fill in: fixed, or reason this is acceptable as is_
+Resolution: Confirmed the dependency upgrades and the addition of 10-second timeouts to the seven database API calls. The S104 findings are acceptable because the services must listen on all interfaces for container-to-container communication. The S608 findings use fixed column lists and parameterised values. The 73 Google Maps photo references are public image identifiers, not credentials, and remain in the shared secrets baseline. The shared security tests and student-2 regression checks passed during local validation.
 
 ### Student 3
 Findings: Ruff and pip-audit findings, listed in the table above.
