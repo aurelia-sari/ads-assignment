@@ -11,7 +11,7 @@ import requests
 
 DATABASE_SERVICE_URL = os.environ.get(
     "DATABASE_SERVICE_URL",
-    "http://student-2-db:5202"
+    os.environ.get("DB_SERVICE_URL", "http://student-2-db:5202")
 )
 
 # View places

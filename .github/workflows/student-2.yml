@@ -26,6 +26,11 @@ jobs:
   build-and-validate:
     name: student-2 - Attractions & Dining
     runs-on: ubuntu-latest
+    env:
+      AI_MODE_ENABLED: 'false'
+      MCP_ENABLED: 'false'
+      RAG_ENABLED: 'false'
+      MULTI_AGENT_ENABLED: 'false'
 
     steps:
       - name: Check out the shared repository
@@ -37,7 +42,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install student-2 test dependencies
-        run: python -m pip install -r student-2/tests/requirements.txt
+        run: python -m pip install -r student-2/tests/release-2/requirements.txt
 
       - name: Byte-compile the student-2 source
         run: python -m compileall -q student-2
@@ -56,14 +61,8 @@ jobs:
             student-2-db
 
       - name: Start the student-2 microservices
-        # Release 1: the MCP and RAG integration stays in the image, but
-        # both are disabled here. The shared MCP and RAG servers are not
-        # containerised, so they do not exist on a CI runner - leaving
-        # them enabled would mean every AI path waits for a timeout.
-        env:
-          MCP_ENABLED: 'false'
-          RAG_ENABLED: 'false'
-          MULTI_AGENT_ENABLED: 'false'
+        # Shared AI services run outside Docker locally and are absent in CI.
+        # The job-level flags disable all four integrations for baseline testing.
         run: |
           docker compose up -d \
             shared-frontend \
@@ -74,6 +73,15 @@ jobs:
       - name: Wait for the services to report healthy
         run: python3 scripts/wait_for_health.py 5202 5102 8082 8080
 
+      - name: Test Release 2 endpoint functions and deployment safety
+        env:
+          STUDENT2_API_URL: http://localhost:5102
+          STUDENT2_FRONTEND_URL: http://localhost:8082
+        run: python -B student-2/scripts/release-2/run_tests.py post_commit
+
+      - name: Test existing Multi-Agent contracts without live AI services
+        run: python -B student-2/tests/test_agents.py
+
       - name: Validate CRUD through the database and backend APIs
         run: python3 scripts/smoke_test.py 2
 
@@ -83,6 +91,18 @@ jobs:
       - name: Show container logs if anything failed
         if: failure()
         run: docker compose logs --tail 80
+
+      - name: Upload Release 2 test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-2-release-2-test-results
+          path: |
+            student-2/reports/release-2/post_commit.xml
+            student-2/reports/release-2/post_commit-console.txt
+            student-2/reports/release-2/test-results.md
+            student-2/reports/release-2/test-audit.jsonl
+          if-no-files-found: warn
 
       - name: Tear down
         if: always()

@@ -292,8 +292,10 @@ class AgentsContractTests(unittest.TestCase):
     def test_existing_routes_remain_registered(self):
         rules = {r.rule for r in app.url_map.iter_rules()}
         self.assertTrue({"/places", "/favourites", "/ai/recommend", "/mcp/search-places", "/rag/search", "/rag/ask", "/rag/reindex"} <= rules)
-        self.assertEqual(self.web.post("/mcp/search-places", json={}).status_code, 400)
-        self.assertEqual(self.web.post("/rag/search", json={"query": " "}).status_code, 400)
+        # This checks enabled-route input validation, independent of CI's disabled flags.
+        with patch.dict(os.environ, {"MCP_ENABLED": "true", "RAG_ENABLED": "true"}):
+            self.assertEqual(self.web.post("/mcp/search-places", json={}).status_code, 400)
+            self.assertEqual(self.web.post("/rag/search", json={"query": " "}).status_code, 400)
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ from routes.ai_mode import ai_mode_bp
 from routes.mcp import mcp_bp
 from routes.rag import rag_bp
 from routes.agents import agents_bp
+from services.feature_flags import disabled_feature
 
 app = Flask(__name__)
 CORS(app)
@@ -45,6 +46,14 @@ app.config["AI_MODE_URL"] = os.getenv(
     "AI_MODE_URL",
     "http://ai-mode:5300",
 )
+
+# Reject disabled integrations before validation, evidence collection or network I/O.
+@app.before_request
+def cloud_feature_gate():
+    blocked = disabled_feature(request.path)
+    if blocked:
+        return jsonify({"error": f"{blocked} is disabled by deployment configuration."}), 503
+
 
 # Blueprints
 app.register_blueprint(normal_ui_bp)
