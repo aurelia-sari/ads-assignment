@@ -16,13 +16,15 @@ Resources:
 - recommendations
 """
 
+import os
 import sqlite3
+from pathlib import Path
 
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-DATABASE_NAME = "/app/data/student2.db"
+DATABASE_NAME = os.getenv("DB_PATH", str(Path(__file__).resolve().parent / "data" / "student2.db"))
 
 # Fields used when creating or updating a place.
 PLACE_FIELDS = (
