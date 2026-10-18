@@ -1,0 +1,73 @@
+name: cloud-deployment
+
+on:
+  workflow_run:
+    workflows: ["student-1", "student-2", "student-3", "student-4", "student-5"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cloud-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    env:
+      VM_HOST: ${{ secrets.VM_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Gate on student CI/CD workflows
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "Manual run, skipping gate."
+            echo "ok=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          for n in 1 2 3 4 5; do
+            c=$(gh run list --workflow "student-$n.yml" --commit "$SHA" --limit 1 \
+                  --json conclusion --jq '.[0].conclusion // "none"')
+            echo "student-$n.yml -> $c"
+            case "$c" in
+              success|none) ;;
+              "") echo "student-$n is still running; a later run will deploy."
+                  echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+              *)  echo "student-$n did not succeed ($c); not deploying."
+                  echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            esac
+          done
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install SSH key
+        if: steps.gate.outputs.ok == 'true'
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/nextstop_deploy
+          chmod 600 ~/.ssh/nextstop_deploy
+
+      - name: Deploy to Azure VM
+        if: steps.gate.outputs.ok == 'true'
+        run: bash deploy/azure/deploy.sh
+
+      - name: Validate cloud deployment
+        if: steps.gate.outputs.ok == 'true'
+        run: bash deploy/azure/smoke_cloud.sh
+
+      - name: Summary
+        if: steps.gate.outputs.ok == 'true'
+        run: echo "Deployed to http://$VM_HOST (AI-Mode, MCP, RAG, Multi-Agent disabled)" >> "$GITHUB_STEP_SUMMARY"
