@@ -1378,6 +1378,12 @@ async function checkMcpStatus() {
 
     try {
         const response = await fetch(`${API_BASE}/mcp/tools`);
+        const data = await response.json().catch(() => ({}));
+        if (data.disabled) {
+            status.className = "notice";
+            status.textContent = data.message || "MCP is disabled in this deployment.";
+            return;
+        }
         if (!response.ok) throw new Error();
         status.className = "notice notice-success";
         status.textContent = "MCP server available.";
