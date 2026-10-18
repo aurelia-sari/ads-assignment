@@ -1,3 +1,5 @@
+import os
+
 from flask import Blueprint, jsonify, request
 from services import mcp_client
 
@@ -5,9 +7,17 @@ mcp_tools_bp = Blueprint("mcp_tools", __name__)
 
 RELEVANT_TOOLS = {"search_flights", "search_hotels"}
 
+MCP_ENABLED = os.getenv("MCP_ENABLED", "true").lower() == "true"
+DISABLED_MESSAGE = (
+    "MCP is disabled in this deployment (cloud default). "
+    "It runs in the local deployment, where the shared MCP server is available."
+)
+
 
 @mcp_tools_bp.get("/mcp/tools")
 def list_tools():
+    if not MCP_ENABLED:
+        return jsonify({"disabled": True, "message": DISABLED_MESSAGE, "tools": []})
     try:
         tools = mcp_client.list_tools()
     except Exception as exc:
@@ -18,6 +28,8 @@ def list_tools():
 
 @mcp_tools_bp.post("/mcp/call")
 def call_tool():
+    if not MCP_ENABLED:
+        return jsonify({"ok": False, "error": DISABLED_MESSAGE, "boundary": "disabled"})
     payload = request.get_json(silent=True) or {}
     name = (payload.get("tool") or "").strip()
     arguments = payload.get("arguments") or {}
