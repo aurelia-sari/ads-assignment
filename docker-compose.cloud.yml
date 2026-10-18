@@ -1,0 +1,31 @@
+# Cloud profile. Used as: docker compose -f docker-compose.yml -f docker-compose.cloud.yml up
+# Only the frontends are public. Everything else listens on the VM's localhost only.
+services:
+  shared-frontend:
+    ports: !override ["80:80", "8080:80"]
+  shared-api:
+    ports: !override ["127.0.0.1:5000:5000"]
+  shared-db:
+    ports: !override ["127.0.0.1:5200:5200"]
+  mailpit:
+    ports: !override ["127.0.0.1:8025:8025", "127.0.0.1:1025:1025"]
+  student-1-api:
+    ports: !override ["127.0.0.1:5101:5101"]
+  student-2-api:
+    ports: !override ["127.0.0.1:5102:5102"]
+  student-3-api:
+    ports: !override ["127.0.0.1:5103:5103"]
+  student-4-api:
+    ports: !override ["127.0.0.1:5104:5104"]
+  student-5-api:
+    ports: !override ["127.0.0.1:5105:5105"]
+  student-1-db:
+    ports: !override ["127.0.0.1:5201:5201"]
+  student-2-db:
+    ports: !override ["127.0.0.1:5202:5202"]
+  student-3-db:
+    ports: !override ["127.0.0.1:5203:5203"]
+  student-4-db:
+    ports: !override ["127.0.0.1:5204:5204"]
+  student-5-db:
+    ports: !override ["127.0.0.1:5205:5205"]
