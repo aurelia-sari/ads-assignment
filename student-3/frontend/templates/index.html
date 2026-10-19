@@ -26,6 +26,7 @@
         <button class="tab-btn" data-tab="ai" type="button">AI mode</button>
         <button class="tab-btn" data-tab="mcp" type="button">MCP tool</button>
         <button class="tab-btn" data-tab="rag" type="button">Knowledge base</button>
+        <button class="tab-btn" data-tab="agents" type="button">Multi-Agent</button>
     </nav>
  
     <!-- BROWSE page posts -->
@@ -228,7 +229,24 @@
         <button class="btn-sm" data-action="say-hi">Say Hi</button>
     </div>
 </template>
- 
+    <section class="tab-panel card" id="panel-agents">
+        <h2>Multi-Agent review</h2>
+        <p class="muted">Planner &rarr; Worker &rarr; Reviewer, then you make the final decision.</p>
+
+        <form hx-post="/api/student-3/ai/multi-agent" hx-target="#agent-result" hx-swap="innerHTML">
+            <label>Destination (optional)</label>
+            <input name="destination" placeholder="e.g. Bali">
+            <label>Task for the agents</label>
+            <textarea name="task" rows="3" placeholder="Which open trip is the best match for mine, and why?"></textarea>
+            <label><input type="checkbox" name="use_rag" checked> Also use the knowledge base (RAG)</label>
+            <label>Your name (reviewer)</label>
+            <input name="reviewer" placeholder="Your name">
+            <button type="submit">Run Planner &rarr; Worker &rarr; Reviewer</button>
+        </form>
+
+        <button class="btn-sm" hx-get="/api/student-3/ai/multi-agent" hx-target="#agent-result" hx-swap="innerHTML">Recent workflows</button>
+        <div id="agent-result"></div>
+    </section>
 <script>
     // Top tabs
     const buttons = Array.from(document.querySelectorAll(".tab-nav > .tab-btn"));
@@ -240,6 +258,7 @@
         ai: document.getElementById("panel-ai"),
         mcp: document.getElementById("panel-mcp"),
         rag: document.getElementById("panel-rag"),
+        agents: document.getElementById("panel-agents"),
     };
  
     function activate(name) {

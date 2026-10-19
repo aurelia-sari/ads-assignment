@@ -14,6 +14,10 @@ feature from one URL locally: http://localhost:5103/
 import os
 import itertools
 import requests
+import re
+...
+from services import mcp_client, rag_client, multi_agent_client
+from views import agent_formatter
 from flask import Flask, jsonify, render_template_string, request, send_from_directory
 from services import mcp_client, rag_client
 from agentic_loop.core.orchestrator import run as run_match_turn, score_candidates, LLM_ERRORS
@@ -613,7 +617,122 @@ def ask_grounded():
         return f'<div class="card"><p class="error">RAG request failed: {exc}. Is AI-Mode / Ollama running on the host?</p></div>', 502
     return render_template_string(RAG_RESULT_TMPL, result=result)
 
+# --- Multi-Agent integration (Planner -> Worker -> Reviewer -> Human Review) ---
+WORKFLOW_ID = re.compile(r"^wf-[A-Za-z0-9-]{1,60}$")
+DEFAULT_AGENT_TASK = "Which open trip is the best travel-companion match for my trip, and why?"
 
+
+def _agent_call(action):
+    """Run one client call and turn every failure into an HTML fragment."""
+    try:
+        return action(), None
+    except multi_agent_client.MultiAgentDisabled:
+        return None, (agent_formatter.disabled_fragment(), 200)
+    except multi_agent_client.MultiAgentError as exc:
+        html = agent_formatter.error_fragment("The Multi-Agent Server refused the request.", str(exc))
+        if exc.workflow:
+            html += agent_formatter.workflow_card(exc.workflow)
+        return None, (html, exc.status)
+    except requests.RequestException as exc:
+        return None, (agent_formatter.error_fragment(
+            "Could not reach the shared Multi-Agent Server.",
+            f"{exc}\n\nStart it with ./scripts/ai_services.sh up"), 503)
+
+
+def _own_posts_evidence():
+    """Supplied evidence: this traveller's own open trip posts (best effort)."""
+    try:
+        r = requests.get(f"{DB_SERVICE_URL}/trip_posts",
+                         params={"traveller_id": CURRENT_TRAVELLER_ID, "status": "open"}, timeout=5)
+        posts = r.json() if r.status_code == 200 else []
+    except requests.RequestException:
+        posts = []
+    if not posts:
+        return []
+    lines = "\n".join(
+        f'post_id={p["post_id"]}: {p["destination"]}, {p["start_date"]} to {p["end_date"]}, '
+        f'style: {p["travel_style"]}, note: {p["note"]}'
+        for p in posts
+    )
+    return [{"label": "The traveller's own open trip posts", "content": lines}]
+
+
+@app.post("/ai/multi-agent")
+def multi_agent_start():
+    task = request.form.get("task", "").strip() or DEFAULT_AGENT_TASK
+    destination = request.form.get("destination", "").strip()
+    reviewer = request.form.get("reviewer", "").strip() or "student-3 page"
+    use_rag = request.form.get("use_rag") == "on"
+    if len(task) > 1000:
+        return agent_formatter.error_fragment("Keep the task under 1,000 characters."), 400
+
+    args = {"status": "open"}
+    if destination:
+        args["destination"] = destination
+    mcp_calls = [{"tool": "find_travel_mates", "arguments": args}]
+
+    workflow, failure = _agent_call(lambda: multi_agent_client.start_workflow(
+        task, mcp_calls, evidence=_own_posts_evidence(), use_rag=use_rag,
+        requested_by=f"student-3-ui:{reviewer}",
+    ))
+    if failure:
+        return failure
+    return agent_formatter.workflow_card(workflow), 200
+
+
+@app.get("/ai/multi-agent")
+def multi_agent_recent():
+    workflows, failure = _agent_call(multi_agent_client.list_workflows)
+    if failure:
+        return failure
+    return agent_formatter.workflow_list(workflows), 200
+
+
+@app.get("/ai/multi-agent/<workflow_id>")
+def multi_agent_show(workflow_id):
+    if not WORKFLOW_ID.match(workflow_id):
+        return agent_formatter.error_fragment("That is not a workflow id."), 400
+    workflow, failure = _agent_call(lambda: multi_agent_client.get_workflow(workflow_id))
+    if failure:
+        return failure
+    return agent_formatter.workflow_card(workflow), 200
+
+
+@app.get("/ai/multi-agent/<workflow_id>/history")
+def multi_agent_history(workflow_id):
+    if not WORKFLOW_ID.match(workflow_id):
+        return agent_formatter.error_fragment("That is not a workflow id."), 400
+    entries, failure = _agent_call(lambda: multi_agent_client.get_history(workflow_id))
+    if failure:
+        return failure
+    return agent_formatter.history_table(entries), 200
+
+
+@app.post("/ai/multi-agent/<workflow_id>/decision")
+def multi_agent_decide(workflow_id):
+    if not WORKFLOW_ID.match(workflow_id):
+        return agent_formatter.error_fragment("That is not a workflow id."), 400
+    decision = request.form.get("decision", "").strip()
+    reviewer = request.form.get("reviewer", "").strip()
+    comment = request.form.get("comment", "").strip()
+    edited = request.form.get("final_response", "").strip()
+    if not reviewer:
+        return agent_formatter.error_fragment("Enter your name so the decision is attributable."), 400
+
+    feedback = comment if decision == "correct" else ""
+    notes = "" if decision == "correct" else comment
+    workflow, failure = _agent_call(lambda: multi_agent_client.decide(
+        workflow_id, decision, reviewer, notes=notes, feedback=feedback,
+        final_response=edited if decision == "partial" else "",
+    ))
+    if failure:
+        html, status = failure
+        if status in (400, 409):
+            current, _ = _agent_call(lambda: multi_agent_client.get_workflow(workflow_id))
+            if current:
+                html += agent_formatter.workflow_card(current)
+        return html, status
+    return agent_formatter.workflow_card(workflow), 200
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5103)))  # noqa: S104 container must listen on all interfaces
 
