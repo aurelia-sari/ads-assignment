@@ -317,7 +317,7 @@ def update_connect_request(request_id):
         return jsonify({"error": "Connect request not found"}), 404
  
     conn.execute(
-        f"UPDATE connect_requests SET {', '.join(f'{f} = ?' for f in updates)} "  # noqa: S608 column names come from a fixed list and values are bound
+        f"UPDATE connect_requests SET {', '.join(f'{f} = ?' for f in updates)} "    # noqa: S608 column names come from a fixed list and values are bound  # noqa: S608 column names come from a fixed list and values are bound
         "WHERE request_id = ?",
         (*updates.values(), request_id),
     )
