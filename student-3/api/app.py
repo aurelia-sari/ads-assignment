@@ -659,8 +659,28 @@ def _own_posts_evidence():
         f'style: {p["travel_style"]}, note: {p["note"]}'
         for p in posts
     )
-    return [{"label": "The traveller's own open trip posts", "content": lines}]
+    return [{"label": "The traveller's OWN trips (never recommend these)", "content": lines}]
 
+def _other_posts_evidence(destination=""):
+    """Supplied evidence: open trips posted by OTHER travellers (best effort)."""
+    try:
+        r = requests.get(f"{DB_SERVICE_URL}/trip_posts", params={"status": "open"}, timeout=5)
+        posts = r.json() if r.status_code == 200 else []
+    except requests.RequestException:
+        posts = []
+    others = [p for p in posts if p["traveller_id"] != CURRENT_TRAVELLER_ID]
+    if destination:
+        others = [p for p in others if destination.lower() in p["destination"].lower()]
+    if not others:
+        return []
+    lines = "\n".join(
+        f'post_id={p["post_id"]}, traveller_id={p["traveller_id"]}: {p["destination"].strip()}, '
+        f'{p["start_date"]} to {p["end_date"]}, style: {p["travel_style"].strip()}, '
+        f'note: {p["note"]}'
+        for p in others
+    )
+    return [{"label": "Open trips posted by OTHER travellers (recommend one of these)",
+             "content": lines}]
 
 @app.post("/ai/multi-agent")
 def multi_agent_start():
@@ -671,20 +691,24 @@ def multi_agent_start():
     if len(task) > 1000:
         return agent_formatter.error_fragment("Keep the task under 1,000 characters."), 400
 
+    agent_task = (f"{task} Recommend one trip posted by another traveller (not traveller_id "
+            f"{CURRENT_TRAVELLER_ID}). State its destination and post_id, and cite the "
+            "evidence id in square brackets, for example [E2].")
+
     args = {"status": "open"}
     if destination:
         args["destination"] = destination
     mcp_calls = [{"tool": "find_travel_mates", "arguments": args}]
 
     workflow, failure = _agent_call(lambda: multi_agent_client.start_workflow(
-        task, mcp_calls, evidence=_own_posts_evidence(), use_rag=use_rag,
+        agent_task, mcp_calls,
+        evidence=_other_posts_evidence(destination) + _own_posts_evidence(),
+        use_rag=use_rag,
         requested_by=f"student-3-ui:{reviewer}",
     ))
     if failure:
         return failure
     return agent_formatter.workflow_card(workflow), 200
-
-
 @app.get("/ai/multi-agent")
 def multi_agent_recent():
     workflows, failure = _agent_call(multi_agent_client.list_workflows)

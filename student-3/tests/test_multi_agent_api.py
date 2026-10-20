@@ -72,3 +72,26 @@ def test_match_suggest_reports_switched_off(monkeypatch):
     response = api.app.test_client().post("/ai/match-suggest", data={"question": "hi"})
     assert response.status_code == 503
     assert b"disabled" in response.data
+
+
+
+def test_ai_score_reports_switched_off(monkeypatch):
+    import app as api
+
+    class Fake:
+        status_code = 200
+
+        def __init__(self, body):
+            self._body = body
+
+        def json(self):
+            return self._body
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(api, "AI_MODE_ENABLED", False)
+    monkeypatch.setattr(api.requests, "get", lambda *a, **k: Fake([]))
+    response = api.app.test_client().post("/trips/ai-score", data={})
+    assert response.status_code == 200
+    assert b"disabled" in response.data

@@ -10,14 +10,14 @@
 <script src="/shared/js/auth-guard.js"></script>
 </head>
 <body>
-<main class="app-shell" >
- 
+<main class="app-shell">
+
     <header class="app-header card">
         <a class="back-link" href="/"><span aria-hidden="true">&larr;</span> back to all features</a>
         <h1>Find Your Travel Mate <span class="brand-highlight">with NextStop</span></h1>
-<p>Student 3 &middot; Tanishpreet Kour</p>
+        <p>Student 3 &middot; Tanishpreet Kour</p>
     </header>
- 
+
     <nav class="tab-nav">
         <button class="tab-btn is-active" data-tab="browse" type="button">Browse</button>
         <button class="tab-btn" data-tab="post" type="button">Post a Trip</button>
@@ -28,13 +28,13 @@
         <button class="tab-btn" data-tab="rag" type="button">Knowledge base</button>
         <button class="tab-btn" data-tab="agents" type="button">Multi-Agent</button>
     </nav>
- 
+
     <!-- BROWSE page posts -->
     <section class="tab-panel is-active card" id="panel-browse">
         <div class="chat-head">
             <h3 style="margin:0">Browse trips</h3>
         </div>
- 
+
         <form id="browse-filter-form" class="form-grid"
             hx-get="/api/student-3/trips"
             hx-target="#browse-list"
@@ -64,17 +64,17 @@
             </div>
         </form>
         <span class="spinner">scoring...</span>
- 
+
         <div id="browse-list">
             <p class="muted">Loading trips...</p>
         </div>
     </section>
- 
+
     <!-- to create a new trip_posts row -->
     <section class="tab-panel card" id="panel-post">
         <h3 style="margin-top:0">Post a trip</h3>
         <p class="muted">Looking for a travel companion? Post your trip so others can say hi.</p>
- 
+
         <form hx-post="/api/student-3/trips"
             hx-target="#post-result"
             hx-swap="innerHTML"
@@ -104,24 +104,24 @@
             <button type="submit">Post trip</button>
             <span class="spinner">posting...</span>
         </form>
- 
+
         <div id="post-result" style="margin-top:1rem"></div>
     </section>
- 
+
     <!-- INBOX -->
     <section class="tab-panel card" id="panel-inbox">
         <div class="tab-nav" style="border-bottom:none; margin-bottom:1rem">
             <button class="tab-btn is-active" data-subtab="incoming" type="button">Incoming</button>
             <button class="tab-btn" data-subtab="outgoing" type="button">Outgoing</button>
         </div>
- 
+
         <div class="tab-panel is-active" id="subpanel-incoming"
             hx-get="/api/student-3/connect/incoming"
             hx-trigger="load"
             hx-swap="innerHTML">
             <p class="muted">Loading incoming requests...</p>
         </div>
- 
+
         <div class="tab-panel" id="subpanel-outgoing"
             hx-get="/api/student-3/connect/outgoing"
             hx-trigger="load"
@@ -129,8 +129,8 @@
             <p class="muted">Loading outgoing requests...</p>
         </div>
     </section>
- 
-    <!-- MY POSTS — edit / delete own trip_posts -->
+
+    <!-- MY POSTS - edit / delete own trip_posts -->
     <section class="tab-panel card" id="panel-mine">
         <h3 style="margin-top:0">My posts</h3>
         <div id="mine-list"
@@ -140,16 +140,16 @@
             <p class="muted">Loading your posts...</p>
         </div>
     </section>
- 
-    <!-- AI MODE — travel-mate compatibility chat (Release 0) -->
+
+    <!-- AI MODE - travel-mate compatibility chat (Release 0) -->
     <section class="tab-panel card" id="panel-ai">
         <h3 style="margin-top:0">Travel Mate AI</h3>
         <p class="muted">Runs locally through AI-Mode and Ollama. Compares your trip post against other travellers and explains the match.</p>
- 
+
         <div class="chat-log" id="chat-log">
             <p class="chat-log__empty">Post a trip first, then ask the AI to suggest compatible travel mates.</p>
         </div>
- 
+
         <form hx-post="/api/student-3/ai/match-suggest"
             hx-target="#chat-log"
             hx-swap="beforeend"
@@ -165,7 +165,7 @@
             <span class="spinner">thinking...</span>
         </form>
     </section>
- 
+
     <!-- MCP TOOL (Release 1) -->
     <section class="tab-panel card" id="panel-mcp">
         <div class="panel-intro">
@@ -188,7 +188,7 @@
             <p class="result-empty">Run the tool to see its result here.</p>
         </div>
     </section>
- 
+
     <!-- RAG KNOWLEDGE BASE (Release 1) -->
     <section class="tab-panel card" id="panel-rag">
         <div class="panel-intro">
@@ -211,42 +211,49 @@
             <p class="result-empty">Ask a question to see a cited answer here.</p>
         </div>
     </section>
- 
-<!-- trip cards -->
-<template id="trip-card-template">
-    <div class="card">
-        <div class="chat-head">
-            <div>
-                <strong data-field="destination"></strong>
-                <div class="muted" data-field="dates"></div>
-            </div>
-            <span class="pill pill-planned" data-field="travel_style"></span>
-        </div>
-        <p data-field="note"></p>
-        <p class="owner">
-            AI compatibility: <span class="pill pill-booked" data-field="compat_score">--</span>
-        </p>
-        <button class="btn-sm" data-action="say-hi">Say Hi</button>
-    </div>
-</template>
+
+    <!-- MULTI-AGENT (Release 2) -->
     <section class="tab-panel card" id="panel-agents">
-        <h2>Multi-Agent review</h2>
-        <p class="muted">Planner &rarr; Worker &rarr; Reviewer, then you make the final decision.</p>
+        <div class="panel-intro">
+            <h3>Multi-Agent review</h3>
+            <p class="muted">Planner &rarr; Worker &rarr; Reviewer, then you make the final decision.</p>
+        </div>
 
         <form hx-post="/api/student-3/ai/multi-agent" hx-target="#agent-result" hx-swap="innerHTML">
-            <label>Destination (optional)</label>
-            <input name="destination" placeholder="e.g. Bali">
-            <label>Task for the agents</label>
-            <textarea name="task" rows="3" placeholder="Which open trip is the best match for mine, and why?"></textarea>
-            <label><input type="checkbox" name="use_rag" checked> Also use the knowledge base (RAG)</label>
-            <label>Your name (reviewer)</label>
-            <input name="reviewer" placeholder="Your name">
-            <button type="submit">Run Planner &rarr; Worker &rarr; Reviewer</button>
+            <div class="form-grid">
+                <div style="grid-column:1/-1">
+                    <label for="agent-task">Task <span class="optional">(optional)</span></label>
+                    <textarea id="agent-task" name="task" rows="2"
+                        placeholder="Which open trip is the best match for mine, and why?"></textarea>
+                </div>
+                <div>
+                    <label for="agent-dest">Destination <span class="optional">(optional)</span></label>
+                    <input id="agent-dest" name="destination" placeholder="e.g. Bali">
+                </div>
+                <div>
+                    <label for="agent-reviewer">Your name</label>
+                    <input id="agent-reviewer" name="reviewer" placeholder="Your name">
+                </div>
+            </div>
+            <label style="display:flex; gap:0.5rem; align-items:center; margin:0.75rem 0">
+                <input type="checkbox" name="use_rag" style="width:auto"> Also use the knowledge base (RAG)
+            </label>
+            <div class="form-actions">
+                <button type="submit">Run</button>
+                <button type="button" class="btn-sm"
+                    hx-get="/api/student-3/ai/multi-agent"
+                    hx-target="#agent-result" hx-swap="innerHTML">Recent workflows</button>
+                <span class="spinner">agents working...</span>
+            </div>
         </form>
 
-        <button class="btn-sm" hx-get="/api/student-3/ai/multi-agent" hx-target="#agent-result" hx-swap="innerHTML">Recent workflows</button>
-        <div id="agent-result"></div>
+        <div class="result-area" id="agent-result">
+            <p class="result-empty">Run the agents to see the plan, answer and review here.</p>
+        </div>
     </section>
+
+</main>
+
 <script>
     // Top tabs
     const buttons = Array.from(document.querySelectorAll(".tab-nav > .tab-btn"));
@@ -260,18 +267,18 @@
         rag: document.getElementById("panel-rag"),
         agents: document.getElementById("panel-agents"),
     };
- 
+
     function activate(name) {
         buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === name));
         Object.entries(panels).forEach(([key, panel]) =>
             panel.classList.toggle("is-active", key === name)
         );
     }
- 
+
     buttons.forEach((b) => {
         if (b.dataset.tab) b.addEventListener("click", () => activate(b.dataset.tab));
     });
- 
+
     // Inbox sub-tabs (incoming / outgoing)
     const subButtons = Array.from(document.querySelectorAll("#panel-inbox .tab-btn[data-subtab]"));
     const subPanels = {
@@ -285,6 +292,15 @@
                 panel.classList.toggle("is-active", key === b.dataset.subtab)
             );
         });
+    });
+
+    // Show server error messages (400/409/502/503) instead of silently ignoring them
+    document.body.addEventListener("htmx:beforeSwap", (e) => {
+        const status = e.detail.xhr.status;
+        if (xhr.status >= 400 && xhr.responseText.trim().startsWith("<")) {
+            e.detail.shouldSwap = true;
+            e.detail.isError = false;
+        }
     });
 </script>
 </body>
