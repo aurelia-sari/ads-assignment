@@ -1,0 +1,405 @@
+== 1. Public frontends ==
+PASS  home page  (http://20.205.12.91/)
+PASS  home page (8080)  (http://20.205.12.91:8080/)
+PASS  student-1 frontend  (http://20.205.12.91:8081/)
+PASS  student-2 frontend  (http://20.205.12.91:8082/)
+PASS  student-3 frontend  (http://20.205.12.91:8083/)
+PASS  student-4 frontend  (http://20.205.12.91:8084/)
+PASS  student-5 frontend  (http://20.205.12.91:8085/)
+== 2. AI services disabled by default ==
+PASS  student-1-api flags: false false false false 
+PASS  student-2-api flags: false false false false 
+PASS  student-3-api flags: false false false false 
+PASS  student-4-api flags: false false false false 
+PASS  student-5-api flags: false false false false 
+== 3. Backend CRUD smoke tests (run on the VM against each API) ==
+-- student 1 --
+Smoke test: student-1
+  ok  database service is healthy
+  ok  backend/API service is healthy
+  ok  GET /trips returns 200
+  ok  GET /trips returns a list
+  ok  /trips is seeded with at least 10 records (found 12)
+  ok  POST /trips creates a record (201)
+  ok  GET /trips/13 reads it back
+  ok  PUT /trips/13 updates it
+  ok  update actually changed status to booked
+  ok  DELETE /trips/13 removes it
+  ok  GET /trips/13 is 404 after delete
+  ok  backend/API GET /trips returns 200
+  ok  backend/API returns an HTML fragment, not JSON
+  ok  frontend serves its page
+  ok  page has HTMX attributes (9 found)
+  ok  page calls its own API (/api/student-1/)
+  ok  page uses the shared CSS theme
+  ok  shared access API serves traveller records
+  ok  shared access DB is seeded (12 travellers)
+  ok  trip table resolves traveller names cross-service (e.g. ['Amara Okafor'])
+  ok  no trip fell back to a raw traveller id
+
+student-1 passed all checks.
+PASS  student-1 smoke test
+-- student 2 --
+Smoke test: student-2 places, favourites & recommendations
+  ok  GET /health returns 200
+  ok  GET /places returns 200
+  ok  POST /places missing name/address returns 400
+  ok  POST /places invalid category returns 400
+  ok  POST /places rating out of range returns 400
+  ok  POST /places valid create returns 201
+  ok  GET /places (database) returns 200
+  ok  Tokyo contains exactly three seeded places
+  ok  Tokyo contains one place in each category
+  ok  Osaka contains exactly three seeded places
+  ok  Osaka contains one place in each category
+  ok  Sapporo contains exactly three seeded places
+  ok  Sapporo contains one place in each category
+  ok  Melbourne contains exactly three seeded places
+  ok  Melbourne contains one place in each category
+  ok  Brisbane contains exactly three seeded places
+  ok  Brisbane contains one place in each category
+  ok  created test place can be located by name
+  ok  GET /places/edit?id=<unknown> returns 404
+  ok  GET /places/edit?id=<created> returns 200
+  ok  PUT /places/<id> invalid category returns 400
+  ok  PUT /places/<id> valid update returns 200
+  ok  DELETE /places/<id> returns 200
+  ok  DELETE /places/<id> again returns 404
+  ok  GET /favourites without user_id returns 400
+  ok  GET /favourites?user_id=<id> returns 200
+  ok  GET /places (database) returns 200
+  ok  at least one seeded place is available to favourite
+  ok  POST /favourites valid user_id/place_id returns 201
+  ok  POST /favourites duplicate returns 400
+  ok  POST /favourites unknown place_id returns 404
+  ok  POST /favourites missing user_id returns 400
+  ok  POST /favourites missing place_id returns 400
+  ok  GET /favourites (database) returns 200
+  ok  created test favourite can be located
+  DEBUG wrong-user delete: status=404, body=<div class='notice notice-error'>Favourite not found or not owned by this user.</div>
+  ok  DELETE /favourites/<id> by another user returns 404
+  ok  DELETE /favourites/<id> by owner returns 200
+  ok  DELETE /favourites/<id> again returns 404
+  ok  GET /recommendations returns 200
+  ok  POST /recommendations valid create returns 201
+  ok  created recommendation returns an id
+  ok  GET /recommendations/<id> returns 200
+  ok  created recommendation stores correct user_id
+  ok  created recommendation stores correct question
+  ok  created recommendation stores correct location
+  ok  created recommendation stores correct answer
+  ok  created recommendation stores correct place_ids
+  ok  GET /recommendations/<unknown> returns 404
+  ok  GET /recommendations after create returns 200
+  ok  created recommendation can be located
+  ok  recommendation count increases after create
+  ok  DELETE /recommendations/<id> returns 200
+  ok  DELETE /recommendations/<id> again returns 404
+  ok  POST /recommendations without user_id returns 201
+  ok  anonymous recommendation returns an id
+  ok  GET anonymous recommendation returns 200
+  ok  anonymous recommendation stores NULL user_id
+  ok  DELETE anonymous recommendation returns 200
+
+student-2 places, favourites & recommendations passed all checks.
+Smoke test: student-2
+  ok  database service is healthy
+  ok  backend/API service is healthy
+
+student-2 passed all checks.
+PASS  student-2 smoke test
+-- student 3 --
+Smoke test: student-3 (Travel Mate)
+  ok  database service is healthy
+  ok  backend/API service is healthy
+  ok  GET /trip_posts returns 200
+  ok  GET /trip_posts returns a list
+  ok  /trip_posts is seeded with at least 10 records (found 12)
+  ok  POST /trip_posts creates a record (201)
+  ok  GET /trip_posts/13 reads it back
+  ok  PUT /trip_posts/13 updates it
+  ok  update actually changed travel_style
+  ok  DELETE /trip_posts/13 removes it
+  ok  GET /trip_posts/13 is 404 after delete
+  ok  GET /connect_requests returns 200
+  ok  GET /connect_requests returns a list
+  ok  /connect_requests is seeded with at least 10 records (found 12)
+  ok  backend/API GET /trips returns 200
+  ok  backend/API returns an HTML fragment, not JSON
+  ok  frontend serves its page
+  ok  page has HTMX attributes (11 found)
+  ok  page calls its own API (/api/student-3/)
+  ok  page uses the shared CSS theme
+  ok  /mcp/find-mates is disabled in CI (503)
+  ok  /ai/ask-grounded is disabled in CI (503)
+
+student-3 passed all checks.
+Smoke test: student-3
+  ok  database service is healthy
+  ok  backend/API service is healthy
+
+student-3 passed all checks.
+PASS  student-3 smoke test
+-- student 4 --
+Smoke test: student-4 sign-up, email verification & sign-in
+  ok  GET /health returns 200
+  ok  GET /guides returns 200
+  ok  seeded destination Sydney is present
+  ok  seeded destination Melbourne is present
+  ok  seeded destination Brisbane is present
+  ok  seeded destination Perth is present
+  ok  seeded destination Cairns is present
+  ok  seeded destination Tokyo is present
+  ok  seeded destination Osaka is present
+  ok  seeded destination Sapporo is present
+  ok  seeded destination Kyoto is present
+  ok  seeded destination Nara is present
+  ok  cities removed from the seed are gone
+  ok  GET /guides?query=Sydney returns 200
+  ok  searching by city returns a match
+  ok  searching by city excludes other cities
+  ok  the Sydney row links to its guide detail endpoint
+  ok  GET /guides/1 returns 200
+  ok  the detail view names the city
+  ok  the detail view has a back-to-list link
+  ok  the detail view has a Currency subheading
+  ok  the detail view names the Australian Dollar code
+  ok  currency copy uses a period, not a semicolon, between sentences
+  ok  guide text does not use an em dash
+  ok  the detail view has a Transportation subheading
+  ok  the detail view lists a Flights transport tab
+  ok  the default (flights) transport tab shows a booking button
+  ok  the flights booking button links to student-5's search
+  ok  GET /guides/<id>/transportation?type=metro returns 200
+  ok  the metro tab is shown
+  ok  the metro tab does not show a flights booking button
+  ok  the detail view has a Visa subheading
+  ok  the detail view lists a New Zealand visa tab
+  ok  no nationality is picked by default, so a placeholder is shown instead of a guess
+  ok  GET /guides/<id>/visa?nationality=New Zealand returns 200
+  ok  New Zealand's requirement type is shown
+  ok  picking a nationality replaces the placeholder with its requirement
+  ok  GET /guides/<id>/visa?nationality=<unknown> returns 200
+  ok  an unseeded nationality falls back to the placeholder, not an error
+  ok  the detail view has a Weather subheading
+  ok  the detail view lists a January weather tab
+  ok  the default weather tab shows a temperature
+  ok  the weather figure is labelled as a daytime high
+  ok  GET /guides/<id>/weather?month=July returns 200
+  ok  the July tab is shown
+  ok  GET /guides/<id>/weather?month=<invalid> returns 200
+  ok  an invalid month falls back to a real month, not an error
+  ok  GET /guides?query=Cairns returns 200
+  ok  the Cairns row links to its guide detail endpoint
+  ok  GET /guides/7/weather?month=January returns 200
+  ok  Cairns's best time to visit note names the dry season
+  ok  the detail view has a Safety subheading
+  ok  the detail view shows Australia's safety level
+  ok  the detail view shows Sydney's own safety tips
+  ok  GET /guides/1/safety returns 200
+  ok  the safety fragment has a Safety subheading
+  ok  GET /guides/7/safety returns 200
+  ok  Cairns has its own safety tips, not Sydney's
+  ok  GET /guides/<unknown id>/safety still returns 200
+  ok  an unknown destination id shows a not-found message, not an error
+  ok  Cairns has no metro, so no Metro tab is shown
+  ok  student-5 has no flights to Cairns, so Cairns shows no booking button
+  ok  GET /guides?query=Nara returns 200
+  ok  the Nara row links to its guide detail endpoint
+  ok  GET /guides/18 returns 200
+  ok  Nara has no metro, so no Metro tab is shown
+  ok  Nara has no airport, so no Flights tab is shown
+  ok  Nara's default train tab names the nearest airport
+  ok  a city with no flights has no booking button
+  ok  the Tokyo row links to its guide detail endpoint
+  ok  GET /guides/14 returns 200
+  ok  a Japanese city uses the Japanese Yen
+  ok  a Japanese city does not show the Australian Dollar
+  ok  Tokyo has a Flights tab
+  ok  student-5 has flights to Tokyo, so Tokyo shows a booking button
+  ok  Tokyo has its own safety tips
+  ok  Australians use Japan's visa rules in Tokyo
+  ok  the Japan visa note gives the stay length
+  ok  the Sapporo row links to its guide detail endpoint
+  ok  Sapporo's weather note names the winter snow
+  ok  GET /guides/<unknown id> returns 404
+  ok  GET /guides/1/currency returns 200
+  ok  currency fragment has a Currency subheading
+  ok  currency fragment names the Australian Dollar code
+  ok  the currency section loads live rates separately, after the guide renders
+  ok  live rates report a known state (ok)
+  ok  Sydney shows the US dollar in Australian dollars
+  ok  Sydney shows the yen per 100
+  ok  Tokyo shows the Australian dollar in yen
+  ok  Tokyo's weather opens on Tokyo's own month (Oct)
+  ok  the weather section loads live weather separately, after the guide renders
+  ok  live weather reports a known state (ok)
+  ok  Open-Meteo reports Sydney's own timezone
+  ok  current conditions are listed
+  ok  three forecast days follow the current conditions
+  ok  the page shows current conditions and a forecast
+  ok  GET /guides/<unknown id>/currency still returns 200
+  ok  an unknown destination id shows a not-found message, not an error
+  ok  GET /guides?query=Australia returns 200
+  ok  searching by country returns its cities
+  ok  searching by country excludes the other country
+  ok  searching for Japan returns Japanese cities
+  ok  searching for Japan excludes Australian cities
+  ok  GET /guides?query=Nowhereville returns 200
+  ok  an unmatched search shows the not-found placeholder
+  ok  seeded student1 can sign in
+  ok  seeded traveller6 is pending verification
+  ok  POST /auth/register without terms_accepted returns 400
+  ok  error message names the T&C requirement
+  ok  POST /auth/register with a weak password returns 400
+  ok  POST /auth/register with an invalid email returns 400
+  ok  POST /auth/register with valid data returns 201
+  ok  created account has the requested email
+  ok  created account starts unverified
+  ok  the response never leaks the token or the password hash
+  ok  registering the same email again returns 409
+  ok  verification email arrives in Mailpit with a link
+  ok  visiting the verification link returns 200
+  ok  the link confirms verification
+  ok  reusing the same (now-spent) link returns 404
+  ok  resending for an already-verified account returns 400
+  ok  second account for resend testing registers successfully
+  ok  resending within 60s of registering returns 429
+  ok  429 response names how long to wait
+  ok  POST /auth/login with the wrong password returns 401
+  ok  wrong-password error message is the generic one
+  ok  POST /auth/login for an email with no account returns 401
+  ok  unknown-email error is identical to wrong-password (no account enumeration)
+  ok  POST /auth/login with the correct password on an unverified account returns 403
+  ok  403 response names the email_not_verified error code
+  ok  signing in to an unverified account within the resend cooldown does not send a duplicate email
+  ok  POST /auth/login with the correct password on a verified account returns 200
+  ok  login response returns the signed-in user
+  ok  login response never leaks the password hash or verification token
+  ok  GET /auth/status/<id> returns 200
+  ok  session is valid right after login
+  ok  no last_logout recorded yet
+  ok  POST /auth/logout without a user_id returns 400
+  ok  POST /auth/logout for the signed-in user returns 200
+  ok  logout response reports in_session = 0
+  ok  logout response stamps sign_out_at
+  ok  GET /auth/status/<id> returns 200 after logout
+  ok  session is invalid after logout
+  ok  last_logout is now recorded
+  ok  logging out again with no open session returns 404
+  ok  GET /auth/status/<id> for an unknown id still returns 200
+  ok  an unknown user id is reported as not signed in, not an error
+  ok  POST /auth/forgot-password with an invalid email returns 400
+  ok  POST /auth/forgot-password for an unregistered email returns 200
+  ok  POST /auth/forgot-password for a registered email returns 200
+  ok  the response is identical whether or not the email is registered
+  ok  reset email arrives in Mailpit with a link
+  ok  GET /auth/reset-password/validate/<token> returns 200 for a fresh token
+  ok  the validate response names the right account
+  ok  GET /auth/reset-password/validate/<token> returns 404 for an unknown token
+  ok  POST /auth/reset-password with mismatched passwords returns 400
+  ok  POST /auth/reset-password with a weak password returns 400
+  ok  POST /auth/reset-password with a valid token and password returns 200
+  ok  reset response confirms the reset
+  ok  reusing the same (now-spent) reset token returns 404
+  ok  signing in with the old password after a reset returns 401
+  ok  signing in with the new password after a reset returns 200
+  ok  second account for reset resend testing registers successfully
+  ok  first reset request for the resend account returns 200
+  ok  resending within 60s of the first request returns 429
+  ok  429 response names how long to wait
+  ok  POST /ai/guide-chat without a user_id returns 401
+  ok  401 response names an error
+  ok  student1 signs in for the AI Assistant checks
+  ok  POST /ai/guide-chat with an empty question returns 400
+  ok  a redirect question returns 200 without a session or a city
+  ok  booking a hotel classifies as another feature, not a guide category
+  ok  the hotel redirect points at student-5's search
+  ok  a redirect with no prior session starts none
+  ok  a food question returns 200
+  ok  a food question redirects to Attractions & Dining, not student-5
+  ok  the food redirect points at student-2
+  ok  an unrelated question returns 200
+  ok  a question with no guide keyword and no redirect keyword is unrelated
+  ok  a guide category question with no city returns 200
+  ok  the topic is still classified without a city
+  ok  a missing city is an adapted response
+  ok  no session is created when no city is named
+  ok  the no city prompt lists the Japanese cities too
+  ok  a city without a guide gets the list of cities that have one
+  ok  a city without a guide starts no session
+  ok  a bare place name without a guide also lists the cities that have one
+  ok  a bare city name asks which topic
+  ok  a bare city name starts a session for that city
+  ok  asking about yen is a currency question
+  ok  asking about the shinkansen is a transport question
+  ok  a conversion is answered from the live rates, or says they are unavailable
+  ok  an unsupported currency lists the currencies that are available
+  ok  a named month weather question returns 200
+  ok  the guide's July figures for Cairns are quoted
+  skip  ai-mode is not running, skipping the model-grounded AI Assistant checks
+  ok  GET /ai-tools/status returns 200
+  ok  status reports a known state for each server ({'mcp': 'disabled', 'rag': 'disabled'})
+  ok  POST /rag/ask with an empty question returns 400
+  ok  MCP disabled, the proxy still returns 200
+  ok  MCP disabled response says disabled
+  ok  RAG disabled, the proxy still returns 200
+  ok  RAG disabled response says disabled
+  ok  student-4 landing page (index.html) is served
+  ok  landing page calls verifySession before showing its content
+  ok  landing page has the MCP tools and Ask (grounded) tabs
+  ok  signin.html is served without a session
+  ok  signup.html is served without a session
+  ok  verify-pending.html is served without a session
+  ok  forgot-password.html is served without a session
+  ok  forgot-password-pending.html is served without a session
+  ok  reset-password.html is served without a session
+  ok  logout.html is served (not just index.html's fallback)
+  ok  logout.html gates its content behind the one-time sign-out flag
+  ok  shared home page is served
+  ok  shared home page loads the shared session guard
+
+student-4 sign-up, email verification & sign-in passed all checks.
+Smoke test: student-4
+  ok  database service is healthy
+  ok  backend/API service is healthy
+
+student-4 passed all checks.
+PASS  student-4 smoke test
+-- student 5 --
+Feature smoke test: student-5 (Bookings & Budget)
+  ok  database service is healthy
+  ok  backend/API service is healthy
+  ok  database service reports health
+  ok  budgets is seeded with at least 10 records (found 12)
+  ok  flights is seeded with at least 10 records (found 40)
+  ok  hotels is seeded with at least 10 records (found 32)
+  ok  trip_selections is seeded with at least 10 records (found 24)
+  ok  search_history is seeded with at least 10 records (found 13)
+  ok  GET /budgets/1 returns the seeded budget
+  ok  PUT /budgets/1 updates the budget
+  ok  the update actually changed total_budget
+  ok  PUT /budgets/1 restores the original values
+  ok  GET /flights/search returns 200
+  ok  flight search response has a results field
+  ok  flight search for Melbourne returns at least one result
+  ok  every flight result carries a recommendation_score
+  ok  GET /hotels/search returns 200
+  ok  hotel search for Melbourne returns at least one result
+  ok  POST /selections creates a selection (201)
+  ok  GET /selections/1 reads the trip's selections
+  ok  the new selection appears in the trip's list
+  ok  DELETE /selections/26 removes it
+  ok  the deleted selection no longer appears
+  ok  POST /search-history creates a record (201)
+  ok  GET /search-history/1 returns 200
+  ok  the new search appears in trip 1's search history
+
+student-5 feature smoke test passed.
+Smoke test: student-5
+  ok  database service is healthy
+  ok  backend/API service is healthy
+
+student-5 passed all checks.
+PASS  student-5 smoke test
+ALL CHECKS PASSED

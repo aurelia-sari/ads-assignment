@@ -7,6 +7,15 @@ REMOTE="azureuser@$VM_HOST"
 SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=accept-new"
 cd "$(dirname "$0")/../.."
 
+echo ">> waiting for VM first-boot setup (Docker install)"
+for i in $(seq 1 30); do
+  if ssh $SSH_OPTS -o ConnectTimeout=10 "$REMOTE" \
+      "cloud-init status --wait >/dev/null 2>&1; docker --version >/dev/null 2>&1"; then
+    break
+  fi
+  echo "   not ready yet ($i/30)"; sleep 10
+done
+
 echo ">> syncing code to $REMOTE"
 rsync -az --delete -e "ssh $SSH_OPTS" \
   --exclude .git --exclude .venv --exclude __pycache__ --exclude '*.pyc' \

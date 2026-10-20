@@ -65,3 +65,10 @@ def test_multi_agent_decision_requires_a_reviewer_name(client):
 
     assert response.status_code == 400
     assert b"Enter your name" in response.data
+
+def test_match_suggest_reports_switched_off(monkeypatch):
+    import app as api
+    monkeypatch.setattr(api, "AI_MODE_ENABLED", False)
+    response = api.app.test_client().post("/ai/match-suggest", data={"question": "hi"})
+    assert response.status_code == 503
+    assert b"disabled" in response.data

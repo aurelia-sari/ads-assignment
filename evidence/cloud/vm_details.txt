@@ -1,0 +1,3 @@
+Name         Ip            Size             Location
+-----------  ------------  ---------------  ----------
+nextstop-vm  20.205.12.91  Standard_B2s_v2  eastasia

@@ -1,0 +1,5 @@
+Name                 ResourceGroup    Priority    SourcePortRanges    SourceAddressPrefixes    SourceASG    Access    Protocol    Direction    DestinationPortRanges    DestinationAddressPrefixes    DestinationASG
+-------------------  ---------------  ----------  ------------------  -----------------------  -----------  --------  ----------  -----------  -----------------------  ----------------------------  ----------------
+default-allow-ssh    nextstop-rg      1000        *                   *                        None         Allow     Tcp         Inbound      22                       *                             None
+open-port-80         nextstop-rg      1010        *                   *                        None         Allow     *           Inbound      80                       *                             None
+open-port-8080-8085  nextstop-rg      1020        *                   *                        None         Allow     *           Inbound      8080-8085                *                             None

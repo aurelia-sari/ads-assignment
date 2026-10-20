@@ -12,14 +12,14 @@ feature from one URL locally: http://localhost:5103/
 
 
 import os
-import itertools
-import requests
 import re
-...
+from html import escape
+
+import requests
+from flask import Flask, jsonify, render_template_string, request, send_from_directory
+
 from services import mcp_client, rag_client, multi_agent_client
 from views import agent_formatter
-from flask import Flask, jsonify, render_template_string, request, send_from_directory
-from services import mcp_client, rag_client
 from agentic_loop.core.orchestrator import run as run_match_turn, score_candidates, LLM_ERRORS
 from views.ai_formatter import match_fragment
 app = Flask(__name__)
@@ -33,6 +33,7 @@ SHARED_API_URL = os.environ.get("SHARED_API_URL", "http://localhost:5000")
 
 MCP_ENABLED = os.environ.get("MCP_ENABLED", "true").lower() == "true"
 RAG_ENABLED = os.environ.get("RAG_ENABLED", "true").lower() == "true"
+AI_MODE_ENABLED = os.environ.get("AI_MODE_ENABLED", "true").lower() == "true"
 
 
 
@@ -530,6 +531,8 @@ def withdraw_request(request_id):
 @app.post("/ai/match-suggest")
 def match_suggest():
     question = request.form.get("question", "")
+    if not AI_MODE_ENABLED:
+        return '<div class="card"><p class="error">AI Mode is disabled in this environment.</p></div>', 503
     try:
         result = run_match_turn(question, CURRENT_TRAVELLER_ID)
     except requests.RequestException as exc:
@@ -539,6 +542,7 @@ def match_suggest():
 
 @app.post("/trips/ai-score")
 def ai_score_trips():
+
     destination = request.form.get("destination", "")
     params = {"destination": destination, "status": "open"}
     r = requests.get(f"{DB_SERVICE_URL}/trip_posts", params=params, timeout=5)
@@ -554,8 +558,9 @@ def ai_score_trips():
 
     scores = {}
     note = ""
-
-    if not my_posts:
+    if not AI_MODE_ENABLED:
+        note = "AI scoring is disabled in this environment."
+    elif not my_posts:
         note = "Post a trip first to see AI compatibility scores."
     else:
     
@@ -733,6 +738,8 @@ def multi_agent_decide(workflow_id):
                 html += agent_formatter.workflow_card(current)
         return html, status
     return agent_formatter.workflow_card(workflow), 200
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5103)))  # noqa: S104 container must listen on all interfaces
 
