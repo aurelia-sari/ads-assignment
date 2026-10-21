@@ -60,6 +60,7 @@
         <button class="tab-btn" data-tab="ai" type="button">AI assistant</button>
         <button class="tab-btn" data-tab="mcp" type="button">MCP Tools</button>
         <button class="tab-btn" data-tab="ask" type="button">Ask (grounded)</button>
+        <button class="tab-btn" data-tab="agents" type="button">Agents</button>
     </nav>
 
 
@@ -382,6 +383,22 @@
 
     </section>
 
+    <section class="tab-panel card" id="panel-agents">
+        <h2 style="margin-top:0">Agents (Planner, Worker, Reviewer, Human)</h2>
+        <p class="muted">The shared Multi-Agent Server plans the work, drafts an answer from this
+        trip's budget and selections, reviews it, then waits for your decision.</p>
+        <div id="agents-status" class="notice" style="margin-bottom:1rem">Checking Multi-Agent Server...</div>
+        <div class="form-grid">
+            <input id="agent-trip" type="number" min="1" value="1" placeholder="Trip ID">
+            <input id="agent-task" type="text" value="Review this trip's budget and say whether the selections fit it.">
+        </div>
+        <button type="button" id="agent-run" onclick="runAgentWorkflow()">Run workflow</button>
+        <span id="agent-spinner" class="muted"></span>
+        <div id="agent-result" style="margin-top:1.5rem"></div>
+        <div id="agent-decision" style="margin-top:1rem"></div>
+        <div id="agent-history" style="margin-top:1rem"></div>
+    </section>
+
 </main>
 
 <!-- =========================================================
@@ -409,7 +426,8 @@ const panels = {
     history: document.getElementById("panel-history"),
     ai: document.getElementById("panel-ai"),
     mcp: document.getElementById("panel-mcp"),
-    ask: document.getElementById("panel-ask")
+    ask: document.getElementById("panel-ask"),
+    agents: document.getElementById("panel-agents")
 };
 
 function activate(name) {
@@ -1578,6 +1596,112 @@ renderMcpToolFields();
 checkMcpStatus();
 checkRagStatus();
 
+
+/* ---------------- Agents tab (Release 2 Multi-Agent) ---------------- */
+let currentWorkflow = null;
+
+function esc(v) {
+    const d = document.createElement("div");
+    d.textContent = v == null ? "" : String(v);
+    return d.innerHTML;
+}
+
+async function agentsFetch(path, options) {
+    const response = await fetch(`${API_BASE}${path}`, options);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data;
+}
+
+async function checkAgentsStatus() {
+    const box = document.getElementById("agents-status");
+    try {
+        await agentsFetch("/agents/health");
+        box.className = "notice notice-success";
+        box.textContent = "Multi-Agent Server available.";
+    } catch (error) {
+        box.className = "notice";
+        box.textContent = error.message;
+    }
+}
+
+function renderWorkflow(wf) {
+    currentWorkflow = wf;
+    const last = (wf.attempts || []).slice(-1)[0];
+    let html = `<p><strong>Workflow</strong> ${esc(wf.id)} - status <strong>${esc(wf.status)}</strong></p>`;
+    if (wf.plan) html += `<h4>Planner</h4><pre style="white-space:pre-wrap">${esc(typeof wf.plan === "string" ? wf.plan : JSON.stringify(wf.plan, null, 2))}</pre>`;
+    if (last) {
+        html += `<h4>Worker</h4><pre style="white-space:pre-wrap">${esc(last.worker.response)}</pre>`;
+        html += `<h4>Reviewer (verdict: ${esc(last.review.verdict)})</h4><pre style="white-space:pre-wrap">${esc(JSON.stringify(last.review, null, 2))}</pre>`;
+    }
+    if (wf.final_response) html += `<h4>Final response</h4><pre style="white-space:pre-wrap">${esc(wf.final_response)}</pre>`;
+    document.getElementById("agent-result").innerHTML = html;
+
+    const box = document.getElementById("agent-decision");
+    box.innerHTML = wf.status === "awaiting_human_review" ? `
+        <h4>Human review</h4>
+        <input id="agent-reviewer" type="text" placeholder="Your name">
+        <input id="agent-notes" type="text" placeholder="Notes (required unless you accept)">
+        <button type="button" onclick="decideAgent('Accept')">Accept</button>
+        <button type="button" onclick="decideAgent('Partially Accept')">Partially Accept</button>
+        <button type="button" onclick="decideAgent('Reject')">Reject</button>` : "";
+}
+
+async function runAgentWorkflow() {
+    const spinner = document.getElementById("agent-spinner");
+    spinner.textContent = " running Planner -> Worker -> Reviewer...";
+    try {
+        const wf = await agentsFetch("/agents/workflows", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                task: document.getElementById("agent-task").value,
+                trip_id: document.getElementById("agent-trip").value
+            })
+        });
+        renderWorkflow(wf);
+        await showAgentHistory(wf.id);
+    } catch (error) {
+        document.getElementById("agent-result").innerHTML = `<div class="notice notice-error">${esc(error.message)}</div>`;
+    }
+    spinner.textContent = "";
+}
+
+async function decideAgent(decision) {
+    try {
+        const wf = await agentsFetch(`/agents/workflows/${currentWorkflow.id}/decision`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                decision,
+                reviewer: document.getElementById("agent-reviewer").value,
+                notes: document.getElementById("agent-notes").value
+            })
+        });
+        renderWorkflow(wf);
+        await showAgentHistory(wf.id);
+    } catch (error) {
+        alertAgent(error.message);
+    }
+}
+
+function alertAgent(message) {
+    document.getElementById("agent-decision").insertAdjacentHTML(
+        "beforeend", `<div class="notice notice-error">${esc(message)}</div>`);
+}
+
+async function showAgentHistory(id) {
+    try {
+        const data = await agentsFetch(`/agents/workflows/${id}/history`);
+        const rows = data.history || data.events || data;
+        document.getElementById("agent-history").innerHTML =
+            `<h4>Audit log</h4><pre style="white-space:pre-wrap">${esc(JSON.stringify(rows, null, 2))}</pre>`;
+    } catch (error) {
+        document.getElementById("agent-history").textContent = error.message;
+    }
+}
+
+checkAgentsStatus();
 </script>
 
 </body>

@@ -18,6 +18,7 @@ from flask_cors import CORS
 from routes.ai_chat import ai_chat_bp
 from routes.ai_budget import ai_budget_bp
 from routes.mcp_tools import mcp_tools_bp
+from routes.agents import agents_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -25,6 +26,7 @@ CORS(app)
 app.register_blueprint(ai_chat_bp)
 app.register_blueprint(ai_budget_bp)
 app.register_blueprint(mcp_tools_bp)
+app.register_blueprint(agents_bp)
 
 # the frontend nginx container proxies and strips that prefix already.
 
