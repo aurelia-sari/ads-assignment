@@ -1,12 +1,14 @@
 """Offline failure-path tests for the live verifier; no cloud requests or LLM."""
 
 import copy
+import html
 import json
 import unittest
+from unittest.mock import patch
 
 from check_cloud_ai import (
     CheckFailed, CloudChecks, Response, assignments, body, validate_mcp,
-    validate_price_range_fact, validate_rag, validate_workflow,
+    main, validate_price_range_fact, validate_rag, validate_workflow,
 )
 
 
@@ -60,11 +62,192 @@ class FakeTransport:
         raise AssertionError(f"Unexpected request: {method} {url}")
 
 
-def checks(transport):
+def checks(transport, **options):
     result = CloudChecks(transport, {n: f"http://frontend-{n}/api/student-{n}" for n in range(1, 6)},
-                         "http://shared/ai", "http://shared/mcp", "http://shared/rag", "http://shared/agents")
+                         "http://shared/ai", "http://shared/mcp", "http://shared/rag", "http://shared/agents",
+                         **options)
     result.model, result.marker = MODEL, "test-run"
     return result
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 0
+        self.sleeps = []
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+class AsyncTransport(FakeTransport):
+    """Queued work completes only after reads through the application proxy."""
+    def __init__(self, student=2, states=None):
+        super().__init__()
+        self.student = student
+        self.run["feature"] = f"student-{student}"
+        self.run["status"] = "queued"
+        self.states = list(states if states is not None else ["planning", "reviewing", "awaiting_human_review"])
+        self.path = {1: "/ai/agents", 2: "/agents/workflows", 3: "/ai/multi-agent"}[student]
+        self.app_base = f"http://frontend-{student}/api/student-{student}"
+        self.read_failure = None
+        self.read_patch = {}
+        self.decision_failure = None
+        self.history = [{"actor": a, "event": e} for a, e in
+                        (("planner", "plan"), ("worker", "response"), ("reviewer", "review"))]
+
+    def rendered(self, status=200):
+        snapshot = copy.deepcopy(self.run)
+        snapshot.update(self.read_patch)
+        if snapshot["status"] in ("queued", "planning", "working", "reviewing"):
+            snapshot["attempts"] = []
+        if self.student == 2:
+            return response(snapshot, status)
+        return response(
+            '<article data-workflow-id="{}" data-workflow-status="{}" data-workflow-feature="{}">'
+            '{}</article>'.format(*(html.escape(snapshot[key], quote=True)
+                                    for key in ("id", "status", "feature", "task"))), status)
+
+    def request(self, method, url, **kwargs):
+        if method == "POST" and url == self.app_base + self.path:
+            self.calls.append((method, url, kwargs))
+            return self.rendered(202 if self.student == 2 else 200)
+        if method == "GET" and url == self.app_base + self.path + "/wf-test-123":
+            self.calls.append((method, url, kwargs))
+            if self.read_failure is not None:
+                return self.read_failure
+            if self.states:
+                self.run["status"] = self.states.pop(0)
+            return self.rendered()
+        if url.endswith("/history"):
+            self.calls.append((method, url, kwargs))
+            return response({"history": self.history})
+        if url == self.app_base + self.path + "/wf-test-123/decision":
+            self.calls.append((method, url, kwargs))
+            if self.decision_failure is not None:
+                return self.decision_failure
+            self.run["status"] = "rejected"
+            return self.rendered()
+        return super().request(method, url, **kwargs)
+
+
+class AsyncCloudVerifierTests(unittest.TestCase):
+    def configured(self, transport, *, timeout=900, interval=2):
+        clock = FakeClock()
+        return checks(transport, workflow_timeout=timeout, poll_interval=interval,
+                      clock=clock.monotonic, sleep=clock.sleep), clock
+
+    def test_slow_queued_work_is_polled_through_each_application_then_audited_and_rejected(self):
+        for student in (1, 2, 3):
+            with self.subTest(student=student):
+                transport = AsyncTransport(student, ["planning", "working", "reviewing", "awaiting_human_review"])
+                verifier, clock = self.configured(transport, interval=125)
+                verifier.b4(student)
+                self.assertEqual(clock.now, 500)
+                app_reads = [c for c in transport.calls if c[0] == "GET" and c[1].startswith(transport.app_base)]
+                self.assertEqual(len(app_reads), 4)
+                self.assertTrue(all(c[1].endswith(transport.path + "/wf-test-123") for c in app_reads))
+                self.assertEqual(transport.run["status"], "rejected")
+                self.assertIsNone(transport.run["final_response"])
+                self.assertTrue(any(c[1].endswith("/history") for c in transport.calls))
+                decision = [c for c in transport.calls if c[1].endswith("/decision")]
+                self.assertEqual(len(decision), 1)
+                self.assertEqual(decision[0][2]["payload" if student == 2 else "form"]["decision"],
+                                 "Reject" if student == 2 else "reject")
+
+    def test_queued_forever_fails_at_deadline_without_releasing_or_deciding_it(self):
+        transport = AsyncTransport(states=[])
+        verifier, clock = self.configured(transport, timeout=5)
+        with self.assertRaisesRegex(CheckFailed, "5s deadline.*queued"):
+            verifier.b4(2)
+        self.assertEqual(clock.now, 5)
+        self.assertEqual(transport.run["status"], "queued")
+        self.assertFalse(any(c[1].endswith(("/history", "/decision")) for c in transport.calls))
+
+    def test_terminal_failed_work_does_not_count_as_a_completed_run(self):
+        transport = AsyncTransport(states=["failed"])
+        verifier, _ = self.configured(transport)
+        with self.assertRaises(CheckFailed):
+            verifier.b4(2)
+        self.assertEqual(transport.run["status"], "failed")
+        self.assertFalse(any(c[1].endswith(("/history", "/decision")) for c in transport.calls))
+
+    def test_broken_application_read_is_not_bypassed_using_the_shared_server(self):
+        for student in (1, 2, 3):
+            with self.subTest(student=student):
+                transport = AsyncTransport(student)
+                transport.read_failure = response({"error": "proxy failed"}, 503)
+                verifier, _ = self.configured(transport)
+                with self.assertRaisesRegex(CheckFailed, "HTTP 503"):
+                    verifier.b4(student)
+                self.assertFalse(any(c[1].endswith("/history") for c in transport.calls))
+
+    def test_html_error_notice_cannot_pass_as_status_or_success(self):
+        for student in (1, 3):
+            for css in ("notice-error", "error"):
+                with self.subTest(student=student, css=css):
+                    transport = AsyncTransport(student)
+                    transport.read_failure = response(f'<div class="{css}">Upstream failed.</div>')
+                    verifier, _ = self.configured(transport)
+                    with self.assertRaisesRegex(CheckFailed, "rendered an error"):
+                        verifier.b4(student)
+
+    def test_poll_response_cannot_switch_workflow_feature_id_or_validation_run(self):
+        for student in (1, 2, 3):
+            for patch_ in ({"feature": "student-5"}, {"id": "wf-another-run"},
+                           {"task": "Validation reference someone-else."}):
+                with self.subTest(student=student, patch=patch_):
+                    transport = AsyncTransport(student)
+                    # Apply tampering only after the valid initial response.
+                    original = transport.request
+                    def request(method, url, **kwargs):
+                        if method == "GET" and url.startswith(transport.app_base):
+                            transport.read_patch = patch_
+                        return original(method, url, **kwargs)
+                    transport.request = request
+                    verifier, _ = self.configured(transport)
+                    with self.assertRaises(CheckFailed):
+                        verifier.b4(student)
+                    self.assertFalse(any(c[1].endswith("/decision") for c in transport.calls))
+
+    def test_app_completion_still_requires_real_model_and_all_three_audit_events(self):
+        for fault in ("model", "audit"):
+            with self.subTest(fault=fault):
+                transport = AsyncTransport(states=["awaiting_human_review"])
+                if fault == "model":
+                    transport.run["attempts"][0]["review"]["source"] = "fallback"
+                else:
+                    transport.history = transport.history[:-1]
+                verifier, _ = self.configured(transport)
+                with self.assertRaises(CheckFailed):
+                    verifier.b4(2)
+                self.assertEqual(transport.run["status"], "rejected")
+
+    def test_app_must_confirm_rejection_after_model_and_audit_checks(self):
+        transport = AsyncTransport(states=["awaiting_human_review"])
+        transport.decision_failure = response({"error": "decision was not recorded"})
+        verifier, _ = self.configured(transport)
+        with self.assertRaises(CheckFailed):
+            verifier.b4(2)
+        self.assertEqual(transport.run["status"], "awaiting_human_review")
+        self.assertTrue(any(c[1].endswith("/history") for c in transport.calls))
+
+    def test_pending_and_already_released_work_cannot_pass_validation(self):
+        for status in ("planning", "reviewing", "approved", "partially_accepted", "rejected"):
+            transport = AsyncTransport(states=[status])
+            verifier, _ = self.configured(transport, timeout=5)
+            with self.subTest(status=status), self.assertRaises(CheckFailed):
+                verifier.b4(2)
+            self.assertFalse(any(c[1].endswith("/history") for c in transport.calls))
+
+    def test_cli_rejects_unbounded_or_nonpositive_workflow_waiting_options(self):
+        for option in ("--workflow-timeout", "--poll-interval"):
+            for value in ("0", "-1", "nan", "inf"):
+                with self.subTest(option=option, value=value), patch("sys.stderr"), self.assertRaises(SystemExit):
+                    main([option, value])
 
 
 class CloudVerifierTests(unittest.TestCase):

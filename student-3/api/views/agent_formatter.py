@@ -62,9 +62,15 @@ def workflow_card(workflow):
     worker = latest.get("worker") or {}
     review = latest.get("review") or {}
     plan = workflow.get("plan") or {}
+    poll = ""
+    if status in ("planning", "gathering_evidence", "working", "reviewing"):
+        poll = (f' hx-get="{API}/{escape(wid)}"'
+                ' hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML"')
  
     html = [
-        f'<div class="card agent-card" id="{escape(wid)}">',
+        f'<div class="card agent-card" id="{escape(wid)}"'
+        f' data-workflow-id="{escape(wid)}" data-workflow-status="{escape(status)}"'
+        f' data-workflow-feature="{escape(str(workflow.get("feature") or ""))}"{poll}>',
         f"<p><strong>Workflow</strong> <code>{escape(wid)}</code> "
         f'<span class="pill pill-{escape(status)}">{escape(status)}</span> '
         f'<span class="muted">round {escape(str(workflow.get("round", 1)))}</span></p>',

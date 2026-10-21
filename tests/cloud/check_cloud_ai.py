@@ -9,8 +9,10 @@ server's append-only audit history; they never approve model output for release.
 import argparse
 import html
 import json
+import math
 import re
 import sys
+import time
 import uuid
 from dataclasses import dataclass
 from html.parser import HTMLParser
@@ -87,7 +89,8 @@ class Fragment(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        node = {"tag": tag, "class": set(attrs.get("class", "").split()), "text": "", "own": ""}
+        node = {"tag": tag, "attrs": attrs, "class": set(attrs.get("class", "").split()),
+                "text": "", "own": ""}
         self.nodes.append(node)
         if tag not in ("br", "hr", "img", "input", "meta", "link"):
             self.stack.append(node)
@@ -199,15 +202,19 @@ RAG = {
     5: ("/ai/ask", "How should a traveller split the travel budget between flights and hotels?"),
 }
 AGENTS = {1: "/ai/agents", 2: "/agents/workflows", 3: "/ai/multi-agent"}
+PENDING_WORKFLOW_STATUSES = {"queued", "planning", "gathering_evidence", "working", "reviewing"}
 
 
 class CloudChecks:
-    def __init__(self, transport, apps, ai, mcp, rag, agents):
+    def __init__(self, transport, apps, ai, mcp, rag, agents, *, workflow_timeout=900,
+                 poll_interval=2, clock=time.monotonic, sleep=time.sleep):
         self.http = transport
         self.apps = apps
         self.ai, self.mcp, self.rag, self.agents = ai, mcp, rag, agents
         self.model = None
         self.marker = "cloud-validation-" + uuid.uuid4().hex
+        self.workflow_timeout, self.poll_interval = workflow_timeout, poll_interval
+        self.clock, self.sleep = clock, sleep
 
     def call(self, method, base, path, **kwargs):
         return self.http.request(method, base.rstrip("/") + path, **kwargs)
@@ -309,14 +316,16 @@ class CloudChecks:
             payload.update(city="Sydney", category="attraction")
         workflow_id = None
         failure = None
+        deadline = self.clock() + self.workflow_timeout
         try:
             response = self.app(student, path, payload)
             # Capture an ID even in a failed model run, to close our own completed
             # workflows in finally. No workflow belonging to another run is touched.
             ids = re.findall(r"wf-[A-Za-z0-9-]{1,60}", response.text)
             workflow_id = ids[0] if ids else None
-            ok(response, (200, 201))
+            ok(response, (200, 201, 202))
             require(workflow_id, "Application did not return a workflow ID")
+            self.wait_for_workflow(response, student, path, workflow_id, deadline)
             workflow = body(self.call("GET", self.agents, f"/workflows/{workflow_id}"))
             require(self.owns_workflow(workflow, student), "Workflow does not belong to this validation run")
             validate_workflow(workflow, student, self.model)
@@ -343,6 +352,59 @@ class CloudChecks:
                 # Preserve the original failed interaction as the result. A
                 # cleanup failure must not turn a timeout into a passing check.
                 print(f"  cleanup incomplete for {self.marker}: {exc}", flush=True)
+
+    def application_workflow(self, response, student, workflow_id):
+        """Validate status through the same application proxy used to start it."""
+        ok(response, (200, 201, 202))
+        if student == 2:
+            workflow = body(response, (200, 201, 202))
+            require(workflow.get("id") == workflow_id, "Application returned another workflow ID")
+            require(self.owns_workflow(workflow, student), "Application returned another run or feature")
+            status = workflow.get("status")
+        else:
+            parsed = fragment(Response(200, response.text))
+            cards = [node for node in parsed.nodes
+                     if node["attrs"].get("data-workflow-id") == workflow_id]
+            require(len(cards) == 1, "Application did not render the requested workflow")
+            card = cards[0]
+            require(card["attrs"].get("data-workflow-feature") == f"student-{student}",
+                    "Application returned another feature")
+            require(f"Validation reference {self.marker}." in card["text"],
+                    "Application returned another validation run")
+            status = card["attrs"].get("data-workflow-status")
+        require(status in PENDING_WORKFLOW_STATUSES | {"awaiting_human_review", "rejected"},
+                f"Application workflow is failed or unexpected: {status}")
+        return status
+
+    def wait_for_workflow(self, response, student, path, workflow_id, deadline):
+        """Allow slow CPU generation without bypassing a broken application GET."""
+        last_status = None
+        polled = False
+        started = deadline - self.workflow_timeout
+        while True:
+            status = self.application_workflow(response, student, workflow_id)
+            require(self.clock() < deadline,
+                    f"Workflow exceeded {self.workflow_timeout:g}s deadline; last application status={status}")
+            if status == "awaiting_human_review":
+                if polled:
+                    return
+                # Even synchronous starts must expose their result through the
+                # application's existing read route, not only the shared API.
+                response = self.call("GET", self.apps[student], path + f"/{workflow_id}")
+                polled = True
+                continue
+            require(status in PENDING_WORKFLOW_STATUSES,
+                    f"Workflow ended before its agent output could be validated: {status}")
+            if status != last_status:
+                print(f"  waiting {workflow_id}: application status={status}; "
+                      f"elapsed={self.clock() - started:.0f}s", flush=True)
+                last_status = status
+            remaining = deadline - self.clock()
+            self.sleep(min(self.poll_interval, remaining))
+            require(self.clock() < deadline,
+                    f"Workflow exceeded {self.workflow_timeout:g}s deadline; last application status={status}")
+            response = self.call("GET", self.apps[student], path + f"/{workflow_id}")
+            polled = True
 
     def owns_workflow(self, workflow, student):
         return (workflow.get("feature") == f"student-{student}"
@@ -377,7 +439,9 @@ class CloudChecks:
         payload = {"decision": "reject", "reviewer": self.marker, "comment": note}
         if student == 2:
             payload.update(decision="Reject", notes=note)
-        ok(self.app(student, path + f"/{workflow_id}/decision", payload))
+        decided = self.app(student, path + f"/{workflow_id}/decision", payload)
+        require(self.application_workflow(decided, student, workflow_id) == "rejected",
+                "Application did not confirm rejection of the test workflow")
         result = body(self.call("GET", self.agents, f"/workflows/{workflow_id}"))
         require(result.get("status") == "rejected", "Test workflow was not closed by rejection")
         require(not result.get("final_response"), "Test output was unexpectedly released")
@@ -402,6 +466,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--timeout", type=float, default=300)
+    parser.add_argument("--workflow-timeout", type=float, default=900,
+                        help="Total B4 generation deadline, including application status polling")
+    parser.add_argument("--poll-interval", type=float, default=2,
+                        help="Seconds between B4 application status requests")
     parser.add_argument("--frontend-url", action="append", default=[], metavar="N=URL",
                         help="Frontend root; /api/student-N is appended (default http://HOST:808N)")
     parser.add_argument("--api-url", action="append", default=[], metavar="N=URL",
@@ -416,11 +484,13 @@ def main(argv=None):
         apps.update(assignments(args.api_url))
     except argparse.ArgumentTypeError as exc:
         parser.error(str(exc))
-    if args.timeout <= 0:
-        parser.error("--timeout must be positive")
+    for option in ("timeout", "workflow_timeout", "poll_interval"):
+        if not math.isfinite(getattr(args, option)) or getattr(args, option) <= 0:
+            parser.error(f"--{option.replace('_', '-')} must be finite and positive")
     shared = [getattr(args, name + "_url") or f"http://{args.host}:{port}"
               for name, port in (("ai", 5300), ("mcp", 5400), ("rag", 5500), ("agents", 5600))]
-    checks = CloudChecks(Transport(args.timeout), apps, *shared)
+    checks = CloudChecks(Transport(args.timeout), apps, *shared,
+                         workflow_timeout=args.workflow_timeout, poll_interval=args.poll_interval)
     try:
         checks.readiness()
     except (CheckFailed, KeyError, TypeError) as exc:

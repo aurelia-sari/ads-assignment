@@ -225,6 +225,11 @@ def _outcome(workflow):
 
 def workflow_card(workflow):
     wid = escape(workflow["id"])
+    status = workflow.get("status") or ""
+    poll = ""
+    if status in ("planning", "gathering_evidence", "working", "reviewing"):
+        poll = (f" hx-get='/api/student-1/ai/agents/{wid}'"
+                " hx-trigger='every 2s' hx-target='this' hx-swap='outerHTML'")
     attempts = workflow.get("attempts", [])
     earlier = "".join(_attempt(a) for a in attempts[:-1])
     if earlier:
@@ -235,7 +240,9 @@ def workflow_card(workflow):
     latest = _attempt(attempts[-1]) if attempts else ""
 
     return (
-        "<article class='agent-run'>"
+        f"<article class='agent-run' data-workflow-id='{wid}'"
+        f" data-workflow-status='{escape(status)}'"
+        f" data-workflow-feature='{escape(workflow.get('feature') or '')}'{poll}>"
         "<header class='agent-run__head'>"
         f"<div><strong>{escape(workflow['task'])}</strong>"
         f"<p class='muted'><code>{wid}</code> &middot; round {workflow['round']}</p></div>"

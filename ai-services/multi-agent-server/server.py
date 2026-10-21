@@ -30,6 +30,8 @@ Terminal:     ./scripts/dev.sh agents run --feature student-1 --task "..."
 """
 
 import os
+from copy import deepcopy
+from threading import Lock
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -37,6 +39,7 @@ from flask_cors import CORS
 import agents
 import evidence
 import store
+from workflow_jobs import QueueUnavailable, WorkflowQueue
 
 app = Flask(__name__)
 CORS(app)
@@ -49,6 +52,24 @@ MAX_TASK_CHARS = 1000
 # Each correction is another two model calls. Three rounds is enough to fix a
 # response; past that the human should edit it (partial) or reject it.
 MAX_ROUNDS = int(os.getenv("MULTI_AGENT_MAX_ROUNDS", "3"))
+# Local callers retain the original synchronous contract. CPU cloud execution
+# returns a saved workflow immediately; the same GET route reports progress.
+ASYNC_ENABLED = os.getenv("MULTI_AGENT_ASYNC_ENABLED", "false").lower() in ("true", "1", "yes")
+MAX_PENDING = int(os.getenv("MULTI_AGENT_MAX_PENDING", "8"))
+if MAX_PENDING < 1:
+    raise ValueError("MULTI_AGENT_MAX_PENDING must be positive")
+_jobs = None
+_jobs_lock = Lock()
+_decision_lock = Lock()
+IN_FLIGHT = frozenset(("planning", "gathering_evidence", "working", "reviewing"))
+
+
+def _job_queue():
+    global _jobs
+    with _jobs_lock:
+        if _jobs is None:
+            _jobs = WorkflowQueue(MAX_PENDING)
+        return _jobs
 
 
 def _error(message, status=400, **extra):
@@ -62,11 +83,12 @@ def _transition(workflow, status, actor, detail=None):
     store.save(workflow)
 
 
-def _run_worker_and_reviewer(workflow, feedback=None):
+def _run_worker_and_reviewer(workflow, feedback=None, start_transition=True):
     """One Worker attempt and its review. Appends to workflow["attempts"]."""
     previous = workflow["attempts"][-1]["worker"]["response"] if workflow["attempts"] else None
 
-    _transition(workflow, "working", "worker", {"round": workflow["round"]})
+    if start_transition:
+        _transition(workflow, "working", "worker", {"round": workflow["round"]})
     worker = agents.work(workflow["task"], workflow["plan"], workflow["evidence"], feedback, previous)
     store.audit(workflow["id"], "worker", "response", {
         "round": workflow["round"],
@@ -88,11 +110,80 @@ def _run_worker_and_reviewer(workflow, feedback=None):
     _transition(workflow, "awaiting_human_review", "server", {"round": workflow["round"]})
 
 
-def _fail(workflow, exc):
+def _record_failure(workflow, exc):
+    """Persist failures without depending on a Flask request context."""
     workflow["error"] = str(exc)
     _transition(workflow, "failed", "server", {"error": str(exc)})
+
+
+def _fail(workflow, exc):
+    _record_failure(workflow, exc)
     return jsonify({"error": "multi-agent workflow failed", "detail": str(exc),
                     "workflow": workflow}), 503
+
+
+def _complete_workflow(workflow):
+    workflow["plan"] = agents.plan(workflow["feature"], workflow["task"], workflow["sources"])
+    store.audit(workflow["id"], "planner", "plan", {
+        "source": workflow["plan"]["source"],
+        "required_evidence": workflow["plan"]["required_evidence"],
+        "steps": len(workflow["plan"]["steps"]),
+    })
+    _transition(workflow, "gathering_evidence", "server")
+    workflow["evidence"] = evidence.gather(
+        workflow["sources"], set(workflow["plan"]["required_evidence"])
+    )
+    store.audit(workflow["id"], "server", "evidence", {
+        "items": [
+            {"id": e["id"], "source_id": e["source_id"], "kind": e["kind"], "ok": e["ok"]}
+            for e in workflow["evidence"]
+        ],
+    })
+    _run_worker_and_reviewer(workflow)
+
+
+def _background(workflow, feedback=None):
+    try:
+        if feedback is None:
+            _complete_workflow(workflow)
+        else:
+            _run_worker_and_reviewer(workflow, feedback=feedback, start_transition=False)
+    except Exception as exc:
+        # Includes model errors and unexpected pipeline failures. A GET must
+        # report a terminal failure rather than a workflow stuck in progress.
+        app.logger.exception("Background workflow %s failed", workflow["id"])
+        _record_failure(workflow, exc)
+
+
+def _enqueue(workflow, feedback=None):
+    # The worker gets its own object, and the response is the accepted snapshot.
+    # Serializing a concurrently mutated dict could expose an inconsistent state.
+    snapshot = deepcopy(workflow)
+    worker_state = deepcopy(workflow)
+    try:
+        _job_queue().submit(lambda: _background(worker_state, feedback))
+    except QueueUnavailable as exc:
+        return _fail(workflow, exc)
+    return jsonify(snapshot), 202
+
+
+def recover_interrupted_workflows():
+    """At cloud process startup, fail interrupted jobs without replaying them.
+
+    Called by __main__, never during module import or a normal request. Pending
+    human reviews and released decisions remain available exactly as stored.
+    """
+    if not ASYNC_ENABLED:
+        return 0
+    recovered = 0
+    for workflow in store.list_workflows(limit=10_000):
+        if workflow.get("status") in IN_FLIGHT:
+            _record_failure(workflow, RuntimeError(
+                "Shared Multi-Agent service restarted before execution finished. "
+                "This workflow was interrupted; start a new request."
+            ))
+            recovered += 1
+    return recovered
 
 
 @app.get("/health")
@@ -169,27 +260,11 @@ def create_workflow():
         "sources": [s["id"] + " " + s["label"] for s in workflow["sources"]],
     })
 
+    _transition(workflow, "planning", "planner")
+    if ASYNC_ENABLED:
+        return _enqueue(workflow)
     try:
-        _transition(workflow, "planning", "planner")
-        workflow["plan"] = agents.plan(feature, task, workflow["sources"])
-        store.audit(workflow["id"], "planner", "plan", {
-            "source": workflow["plan"]["source"],
-            "required_evidence": workflow["plan"]["required_evidence"],
-            "steps": len(workflow["plan"]["steps"]),
-        })
-
-        _transition(workflow, "gathering_evidence", "server")
-        workflow["evidence"] = evidence.gather(
-            workflow["sources"], set(workflow["plan"]["required_evidence"])
-        )
-        store.audit(workflow["id"], "server", "evidence", {
-            "items": [
-                {"id": e["id"], "source_id": e["source_id"], "kind": e["kind"], "ok": e["ok"]}
-                for e in workflow["evidence"]
-            ],
-        })
-
-        _run_worker_and_reviewer(workflow)
+        _complete_workflow(workflow)
     except agents.AgentError as exc:
         return _fail(workflow, exc)
 
@@ -241,6 +316,15 @@ def workflow_history(workflow_id):
 
 @app.post("/workflows/<workflow_id>/decision")
 def decide(workflow_id):
+    if ASYNC_ENABLED:
+        # Serialize the read/validate/save decision step, including the move to
+        # working. Two simultaneous corrections cannot both reuse the same round.
+        with _decision_lock:
+            return _decide(workflow_id)
+    return _decide(workflow_id)
+
+
+def _decide(workflow_id):
     try:
         workflow = store.load(workflow_id)
     except KeyError:
@@ -286,6 +370,9 @@ def decide(workflow_id):
 
     if decision == "correct":
         workflow["round"] += 1
+        if ASYNC_ENABLED:
+            _transition(workflow, "working", "worker", {"round": workflow["round"]})
+            return _enqueue(workflow, feedback=feedback)
         try:
             _run_worker_and_reviewer(workflow, feedback=feedback)
         except agents.AgentError as exc:
@@ -302,4 +389,5 @@ def decide(workflow_id):
 
 
 if __name__ == "__main__":
+    recover_interrupted_workflows()
     app.run(host="0.0.0.0", port=int(os.getenv("MULTI_AGENT_PORT", "5600")))  # noqa: S104 reached from containers through host.docker.internal
