@@ -1,5 +1,8 @@
 from flask import Blueprint, jsonify, request
+from markupsafe import escape
+
 from services import ai_mode, database_api, mcp_client, rag_client
+from services.feature_flags import AI_MODE_ENABLED, MCP_ENABLED, RAG_ENABLED, disabled_message
 from views.formatters import chat_exchange, error_fragment
 
 ai_chat_bp = Blueprint("ai_chat", __name__)
@@ -17,7 +20,7 @@ def build_context(trip_id=None):
                           f"hotels ${budget['hotel_budget']:,.0f}).")
         selections = database_api.list_selections(trip_id)
         if selections:
-            items = "; ".join(f"{s['item_type']}: {s['item_name']} (${s['price_aud']:,.0f})" for s in selections)
+            items = "; ".join(f"{s['item_type']}: {s['item_name']}(${s['price_aud']:,.0f})" for s in selections)
             lines.append(f"Selected for trip {trip_id}: {items}.")
     flights = database_api.search_flights({"destination": "Melbourne"})
     if flights:
@@ -30,6 +33,8 @@ def build_context(trip_id=None):
         sample = hotels[0]
         lines.append(f"Example hotel: {sample['name']} in {sample['destination']}, "
                       f"${sample['price_per_night_aud']:,.0f} AUD/night.")
+    if not MCP_ENABLED:
+        return "\n".join(lines), mcp_notes
     destination = flights[0]["destination"] if flights else "Melbourne"
     mcp_flight_rows = mcp_client.search_flights(destination=destination)
     if mcp_flight_rows:
@@ -38,7 +43,7 @@ def build_context(trip_id=None):
     guide_rows = mcp_client.lookup_destination_guide(destination)
     if guide_rows:
         guide = guide_rows[0]
-        summary = guide.get("summary") or guide.get("description") or ""
+        summary = guide.get("summary") or guide.get("description")or ""
         if summary:
             lines.append(f"Destination guide ({destination}, via MCP/student-4): {summary}")
             mcp_notes.append(f"lookup_destination_guide(query=\"{destination}\") -> 1 of {len(guide_rows)} row(s) used")
@@ -55,30 +60,40 @@ def build_context(trip_id=None):
 def chat():
     question = (request.form.get("question") or "").strip()
     trip_id = (request.form.get("trip_id") or "").strip() or None
+    if not RAG_ENABLED and not AI_MODE_ENABLED:
+        return f"<div class='notice'>{escape(disabled_message('The AI assistant'))}</div>"
     if not question:
         return error_fragment("Please enter a question."), 400
     context, mcp_notes = build_context(trip_id)
-    try:
-        result = rag_client.ask(question, context=context)
-        answer = result.get("answer", "")
-        citations = result.get("citations") or []
-        confidence = result.get("confidence")
-        confidence_reason = result.get("confidence_reason")
-        return chat_exchange(question, answer, citations=citations, confidence=confidence,
-                              confidence_reason=confidence_reason, mcp_notes=mcp_notes)
-    except rag_client.RagError:
+    if RAG_ENABLED:
         try:
-            result = ai_mode.chat(question, context=context)
-            return chat_exchange(question, result.get("answer", ""), mcp_notes=mcp_notes)
-        except Exception as exc:
-            return error_fragment("AI-Mode could not answer that.",
-                "Check Ollama is running and the model is pulled, and that "
-                "the RAG/MCP servers are running on the host if you expect "
-                f"cited answers. Detail: {exc}")
+            result = rag_client.ask(question, context=context)
+            answer = result.get("answer", "")
+            citations = result.get("citations") or []
+            confidence = result.get("confidence")
+            confidence_reason = result.get("confidence_reason")
+            return chat_exchange(question, answer, citations=citations, confidence=confidence,
+                                  confidence_reason=confidence_reason, mcp_notes=mcp_notes)
+        except rag_client.RagError:
+            pass
+    if not AI_MODE_ENABLED:
+        return error_fragment("The RAG server could not answer that.",
+                              "AI-Mode is disabled in this deployment, so there is no fallback.")
+    try:
+        result = ai_mode.chat(question, context=context)
+        return chat_exchange(question, result.get("answer", ""), mcp_notes=mcp_notes)
+    except Exception as exc:
+        return error_fragment("AI-Mode could not answer that.",
+            "Check Ollama is running and the model is pulled, and that "
+            "the RAG/MCP servers are running on the host if you expect "
+            f"cited answers. Detail: {exc}")
 
 
 @ai_chat_bp.post("/ai/ask")
 def ask_grounded():
+    if not RAG_ENABLED:
+        message = disabled_message("RAG")
+        return jsonify({"error": message, "message": message, "disabled": True}), 503
     payload = request.get_json(silent=True) or {}
     question = (payload.get("question") or "").strip()
     if not question:
@@ -95,6 +110,9 @@ def retrieve_context():
     """Retrieval-only: calls the RAG server's /search (no LLM generation).
     Backs the "Retrieve Context" button, separate from the full grounded
     "Ask" action above."""
+    if not RAG_ENABLED:
+        message = disabled_message("RAG")
+        return jsonify({"error": message, "message": message, "disabled": True}), 503
     payload = request.get_json(silent=True) or {}
     question = (payload.get("question") or "").strip()
     if not question:

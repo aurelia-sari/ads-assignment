@@ -1548,6 +1548,12 @@ async function checkRagStatus() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ question: "" })
         });
+        const data = await response.json().catch(() => ({}));
+        if (data.disabled) {
+            status.className = "notice";
+            status.textContent = data.message || "RAG is disabled in this deployment.";
+            return;
+        }
         if (response.status === 503) throw new Error();
         status.className = "notice notice-success";
         status.textContent = "RAG server available.";

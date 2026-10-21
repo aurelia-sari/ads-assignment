@@ -11,6 +11,7 @@ import requests
 from flask import Blueprint, jsonify, request
 
 from services import ai_mode, database_api
+from services.feature_flags import AI_MODE_ENABLED, disabled_message
 
 ai_budget_bp = Blueprint("ai_budget", __name__)
 
@@ -64,6 +65,10 @@ def build_context(budget, selections):
 
 @ai_budget_bp.post("/ai/budget-advisor")
 def budget_advisor():
+    if not AI_MODE_ENABLED:
+        message = disabled_message("The AI budget advisor")
+        return jsonify({"error": message, "detail": "", "disabled": True}), 503
+
     trip_id = request.form.get("trip_id", "").strip()
 
     if not trip_id:
