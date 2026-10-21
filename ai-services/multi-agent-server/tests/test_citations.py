@@ -22,7 +22,10 @@ EVIDENCE = [
 
 @pytest.fixture
 def load_runtime(monkeypatch):
-    def load(enabled=False):
+    def load(enabled=False, worker_timeout=None):
+        monkeypatch.delenv("CLOUD_WORKER_TIMEOUT_SECONDS", raising=False)
+        if worker_timeout is not None:
+            monkeypatch.setenv("CLOUD_WORKER_TIMEOUT_SECONDS", worker_timeout)
         if enabled:
             monkeypatch.setenv("CLOUD_CITATION_VALIDATION", "true")
         else:
@@ -39,7 +42,7 @@ def worker(runtime, **kwargs):
 
 
 def test_local_default_keeps_original_prompt_timeout_call_count_and_fake_signature(load_runtime, monkeypatch):
-    runtime = load_runtime()
+    runtime = load_runtime(worker_timeout="360")
     calls = []
 
     def legacy_fake(system, content, max_tokens=500):
@@ -166,6 +169,99 @@ def test_repair_uses_the_remaining_original_timeout_budget(load_runtime, monkeyp
     monkeypatch.setattr(runtime, "ask_ai_mode", generate)
     assert worker(runtime)["response"] == "Tokyo [E1]."
     assert calls == [100, 30]
+
+
+def test_cloud_360_second_budget_is_shared_by_initial_generation_and_repair(load_runtime, monkeypatch):
+    runtime = load_runtime(True, worker_timeout="360")
+    now = [0.0]
+    monkeypatch.setattr(runtime.time, "monotonic", lambda: now[0])
+    timeouts = []
+
+    def post(url, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        now[0] += 200 if len(timeouts) == 1 else 150
+        reply = Mock()
+        reply.json.return_value = {
+            "answer": "No citation." if len(timeouts) == 1 else "Tokyo [E1].",
+            "model": "actual-model",
+        }
+        return reply
+
+    monkeypatch.setattr(runtime.requests, "post", post)
+    assert worker(runtime)["response"] == "Tokyo [E1]."
+    assert timeouts == [360, 160]
+    assert runtime.TIMEOUT == 180
+
+
+def test_cloud_valid_first_answer_can_finish_after_the_old_165_second_limit(load_runtime, monkeypatch):
+    runtime = load_runtime(True, worker_timeout="360")
+    now = [0.0]
+    monkeypatch.setattr(runtime.time, "monotonic", lambda: now[0])
+    calls = []
+
+    def generate(system, content, max_tokens=500, timeout=None):
+        calls.append(timeout)
+        now[0] += 200
+        return "Tokyo [E1].", "model"
+
+    monkeypatch.setattr(runtime, "ask_ai_mode", generate)
+    assert worker(runtime)["response"] == "Tokyo [E1]."
+    assert calls == [360]
+
+
+def test_cloud_worker_budget_keeps_planner_and_reviewer_timeouts_unchanged(load_runtime, monkeypatch):
+    runtime = load_runtime(True, worker_timeout="360")
+    reply = Mock()
+    reply.json.return_value = {"answer": "{}", "model": "model"}
+    post = Mock(return_value=reply)
+    monkeypatch.setattr(runtime.requests, "post", post)
+    runtime.plan("student-3", "Recommend my trip", [])
+    runtime.review("Recommend my trip", {**PLAN, "acceptance_criteria": ["Cite usable evidence"]},
+                   EVIDENCE, {"response": "Tokyo [E1]."})
+    assert [call.kwargs["timeout"] for call in post.call_args_list] == [180, 180]
+
+
+@pytest.mark.parametrize("elapsed", [(360,), (200, 161)])
+def test_cloud_360_second_deadline_is_enforced_across_both_generations(
+        load_runtime, monkeypatch, elapsed):
+    runtime = load_runtime(True, worker_timeout="360")
+    now = [0.0]
+    monkeypatch.setattr(runtime.time, "monotonic", lambda: now[0])
+    calls = []
+
+    def generate(system, content, max_tokens=500, timeout=None):
+        calls.append(timeout)
+        now[0] += elapsed[len(calls) - 1]
+        return ("No citation." if len(calls) == 1 else "Tokyo [E1]."), "model"
+
+    monkeypatch.setattr(runtime, "ask_ai_mode", generate)
+    with pytest.raises(runtime.AgentError, match="generation deadline"):
+        worker(runtime)
+    assert calls == ([360] if len(elapsed) == 1 else [360, 160])
+
+
+@pytest.mark.parametrize("timeout_at", [1, 2])
+def test_cloud_transport_timeout_is_not_retried_with_the_longer_budget(
+        load_runtime, monkeypatch, timeout_at):
+    runtime = load_runtime(True, worker_timeout="360")
+    reply = Mock()
+    reply.json.return_value = {"answer": "No citation.", "model": "model"}
+    effects = [reply] * (timeout_at - 1) + [requests.Timeout("model timed out")]
+    post = Mock(side_effect=effects)
+    monkeypatch.setattr(runtime.requests, "post", post)
+    with pytest.raises(runtime.AgentError, match="did not answer"):
+        worker(runtime)
+    assert post.call_count == timeout_at
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "invalid", "nan", "inf"])
+def test_invalid_cloud_worker_budget_fails_before_requesting_generation(load_runtime, monkeypatch, value):
+    runtime = load_runtime(True, worker_timeout=value)
+    generate = Mock()
+    monkeypatch.setattr(runtime, "ask_ai_mode", generate)
+    with pytest.raises(runtime.AgentError, match="CLOUD_WORKER_TIMEOUT_SECONDS must be a positive integer"):
+        worker(runtime)
+    generate.assert_not_called()
 
 
 def test_first_generation_exhausting_deadline_does_not_start_a_repair(load_runtime, monkeypatch):

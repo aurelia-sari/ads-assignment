@@ -26,6 +26,8 @@ name, *args = sys.argv[1:]
 record = {"tool": name, "args": args,
           "flags": [os.environ.get(key) for key in
                     ("AI_MODE_ENABLED", "MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED")]}
+if name == "sudo" and args == ["tee", "/etc/nextstop/ai.env"]:
+    record["ai_environment"] = sys.stdin.read()
 if name == "mv":
     record["selection"] = pathlib.Path(args[0]).read_text()
 with open(os.environ["DEPLOY_TEST_LOG"], "a", encoding="utf-8") as output:
@@ -210,6 +212,18 @@ sys.exit(0)
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn("Invalid model name", result.stderr)
         self.assertEqual(calls, [])
+
+    def test_cloud_environment_extends_only_the_worker_generation_budget(self):
+        result, calls = self.run_script(CONFIGURE_SCRIPT, ("start",))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        environments = [call["ai_environment"] for call in calls if "ai_environment" in call]
+        self.assertEqual(len(environments), 1)
+        settings = dict(line.split("=", 1) for line in environments[0].splitlines())
+        self.assertEqual(settings["CLOUD_WORKER_TIMEOUT_SECONDS"], "360")
+        self.assertEqual(settings["CLOUD_CITATION_VALIDATION"], "true")
+        self.assertEqual(settings["MULTI_AGENT_ASYNC_ENABLED"], "true")
+        self.assertNotIn("MULTI_AGENT_LLM_TIMEOUT", settings)
+        self.assertNotIn("RAG_REQUEST_TIMEOUT_SECONDS", settings)
 
     def test_invalid_remote_model_does_not_stop_services_or_install_packages(self):
         result, calls = self.run_script(REMOTE_SCRIPT, ("true", "model;unexpected", "cloud.example.test"))
