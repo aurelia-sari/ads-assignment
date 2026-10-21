@@ -156,7 +156,8 @@ def _repo_integration(n):
     ] if api.exists() else []
     page_hits = [
         _rel(p) for p in frontend.rglob("*.html")
-        if "/ai/agents" in p.read_text(encoding="utf-8", errors="ignore")
+        if any(route in p.read_text(encoding="utf-8", errors="ignore")
+               for route in ("/ai/agents", "/ai/multi-agent"))
     ] if frontend.exists() else []
     return api_hits, page_hits
 

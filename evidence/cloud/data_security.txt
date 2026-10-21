@@ -1,0 +1,6 @@
+== SSH password login disabled (true = key-only) ==
+true
+== Disk encryption at rest ==
+Name                                                   Encryption
+-----------------------------------------------------  -------------------------------
+nextstop-vm_OsDisk_1_9a2f859cdbd04bd28050c63212cf9379  EncryptionAtRestWithPlatformKey
