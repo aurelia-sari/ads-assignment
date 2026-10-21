@@ -22,10 +22,13 @@ EVIDENCE = [
 
 @pytest.fixture
 def load_runtime(monkeypatch):
-    def load(enabled=False, worker_timeout=None):
+    def load(enabled=False, worker_timeout=None, reviewer_timeout=None):
         monkeypatch.delenv("CLOUD_WORKER_TIMEOUT_SECONDS", raising=False)
         if worker_timeout is not None:
             monkeypatch.setenv("CLOUD_WORKER_TIMEOUT_SECONDS", worker_timeout)
+        monkeypatch.delenv("CLOUD_REVIEWER_TIMEOUT_SECONDS", raising=False)
+        if reviewer_timeout is not None:
+            monkeypatch.setenv("CLOUD_REVIEWER_TIMEOUT_SECONDS", reviewer_timeout)
         if enabled:
             monkeypatch.setenv("CLOUD_CITATION_VALIDATION", "true")
         else:
@@ -219,6 +222,79 @@ def test_cloud_worker_budget_keeps_planner_and_reviewer_timeouts_unchanged(load_
     runtime.review("Recommend my trip", {**PLAN, "acceptance_criteria": ["Cite usable evidence"]},
                    EVIDENCE, {"response": "Tokyo [E1]."})
     assert [call.kwargs["timeout"] for call in post.call_args_list] == [180, 180]
+
+
+def test_cloud_reviewer_360_seconds_keeps_planner_and_worker_budgets_separate(load_runtime, monkeypatch):
+    runtime = load_runtime(True, worker_timeout="360", reviewer_timeout="360")
+    reply = Mock()
+    reply.json.return_value = {"answer": "Tokyo [E1].", "model": "actual-model"}
+    post = Mock(return_value=reply)
+    monkeypatch.setattr(runtime.requests, "post", post)
+    now = [0.0]
+    monkeypatch.setattr(runtime.time, "monotonic", lambda: now[0])
+    runtime.plan("student-3", "Recommend my trip", [])
+    worker(runtime)
+    runtime.review("Recommend my trip", {**PLAN, "acceptance_criteria": ["Cite usable evidence"]},
+                   EVIDENCE, {"response": "Tokyo [E1]."})
+    assert [call.kwargs["timeout"] for call in post.call_args_list] == [180, 360, 360]
+
+
+@pytest.mark.parametrize("configured", [None, "360", "invalid"])
+def test_local_reviewer_keeps_180_seconds_even_with_cloud_setting(load_runtime, monkeypatch, configured):
+    runtime = load_runtime(reviewer_timeout=configured)
+    reply = Mock()
+    reply.json.return_value = {"answer": "{}", "model": "local-model"}
+    post = Mock(return_value=reply)
+    monkeypatch.setattr(runtime.requests, "post", post)
+    runtime.review("Recommend my trip", {**PLAN, "acceptance_criteria": []},
+                   EVIDENCE, {"response": "Tokyo [E1]."})
+    assert post.call_count == 1
+    assert post.call_args.kwargs["timeout"] == 180
+
+
+@pytest.mark.parametrize("cloud_enabled, configured", [(False, None), (False, "360"), (True, None)])
+def test_local_or_unconfigured_reviewer_keeps_legacy_signature_and_prompt(
+        load_runtime, monkeypatch, cloud_enabled, configured):
+    runtime = load_runtime(cloud_enabled, reviewer_timeout=configured)
+    calls = []
+
+    def legacy_fake(system, content, max_tokens=500):
+        calls.append((system, content, max_tokens))
+        return '{"verdict": "pass", "criteria": [], "risks": [], "recommendations": []}', "model"
+
+    monkeypatch.setattr(runtime, "ask_ai_mode", legacy_fake)
+    result = runtime.review("Recommend my trip", {**PLAN, "acceptance_criteria": ["Cite usable evidence"]},
+                            EVIDENCE, {"response": "Tokyo [E1]."})
+    assert len(calls) == 1
+    assert calls[0][0] == runtime.load_prompt("reviewer_prompt.txt")
+    assert "Task: Recommend my trip" in calls[0][1]
+    assert "Worker response:\nTokyo [E1]." in calls[0][1]
+    assert calls[0][2] == 500
+    assert result["verdict"] == "pass"
+
+
+def test_cloud_reviewer_timeout_does_not_retry_or_change_the_review_prompt(load_runtime, monkeypatch):
+    runtime = load_runtime(True, reviewer_timeout="360")
+    post = Mock(side_effect=requests.Timeout("reviewer timed out"))
+    monkeypatch.setattr(runtime.requests, "post", post)
+    with pytest.raises(runtime.AgentError, match="did not answer"):
+        runtime.review("Recommend my trip", {**PLAN, "acceptance_criteria": []},
+                       EVIDENCE, {"response": "Tokyo [E1]."})
+    assert post.call_count == 1
+    assert post.call_args.kwargs["timeout"] == 360
+    assert post.call_args.kwargs["json"]["system"] == runtime.load_prompt("reviewer_prompt.txt")
+    assert post.call_args.kwargs["json"]["max_tokens"] == 500
+
+
+@pytest.mark.parametrize("value", ["", "0", "-1", "invalid", "nan", "inf"])
+def test_invalid_cloud_reviewer_timeout_fails_before_requesting_generation(load_runtime, monkeypatch, value):
+    runtime = load_runtime(True, reviewer_timeout=value)
+    generate = Mock()
+    monkeypatch.setattr(runtime, "ask_ai_mode", generate)
+    with pytest.raises(runtime.AgentError, match="CLOUD_REVIEWER_TIMEOUT_SECONDS must be a positive integer"):
+        runtime.review("Recommend my trip", {**PLAN, "acceptance_criteria": []},
+                       EVIDENCE, {"response": "Tokyo [E1]."})
+    generate.assert_not_called()
 
 
 @pytest.mark.parametrize("elapsed", [(360,), (200, 161)])

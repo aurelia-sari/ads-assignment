@@ -68,7 +68,7 @@ sys.exit(0)
             "DEPLOY_TEST_MAIN_SHA": "current-main-sha",
             "GITHUB_REPOSITORY": "fixture/nextstop",
             "SHA": "current-main-sha",
-            "EVENT": "workflow_run",
+            "EVENT": "push",
             "GITHUB_OUTPUT": str(self.folder / "github-output"),
             "GITHUB_ENV": str(self.folder / "github-env"),
         })
@@ -213,13 +213,14 @@ sys.exit(0)
         self.assertIn("Invalid model name", result.stderr)
         self.assertEqual(calls, [])
 
-    def test_cloud_environment_extends_only_the_worker_generation_budget(self):
+    def test_cloud_environment_extends_worker_and_reviewer_generation_budgets(self):
         result, calls = self.run_script(CONFIGURE_SCRIPT, ("start",))
         self.assertEqual(result.returncode, 0, result.stderr)
         environments = [call["ai_environment"] for call in calls if "ai_environment" in call]
         self.assertEqual(len(environments), 1)
         settings = dict(line.split("=", 1) for line in environments[0].splitlines())
         self.assertEqual(settings["CLOUD_WORKER_TIMEOUT_SECONDS"], "360")
+        self.assertEqual(settings["CLOUD_REVIEWER_TIMEOUT_SECONDS"], "360")
         self.assertEqual(settings["CLOUD_CITATION_VALIDATION"], "true")
         self.assertEqual(settings["MULTI_AGENT_ASYNC_ENABLED"], "true")
         self.assertNotIn("MULTI_AGENT_LLM_TIMEOUT", settings)
@@ -264,25 +265,12 @@ sys.exit(0)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(Path(self.env["GITHUB_ENV"]).exists())
 
-    def test_stale_automatic_commit_is_skipped_before_student_gate_checks(self):
-        result, calls = self.run_workflow_step("Gate on student CI/CD workflows", SHA="old-commit-sha")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(Path(self.env["GITHUB_OUTPUT"]).read_text(), "ok=false\n")
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0]["tool"], "gh")
-        self.assertEqual(calls[0]["args"][0], "api")
-
-    def test_current_automatic_commit_requires_the_existing_student_gate(self):
+    def test_automatic_deployment_uses_the_student_ci_wait_helper(self):
         result, calls = self.run_workflow_step("Gate on student CI/CD workflows")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(Path(self.env["GITHUB_OUTPUT"]).read_text(), "ok=true\n")
-        self.assertEqual(len([call for call in calls if call["tool"] == "gh" and call["args"][0] == "run"]), 5)
-
-    def test_manual_selection_is_not_replaced_by_a_previous_automatic_setting(self):
-        result, calls = self.run_workflow_step("Gate on student CI/CD workflows", EVENT="workflow_dispatch")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(calls, [])
-        self.assertEqual(Path(self.env["GITHUB_OUTPUT"]).read_text(), "ok=true\n")
+        self.assertEqual([(call["tool"], call["args"]) for call in calls], [
+            ("python3", ["deploy/azure/wait_for_student_ci.py"]),
+        ])
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

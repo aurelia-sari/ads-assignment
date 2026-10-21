@@ -280,7 +280,19 @@ def review(task, plan_, evidence, worker):
         f"Evidence:\n{evidence_module.render(evidence)}\n\n"
         f"Worker response:\n{worker['response']}"
     )
-    raw, model = ask_ai_mode(load_prompt("reviewer_prompt.txt"), content, max_tokens=500)
+    options = {"max_tokens": 500}
+    # Only an explicitly configured cloud Reviewer extends its model wait.
+    # Local calls keep the original timeout and the legacy function signature.
+    reviewer_timeout = os.getenv("CLOUD_REVIEWER_TIMEOUT_SECONDS") if CLOUD_CITATION_VALIDATION else None
+    if reviewer_timeout is not None:
+        try:
+            timeout = int(reviewer_timeout)
+        except ValueError as exc:
+            raise AgentError("CLOUD_REVIEWER_TIMEOUT_SECONDS must be a positive integer.") from exc
+        if timeout <= 0:
+            raise AgentError("CLOUD_REVIEWER_TIMEOUT_SECONDS must be a positive integer.")
+        options["timeout"] = timeout
+    raw, model = ask_ai_mode(load_prompt("reviewer_prompt.txt"), content, **options)
     parsed = extract_json(raw)
     checks = deterministic_checks(worker["response"], evidence)
 

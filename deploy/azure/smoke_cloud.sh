@@ -34,7 +34,7 @@ done
 if [ "$fail" -eq 0 ]; then
   if [ "$ENABLE_CLOUD_AI" = true ]; then
     echo '== One shared cloud AI runtime: B1-B4 application interactions =='
-    "${SSH[@]}" 'cd ~/nextstop && python3 tests/cloud/check_cloud_ai.py --host 127.0.0.1 --timeout 300 --workflow-timeout 900' || fail=1
+    "${SSH[@]}" 'cd ~/nextstop && python3 tests/cloud/check_cloud_ai.py --host 127.0.0.1 --timeout 300 --workflow-timeout 1200' || fail=1
   else
     echo '== Existing baseline backend CRUD tests =='
     for n in 1 2 3 4 5; do

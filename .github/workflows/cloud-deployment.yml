@@ -1,9 +1,7 @@
 name: cloud-deployment
 
 on:
-  workflow_run:
-    workflows: ["student-1", "student-2", "student-3", "student-4", "student-5"]
-    types: [completed]
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -24,6 +22,7 @@ on:
       - 'tests/cloud/**'
       - 'docker-compose.cloud.yml'
       - '.github/workflows/cloud-deployment.yml'
+      - '.github/workflows/student-*.yml'
 
 concurrency:
   group: cloud-deployment-${{ github.event_name == 'pull_request' && github.ref || 'vm' }}
@@ -39,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -62,9 +61,9 @@ jobs:
 
   deploy:
     needs: validate
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       VM_HOST: ${{ secrets.VM_HOST }}
       ENABLE_CLOUD_AI: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_cloud_ai && 'true' || 'false' }}
@@ -72,39 +71,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
+          fetch-depth: 0
 
       - name: Gate on student CI/CD workflows
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
-          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SHA: ${{ github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
-          if [ "$EVENT" = workflow_dispatch ]; then
-            echo 'Manual run, skipping gate.'
-            echo 'ok=true' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          current_main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')
-          if [ "$SHA" != "$current_main" ]; then
-            echo 'A newer main commit exists; skipping this queued deployment.'
-            echo 'ok=false' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          for n in 1 2 3 4 5; do
-            c=$(gh run list --workflow "student-$n.yml" --commit "$SHA" --limit 1 \
-                  --json status,conclusion --jq 'if length == 0 then "none" elif .[0].status != "completed" then "pending" else .[0].conclusion end')
-            echo "student-$n.yml -> $c"
-            case "$c" in
-              success|none) ;;
-              pending) echo "student-$n is still running; a later run will deploy."
-                       echo 'ok=false' >> "$GITHUB_OUTPUT"; exit 0 ;;
-              *) echo "student-$n did not succeed ($c); not deploying."
-                 echo 'ok=false' >> "$GITHUB_OUTPUT"; exit 0 ;;
-            esac
-          done
-          echo 'ok=true' >> "$GITHUB_OUTPUT"
+          python3 deploy/azure/wait_for_student_ci.py
 
       - name: Install SSH key
         if: steps.gate.outputs.ok == 'true'
@@ -116,7 +94,7 @@ jobs:
           chmod 600 ~/.ssh/nextstop_deploy
 
       - name: Retain cloud AI selection for automatic deployments
-        if: steps.gate.outputs.ok == 'true' && github.event_name == 'workflow_run'
+        if: steps.gate.outputs.ok == 'true' && github.event_name == 'push'
         run: |
           selection=$(ssh -i ~/.ssh/nextstop_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
             "azureuser@$VM_HOST" 'selection="$HOME/.local/share/nextstop/cloud-ai-selection"; if [ -f "$selection" ]; then cat "$selection"; else printf "false\nllama3.2:latest\n"; fi')
