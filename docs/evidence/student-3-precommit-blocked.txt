@@ -1,0 +1,70 @@
+Ruff security rules......................................................Failed
+- hook id: ruff-security
+- exit code: 1
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________________ test_ruff_security_rules_pass _________________________
+
+    def test_ruff_security_rules_pass():
+        result = subprocess.run(  # noqa: S603 fixed command with no user input
+            [sys.executable, "-m", "ruff", "check", "--output-format", "concise", "."],
+            cwd=ROOT, capture_output=True, text=True,
+        )
+>       assert result.returncode == 0, "Ruff security findings\n\n" + result.stdout + result.stderr
+E       AssertionError: Ruff security findings
+E         
+E         student-3/api/leak_test.py:1:12: S105 Possible hardcoded password assigned to: "password"
+E         Found 1 error.
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/tj/.cache/pre-commit/repo_nn1mp6_/py_env-python3.13/bin/python', '-m', 'ruff', 'check',...tudent-3/api/leak_test.py:1:12: S105 Possible hardcoded password assigned to: "password"\nFound 1 error.\n', stderr='').returncode
+
+security/tests/test_ruff.py:13: AssertionError
+=========================== short test summary info ============================
+FAILED security/tests/test_ruff.py::test_ruff_security_rules_pass - Assertion...
+1 failed in 0.05s
+
+detect-secrets...........................................................Failed
+- hook id: detect-secrets
+- exit code: 1
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________________________ test_no_new_secrets ______________________________
+
+tmp_path = PosixPath('/private/var/folders/2k/_c7mz8p53kl3t64_53lp6gh00000gn/T/pytest-of-tj/pytest-16/test_no_new_secrets0')
+
+    def test_no_new_secrets(tmp_path):
+        assert BASELINE.exists(), "missing .secrets.baseline, create it with detect-secrets scan > .secrets.baseline"
+        known = _findings(json.loads(BASELINE.read_text(encoding="utf-8")))
+    
+        # Scanning against a copy reuses the baseline plugins and filters without rewriting the real file
+        scratch = tmp_path / "baseline.json"
+        shutil.copy(BASELINE, scratch)
+        result = subprocess.run(  # noqa: S603 fixed command with no user input
+            [sys.executable, "-m", "detect_secrets", "scan", "--baseline", str(scratch),
+             "--exclude-files", r"^\.secrets\.baseline$"],
+            cwd=ROOT, capture_output=True, text=True,
+        )
+        assert result.returncode == 0, "detect-secrets failed\n\n" + result.stdout + result.stderr
+    
+        current = _findings(json.loads(scratch.read_text(encoding="utf-8")))
+        new = [label for key, label in current.items() if key not in known]
+>       assert not new, (
+            "Possible secrets not in .secrets.baseline\n\n" + "\n".join(sorted(new))
+            + "\n\nRemove the secret, or if it is a false positive run detect-secrets audit .secrets.baseline"
+        )
+E       AssertionError: Possible secrets not in .secrets.baseline
+E         
+E         student-3/api/leak_test.py line 1 Secret Keyword
+E         
+E         Remove the secret, or if it is a false positive run detect-secrets audit .secrets.baseline
+E       assert not ['student-3/api/leak_test.py line 1 Secret Keyword']
+
+security/tests/test_secrets.py:35: AssertionError
+=========================== short test summary info ============================
+FAILED security/tests/test_secrets.py::test_no_new_secrets - AssertionError: ...
+1 failed in 1.61s
+
+pip-audit............................................(no files to check)Skipped
