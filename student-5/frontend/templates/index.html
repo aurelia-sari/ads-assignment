@@ -1657,7 +1657,7 @@ async function runAgentWorkflow() {
     const spinner = document.getElementById("agent-spinner");
     spinner.textContent = " running Planner -> Worker -> Reviewer...";
     try {
-        const wf = await agentsFetch("/agents/workflows", {
+        let wf = await agentsFetch("/agents/workflows", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1666,11 +1666,27 @@ async function runAgentWorkflow() {
             })
         });
         renderWorkflow(wf);
+        wf = await waitForWorkflow(wf, spinner);
+        renderWorkflow(wf);
         await showAgentHistory(wf.id);
     } catch (error) {
         document.getElementById("agent-result").innerHTML = `<div class="notice notice-error">${esc(error.message)}</div>`;
     }
     spinner.textContent = "";
+}
+
+const AGENT_BUSY = ["planning", "gathering_evidence", "working", "reviewing"];
+
+async function waitForWorkflow(wf, spinner) {
+    // The shared server may answer immediately and keep working (cloud mode).
+    const deadline = Date.now() + 10 * 60 * 1000;
+    while (AGENT_BUSY.includes(wf.status) && Date.now() < deadline) {
+        spinner.textContent = ` ${wf.status}...`;
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        wf = await agentsFetch(`/agents/workflows/${wf.id}`);
+        renderWorkflow(wf);
+    }
+    return wf;
 }
 
 async function decideAgent(decision) {
