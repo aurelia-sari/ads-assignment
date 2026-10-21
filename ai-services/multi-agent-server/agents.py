@@ -25,10 +25,14 @@ from pathlib import Path
 import requests
 
 import evidence as evidence_module
+import worker_tables
 
 AI_MODE_URL = os.getenv("AI_MODE_URL", "http://localhost:5300")
 TIMEOUT = int(os.getenv("MULTI_AGENT_LLM_TIMEOUT", "180"))
 CLOUD_CITATION_VALIDATION = os.getenv("CLOUD_CITATION_VALIDATION", "false").lower() in (
+    "true", "1", "yes",
+)
+CLOUD_STRUCTURED_OUTPUTS_ENABLED = os.getenv("CLOUD_STRUCTURED_OUTPUTS_ENABLED", "false").lower() in (
     "true", "1", "yes",
 )
 
@@ -53,16 +57,30 @@ def load_prompt(name):
     return (PROMPT_DIR / "multi-agent" / name).read_text(encoding="utf-8").strip()
 
 
-def ask_ai_mode(system, content, max_tokens=500, timeout=None):
+def ask_ai_mode(system, content, max_tokens=500, timeout=None, response_format=None):
+    payload = {"system": system, "question": content, "max_tokens": max_tokens}
+    if response_format is not None:
+        payload["response_format"] = response_format
     try:
         response = requests.post(
             f"{AI_MODE_URL}/recommend",
-            json={"system": system, "question": content, "max_tokens": max_tokens},
+            json=payload,
             timeout=TIMEOUT if timeout is None else timeout,
         )
         response.raise_for_status()
         body = response.json()
     except requests.RequestException as exc:
+        if response_format is not None:
+            detail = str(exc)
+            failure = getattr(exc, "response", None)
+            if failure is not None:
+                try:
+                    error = failure.json()
+                except ValueError:
+                    error = {}
+                if isinstance(error, dict) and isinstance(error.get("detail"), str):
+                    detail = error["detail"][:500]
+            raise AgentError(f"AI-Mode structured generation failed: {detail}") from exc
         raise AgentError(
             f"AI-Mode at {AI_MODE_URL} did not answer: {exc}. "
             "Start it with ./scripts/ai_services.sh up"
@@ -98,6 +116,60 @@ def _string_list(value, limit):
     return [str(item).strip() for item in value if str(item).strip()][:limit]
 
 
+def _structured_format(name, schema):
+    return {"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}}
+
+
+def _validate_structured_value(value, schema):
+    """Validate the schema subset used by Planner and Reviewer, without coercion."""
+    kind = schema["type"]
+    if kind == "object":
+        if not isinstance(value, dict) or set(value) != set(schema["required"]):
+            return False
+        return all(_validate_structured_value(value[key], child)
+                   for key, child in schema["properties"].items())
+    if kind == "array":
+        return (isinstance(value, list) and schema.get("minItems", 0) <= len(value) <= schema["maxItems"]
+                and all(_validate_structured_value(item, schema["items"]) for item in value))
+    if kind == "string":
+        return (isinstance(value, str) and schema.get("minLength", 0) <= len(value) <= schema.get("maxLength", float("inf"))
+                and ("enum" not in schema or value in schema["enum"]))
+    if kind == "boolean":
+        return type(value) is bool
+    return False
+
+
+def _structured_reply(raw, schema, agent):
+    try:
+        value = json.loads(raw) if isinstance(raw, str) else None
+    except ValueError:
+        value = None
+    if not _validate_structured_value(value, schema):
+        raise AgentError(f"{agent} structured generation returned invalid or incomplete JSON.")
+    return value
+
+
+def _planner_schema(sources):
+    ids = [source["id"] for source in sources]
+    reference = {"type": "string"}
+    if ids:
+        reference["enum"] = ids
+    return {
+        "type": "object",
+        "properties": {
+            "goal": {"type": "string", "minLength": 1, "maxLength": 300},
+            "steps": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 160},
+                      "minItems": 1, "maxItems": 5},
+            "required_evidence": {"type": "array", "items": reference,
+                                  "minItems": 1 if ids else 0, "maxItems": len(ids)},
+            "acceptance_criteria": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 200},
+                                    "minItems": 1, "maxItems": 4},
+        },
+        "required": ["goal", "steps", "required_evidence", "acceptance_criteria"],
+        "additionalProperties": False,
+    }
+
+
 # --- Planner ----------------------------------------------------------------
 
 def plan(feature, task, sources):
@@ -107,8 +179,18 @@ def plan(feature, task, sources):
         f"Task: {task}\n\n"
         f"Evidence sources available:\n{source_list}"
     )
-    raw, model = ask_ai_mode(load_prompt("planner_prompt.txt"), content, max_tokens=400)
-    parsed = extract_json(raw) or {}
+    system = load_prompt("planner_prompt.txt")
+    structured = CLOUD_CITATION_VALIDATION and CLOUD_STRUCTURED_OUTPUTS_ENABLED
+    if structured:
+        schema = _planner_schema(sources)
+        system += "\n\nReturn only one complete JSON plan matching the supplied schema. Keep every field concise."
+        content += "\n\nOutput JSON Schema:\n" + json.dumps(schema)
+        raw, model = ask_ai_mode(system, content, max_tokens=900,
+                                 response_format=_structured_format("grounded_planner", schema))
+        parsed = _structured_reply(raw, schema, "Planner")
+    else:
+        raw, model = ask_ai_mode(system, content, max_tokens=400)
+        parsed = extract_json(raw) or {}
 
     valid_ids = {s["id"] for s in sources}
     required = [i for i in _string_list(parsed.get("required_evidence"), 20) if i in valid_ids]
@@ -127,6 +209,8 @@ def plan(feature, task, sources):
             "raw": raw,
         }
 
+    if structured:
+        raise AgentError("Planner structured generation returned no usable model plan.")
     return {
         "source": "fallback",
         "fallback_reason": "planner reply was not a usable JSON plan",
@@ -164,7 +248,7 @@ def work(task, plan_, evidence, feedback=None, previous=None):
 
     system = load_prompt("worker_prompt.txt")
     if CLOUD_CITATION_VALIDATION:
-        raw, model = _cloud_worker_response(system, content, evidence)
+        raw, model = _cloud_worker_response(system, content, evidence, task=task)
     else:
         # Keep the original local call contract, including existing test fakes.
         raw, model = ask_ai_mode(system, content, max_tokens=450)
@@ -185,7 +269,73 @@ def _worker_citation_issues(response, evidence):
     return risks
 
 
-def _cloud_worker_response(system, content, evidence):
+def _worker_response_format(allowed, table=False, columns=None):
+    # Use ordinary JSON strings, not a pattern over serialized string content:
+    # regex character classes can consume JSON quotes in Ollama's grammar.
+    # The model chooses the complete citation. Formatting that model-selected
+    # reference never invents or remaps an evidence ID.
+    if columns is not None:
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "grounded_worker_table", "strict": True,
+                "schema": worker_tables.response_schema(columns, allowed),
+            },
+        }
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "grounded_worker_answer",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "answer": {
+                        "type": "string", "minLength": 1, "maxLength": 2400 if table else 800,
+                        "description": "The complete actual answer to the Task, not the task or plan itself.",
+                    },
+                    "citation": {
+                        "type": "string", "enum": [f"[{item}]" for item in allowed],
+                        "description": "The evidence item supporting the answer.",
+                    },
+                },
+                "required": ["answer", "citation"],
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
+def _decode_worker_answer(raw, response_format, columns=None):
+    if not isinstance(raw, str):
+        return "", ["AI-Mode returned a non-text Worker response."]
+    if response_format is None:
+        return raw, []
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        return "", ["Return one complete JSON object containing answer and citation strings."]
+    if columns is not None:
+        return worker_tables.decode_table(value, columns, response_format["json_schema"]["schema"])
+    if not isinstance(value, dict) or set(value) != {"answer", "citation"} or not all(
+            isinstance(value[field], str) for field in ("answer", "citation")):
+        return "", ["Return exactly answer and citation strings."]
+    properties = response_format["json_schema"]["schema"]["properties"]
+    if value["citation"] not in properties["citation"]["enum"]:
+        return "", ["The citation must be one complete permitted [E#] reference."]
+    answer = value["answer"]
+    if len(answer) > properties["answer"]["maxLength"]:
+        return answer, ["Keep the response within the JSON Schema string length limit."]
+    if not re.search(r"\w", re.sub(r"\[E\d+\]", "", answer)):
+        return answer, ["Write a substantive response around the selected citation."]
+    # Display the model's complete selected reference. Preserve its placement
+    # when already present, and never replace or conceal other invalid IDs.
+    if value["citation"] not in answer:
+        answer = answer.rstrip() + " " + value["citation"]
+    return answer, []
+
+
+def _cloud_worker_response(system, content, evidence, task=""):
     """Require traceable cloud output, with at most one model-authored repair."""
     allowed = [item["id"] for item in evidence if item["ok"]]
     if not allowed:
@@ -200,6 +350,57 @@ def _cloud_worker_response(system, content, evidence):
         "required response format and any human feedback."
     )
     system += rules
+    # Tables carry several full records, while ordinary answers are short.
+    # Bound each generated string to prevent repetition; allow enough output
+    # tokens for the table without changing the shared generation deadline.
+    columns = worker_tables.requested_columns(task) if CLOUD_STRUCTURED_OUTPUTS_ENABLED else None
+    table = columns is not None or bool(re.search(r"\btable\b", task, re.IGNORECASE))
+    response_format = _worker_response_format(allowed, table, columns) if CLOUD_STRUCTURED_OUTPUTS_ENABLED else None
+    max_tokens = 1200 if response_format is not None and table else 450
+    generation_options = {}
+    if response_format is not None:
+        generation_options["response_format"] = response_format
+        system = (
+            "You are the Worker in NextStop. Answer the original Task using ONLY its Evidence. "
+            "The Task and human feedback override conflicting plan suggestions. Do not repeat "
+            "instructions or analyse the plan. Never invent facts or recommend excluded records. "
+            "Return one JSON object conforming to the supplied schema. "
+            "In answer, give the actual recommendation or summary in one to three concise "
+            "sentences, keeping any format explicitly requested by the Task. "
+            "Do not repeat the task or describe tools, schemas or the plan. Include requested "
+            "record identifiers and explain the choice using recorded facts. "
+            "Choose the complete reference supporting the answer in citation; it is displayed "
+            "with your answer. Do not invent personal preferences or claim a match to preferences "
+            "that were not supplied. "
+            "Copy requested record names, IDs, dates, opening hours and reasons exactly. "
+            "Use Unknown only for a field absent from its evidence. Examples in the Task "
+            "illustrate citation syntax, not which evidence supports a claim. "
+            "Cite the enclosing evidence item, not an S# source or a row number. "
+            "Use only the permitted references; unavailable evidence cannot support an answer. "
+            "Human feedback, if included, must be applied without inventing facts."
+        )
+        if columns is not None:
+            content_columns = [column for column in columns if column.strip().casefold()
+                               not in worker_tables.CITATION_COLUMNS]
+            system = (
+                "You are the Worker in NextStop. Complete the original Task using ONLY its Evidence. "
+                "Return a JSON rows array according to the schema. Each row has cells in this "
+                f"exact order: {json.dumps(content_columns)}. Do not include the evidence column "
+                "in cells: select that row's enclosing evidence reference in citation. "
+                "The server formats these model-authored cells and citations as the requested "
+                "Markdown table. Use one row per requested record. Copy all requested field values "
+                "and full reasons exactly from the supplied evidence. Do not combine records, "
+                "invent records, omit requested rows, or substitute Unknown for a supplied field. "
+                "The original Task and human feedback override conflicting plan suggestions. "
+                "Do not repeat instructions or explain the plan."
+            )
+        # Repeat the actual permitted choices in the system message. A syntax
+        # example in a task can name an E ID that this plan did not retrieve.
+        system += rules + (
+            " Every further factual sentence also needs one of these references. "
+            "Ignore citation examples naming an ID outside this permitted list."
+        )
+        content += "\n\nOutput JSON Schema:\n" + json.dumps(response_format["json_schema"]["schema"])
     # Async cloud Workers can have a longer budget without extending the
     # Planner, Reviewer or local calls. Both generations share this deadline.
     try:
@@ -216,34 +417,62 @@ def _cloud_worker_response(system, content, evidence):
             raise AgentError("Worker citation validation exceeded its generation deadline.")
         return seconds
 
-    raw, model = ask_ai_mode(system, content, max_tokens=450, timeout=remaining())
+    raw, model = ask_ai_mode(system, content, max_tokens=max_tokens, timeout=remaining(), **generation_options)
     remaining()
-    if not isinstance(raw, str):
+    if not isinstance(raw, str) and response_format is None:
         raise AgentError("AI-Mode returned a non-text Worker response.")
-    issues = _worker_citation_issues(raw, evidence)
+    answer, issues = _decode_worker_answer(raw, response_format, columns)
+    issues += _worker_citation_issues(answer, evidence)
     if not issues:
-        return raw, model
+        return answer, model
 
     repair_content = (
         content + "\n\nAutomatic citation validation (not human feedback) rejected your previous response:\n"
-        + raw + "\n\nProblems:\n- " + "\n- ".join(issues)
+        + str(raw) + "\n\nProblems:\n- " + "\n- ".join(issues)
         + f"\n\nPermitted citations: {allowed_text}.\n"
         "Regenerate the complete answer from the original task, plan, evidence and human "
         "feedback above. Correct the citation problems using that evidence. Do not invent "
         "facts, evidence IDs or source mappings. Return only the complete corrected answer."
     )
     # Transport failures propagate immediately; they are not citation retries.
-    repaired, model = ask_ai_mode(system, repair_content, max_tokens=450, timeout=remaining())
+    repaired, model = ask_ai_mode(system, repair_content, max_tokens=max_tokens, timeout=remaining(), **generation_options)
     remaining()
     if not isinstance(repaired, str):
         raise AgentError("AI-Mode returned a non-text Worker repair.")
-    issues = _worker_citation_issues(repaired, evidence)
+    answer, issues = _decode_worker_answer(repaired, response_format, columns)
+    issues += _worker_citation_issues(answer, evidence)
     if issues:
         raise AgentError("Worker citation validation failed after one repair: " + " ".join(issues))
-    return repaired, model
+    return answer, model
 
 
 # --- Reviewer ---------------------------------------------------------------
+
+def _reviewer_schema(criteria):
+    if not isinstance(criteria, list) or not 1 <= len(criteria) <= 4 or any(
+            not isinstance(criterion, str) or not criterion.strip() for criterion in criteria):
+        raise AgentError("Reviewer structured generation needs 1-4 original acceptance criteria.")
+    criterion_fields = {
+        f"C{number}": {
+            "type": "object", "properties": {
+                "criterion": {"type": "string", "enum": [criterion]},
+                "met": {"type": "boolean"},
+                "note": {"type": "string", "maxLength": 100},
+            }, "required": ["criterion", "met", "note"], "additionalProperties": False,
+        } for number, criterion in enumerate(criteria, start=1)
+    }
+    return {
+        "type": "object",
+        "properties": {
+            "verdict": {"type": "string", "enum": ["pass", "concerns", "fail"]},
+            "criteria": {"type": "object", "properties": criterion_fields,
+                         "required": list(criterion_fields), "additionalProperties": False},
+            "risks": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 140},
+                      "minItems": 0, "maxItems": 6},
+            "recommendations": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 140},
+                                "minItems": 0, "maxItems": 6},
+        }, "required": ["verdict", "criteria", "risks", "recommendations"], "additionalProperties": False,
+    }
 
 def deterministic_checks(response, evidence):
     """Checks that do not depend on the model's judgement of itself."""
@@ -281,6 +510,17 @@ def review(task, plan_, evidence, worker):
         f"Worker response:\n{worker['response']}"
     )
     options = {"max_tokens": 500}
+    system = load_prompt("reviewer_prompt.txt")
+    structured = CLOUD_CITATION_VALIDATION and CLOUD_STRUCTURED_OUTPUTS_ENABLED
+    if structured:
+        schema = _reviewer_schema(plan_["acceptance_criteria"])
+        options.update(max_tokens=1200, response_format=_structured_format("grounded_reviewer", schema))
+        system += (
+            "\n\nReturn only one complete JSON review matching the supplied schema. Evaluate every "
+            "original acceptance criterion in its assigned C# field exactly once. Keep notes, risks and recommendations concise. "
+            "Give your actual verdict; do not change concerns or fail to pass."
+        )
+        content += "\n\nOutput JSON Schema:\n" + json.dumps(schema)
     # Only an explicitly configured cloud Reviewer extends its model wait.
     # Local calls keep the original timeout and the legacy function signature.
     reviewer_timeout = os.getenv("CLOUD_REVIEWER_TIMEOUT_SECONDS") if CLOUD_CITATION_VALIDATION else None
@@ -292,8 +532,13 @@ def review(task, plan_, evidence, worker):
         if timeout <= 0:
             raise AgentError("CLOUD_REVIEWER_TIMEOUT_SECONDS must be a positive integer.")
         options["timeout"] = timeout
-    raw, model = ask_ai_mode(load_prompt("reviewer_prompt.txt"), content, **options)
-    parsed = extract_json(raw)
+    raw, model = ask_ai_mode(system, content, **options)
+    parsed = _structured_reply(raw, schema, "Reviewer") if structured else extract_json(raw)
+    if structured:
+        # Only reshape the model's checked fields; every criterion, met value
+        # and note remains the original model output, in the plan's order.
+        parsed = {**parsed, "criteria": [parsed["criteria"][key]
+                                         for key in schema["properties"]["criteria"]["required"]]}
     checks = deterministic_checks(worker["response"], evidence)
 
     if parsed and parsed.get("verdict") in ("pass", "concerns", "fail"):

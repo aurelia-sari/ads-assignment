@@ -14,6 +14,7 @@ Run it with:  ./scripts/ai_services.sh up
 """
 
 import os
+import re
 from pathlib import Path
 
 from flask import Flask, jsonify, request
@@ -55,14 +56,48 @@ def load_prompt(relative_path):
     return (PROMPT_DIR / relative_path).read_text(encoding="utf-8").strip()
 
 
-def create_chat_completion(messages, max_tokens=300, temperature=0.2, model=None):
-    response = client.chat.completions.create(
-        model=model or OLLAMA_MODEL,
-        messages=messages,
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
+def create_chat_completion(messages, max_tokens=300, temperature=0.2, model=None,
+                           response_format=None):
+    options = {
+        "model": model or OLLAMA_MODEL,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    if response_format is not None:
+        options.update(response_format=response_format, temperature=0)
+    response = client.chat.completions.create(**options)
+    if response_format is not None:
+        if not response.choices:
+            raise ValueError("Structured generation returned no completion.")
+        choice = response.choices[0]
+        if choice.finish_reason != "stop":
+            raise ValueError(
+                "Structured generation did not complete "
+                f"(finish_reason={choice.finish_reason})."
+            )
+        if getattr(choice.message, "refusal", None):
+            raise ValueError("Structured generation was refused by the model.")
+        if not isinstance(choice.message.content, str) or not choice.message.content.strip():
+            raise ValueError("Structured generation returned no text.")
     return response.choices[0].message.content.strip()
+
+
+def _validate_response_format(value):
+    """Check the optional transport envelope before sending it to Ollama."""
+    if not isinstance(value, dict) or value.get("type") != "json_schema":
+        raise ValueError("response_format must have type json_schema.")
+    definition = value.get("json_schema")
+    if not isinstance(definition, dict):
+        raise ValueError("response_format.json_schema must be an object.")
+    name = definition.get("name")
+    if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
+        raise ValueError("response_format.json_schema.name must be 1-64 letters, digits, underscores or hyphens.")
+    schema = definition.get("schema")
+    if not isinstance(schema, dict) or not schema:
+        raise ValueError("response_format.json_schema.schema must be a nonempty object.")
+    if "strict" in definition and type(definition["strict"]) is not bool:
+        raise ValueError("response_format.json_schema.strict must be a boolean.")
 
 
 @app.get("/health")
@@ -144,6 +179,14 @@ def recommend():
     if not system:
         return jsonify({"error": "system is required"}), 400
 
+    completion_options = {"max_tokens": max_tokens}
+    if "response_format" in payload:
+        try:
+            _validate_response_format(payload["response_format"])
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        completion_options["response_format"] = payload["response_format"]
+
     user_content = ""
 
     if context:
@@ -157,7 +200,7 @@ def recommend():
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_content},
             ],
-            max_tokens=max_tokens,
+            **completion_options,
         )
 
         return jsonify({
