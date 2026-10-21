@@ -90,7 +90,7 @@ class Fragment(HTMLParser):
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         node = {"tag": tag, "attrs": attrs, "class": set(attrs.get("class", "").split()),
-                "text": "", "own": ""}
+                "text": "", "own": "", "parent": self.stack[-1] if self.stack else None}
         self.nodes.append(node)
         if tag not in ("br", "hr", "img", "input", "meta", "link"):
             self.stack.append(node)
@@ -111,6 +111,20 @@ class Fragment(HTMLParser):
         return [node["own" if direct else "text"].strip() for node in self.nodes
                 if (tag is None or node["tag"] == tag)
                 and set(classes) <= node["class"]]
+
+    def select(self, tag=None, classes=(), within=None):
+        def descendant(node):
+            parent = node["parent"]
+            while parent is not None:
+                if parent is within:
+                    return True
+                parent = parent["parent"]
+            return False
+
+        return [node for node in self.nodes
+                if (tag is None or node["tag"] == tag)
+                and set(classes) <= node["class"]
+                and (within is None or descendant(node))]
 
 
 def fragment(response):
@@ -325,6 +339,12 @@ class CloudChecks:
             workflow_id = ids[0] if ids else None
             ok(response, (200, 201, 202))
             require(workflow_id, "Application did not return a workflow ID")
+            # The original HTML views do not include a feature field. Check
+            # ownership in the saved JSON, while completion still has to pass
+            # through this feature's application GET below.
+            accepted = body(self.call("GET", self.agents, f"/workflows/{workflow_id}"))
+            require(self.owns_workflow(accepted, student),
+                    "Accepted workflow does not belong to this validation run and feature")
             self.wait_for_workflow(response, student, path, workflow_id, deadline)
             workflow = body(self.call("GET", self.agents, f"/workflows/{workflow_id}"))
             require(self.owns_workflow(workflow, student), "Workflow does not belong to this validation run")
@@ -363,15 +383,47 @@ class CloudChecks:
             status = workflow.get("status")
         else:
             parsed = fragment(Response(200, response.text))
-            cards = [node for node in parsed.nodes
-                     if node["attrs"].get("data-workflow-id") == workflow_id]
-            require(len(cards) == 1, "Application did not render the requested workflow")
+            cards = (parsed.select("article", classes=("agent-run",)) if student == 1
+                     else parsed.select("div", classes=("card", "agent-card")))
+            require(len(cards) == 1, "Application did not render one workflow card")
             card = cards[0]
-            require(card["attrs"].get("data-workflow-feature") == f"student-{student}",
-                    "Application returned another feature")
-            require(f"Validation reference {self.marker}." in card["text"],
+            if student == 1:
+                headers = parsed.select("header", classes=("agent-run__head",), within=card)
+                require(len(headers) == 1, "Application omitted the workflow header")
+                header = headers[0]
+                tasks = parsed.select("strong", within=header)
+                require(len(tasks) == 1, "Application omitted the workflow task")
+                task = tasks[0]["text"]
+            else:
+                require(card["attrs"].get("id") == workflow_id,
+                        "Application returned another workflow ID")
+                paragraphs = [node for node in parsed.select("p", within=card)
+                              if node["parent"] is card]
+                require(bool(paragraphs), "Application omitted the workflow header")
+                header = paragraphs[0]
+                tasks = [node for node in paragraphs if "muted" in node["class"]
+                         and node["text"].startswith("Task: ")]
+                require(len(tasks) == 1, "Application omitted the workflow task")
+                task = tasks[0]["text"][len("Task: "):]
+            ids = parsed.select("code", within=header)
+            require(len(ids) == 1 and ids[0]["text"].strip() == workflow_id,
+                    "Application returned another workflow ID")
+            require(f"Validation reference {self.marker}." in task,
                     "Application returned another validation run")
-            status = card["attrs"].get("data-workflow-status")
+            pills = parsed.select("span", classes=("pill",), within=header)
+            require(len(pills) == 1, "Application omitted one workflow status")
+            pill = pills[0]
+            label = pill["text"].strip()
+            if student == 1:
+                labels = {state.replace("_", " "): state for state in
+                          PENDING_WORKFLOW_STATUSES | {"approved", "partially_accepted", "rejected", "failed"}}
+                labels["awaiting your review"] = "awaiting_human_review"
+                status = labels.get(label)
+            else:
+                classes = [css[5:] for css in pill["class"] if css.startswith("pill-")]
+                require(len(classes) == 1 and classes[0] == label,
+                        "Application rendered an inconsistent workflow status")
+                status = classes[0]
         require(status in PENDING_WORKFLOW_STATUSES | {"awaiting_human_review", "rejected"},
                 f"Application workflow is failed or unexpected: {status}")
         return status

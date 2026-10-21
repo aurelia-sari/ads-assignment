@@ -106,10 +106,17 @@ class AsyncTransport(FakeTransport):
             snapshot["attempts"] = []
         if self.student == 2:
             return response(snapshot, status)
+        wid, state, task = (html.escape(snapshot[key], quote=True) for key in ("id", "status", "task"))
+        if self.student == 1:
+            label = "awaiting your review" if state == "awaiting_human_review" else state.replace("_", " ")
+            return response(
+                '<article class="agent-run"><header class="agent-run__head">'
+                f'<div><strong>{task}</strong><p class="muted"><code>{wid}</code> &middot; round 1</p></div>'
+                f'<span class="pill pill-planned">{label}</span></header></article>', status)
         return response(
-            '<article data-workflow-id="{}" data-workflow-status="{}" data-workflow-feature="{}">'
-            '{}</article>'.format(*(html.escape(snapshot[key], quote=True)
-                                    for key in ("id", "status", "feature", "task"))), status)
+            f'<div class="card agent-card" id="{wid}"><p><strong>Workflow</strong> <code>{wid}</code> '
+            f'<span class="pill pill-{state}">{state}</span> <span class="muted">round 1</span></p>'
+            f'<p class="muted">Task: {task}</p></div>', status)
 
     def request(self, method, url, **kwargs):
         if method == "POST" and url == self.app_base + self.path:
@@ -205,13 +212,61 @@ class AsyncCloudVerifierTests(unittest.TestCase):
                     original = transport.request
                     def request(method, url, **kwargs):
                         if method == "GET" and url.startswith(transport.app_base):
-                            transport.read_patch = patch_
+                            if "feature" in patch_:
+                                # Original HTML has no feature field, so the
+                                # shared JSON ownership check must catch it.
+                                transport.run.update(patch_)
+                            else:
+                                transport.read_patch = patch_
                         return original(method, url, **kwargs)
                     transport.request = request
                     verifier, _ = self.configured(transport)
                     with self.assertRaises(CheckFailed):
                         verifier.b4(student)
                     self.assertFalse(any(c[1].endswith("/decision") for c in transport.calls))
+
+    def test_initial_shared_ownership_is_checked_before_application_polling(self):
+        for student in (1, 2, 3):
+            for patch_ in ({"feature": "student-5"},
+                           {"task": "Validation reference someone-else."}):
+                with self.subTest(student=student, patch=patch_):
+                    transport = AsyncTransport(student)
+                    transport.run.update(patch_)
+                    verifier, _ = self.configured(transport)
+                    with self.assertRaisesRegex(CheckFailed, "does not belong"):
+                        verifier.b4(student)
+                    app_reads = [c for c in transport.calls if c[0] == "GET"
+                                 and c[1].startswith(transport.app_base)]
+                    self.assertEqual(app_reads, [])
+                    self.assertFalse(any(c[1].endswith("/decision") for c in transport.calls))
+
+    def test_original_html_requires_header_id_task_and_unambiguous_known_status(self):
+        for student in (1, 3):
+            transport = AsyncTransport(student)
+            verifier, _ = self.configured(transport)
+            source = transport.rendered().text
+            malformed = [source.replace("<code>wf-test-123</code>", "<code>wf-other</code>"),
+                         source.replace("Validation reference test-run.", "Validation reference another-run."),
+                         source.replace("queued", "unexpected-status")]
+            # Duplicate status inside the header must fail; another pill in a
+            # later evidence or reviewer block must not change the status.
+            duplicated = (source.replace("</header>", "<span class='pill'>queued</span></header>")
+                          if student == 1 else source.replace("</p>", "<span class='pill'>queued</span></p>", 1))
+            malformed.append(duplicated)
+            for text in malformed:
+                with self.subTest(student=student, text=text), self.assertRaises(CheckFailed):
+                    verifier.application_workflow(response(text), student, "wf-test-123")
+
+    def test_later_evidence_and_reviewer_pills_do_not_masquerade_as_workflow_status(self):
+        for student in (1, 3):
+            transport = AsyncTransport(student)
+            verifier, _ = self.configured(transport)
+            source = transport.rendered().text
+            tail = '<section><span class="pill pill-booked">fetched</span><span class="pill">pass</span></section>'
+            close = "</article>" if student == 1 else "</div>"
+            source = source.rsplit(close, 1)[0] + tail + close
+            with self.subTest(student=student):
+                self.assertEqual(verifier.application_workflow(response(source), student, "wf-test-123"), "queued")
 
     def test_app_completion_still_requires_real_model_and_all_three_audit_events(self):
         for fault in ("model", "audit"):
