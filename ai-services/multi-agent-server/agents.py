@@ -200,9 +200,15 @@ def _cloud_worker_response(system, content, evidence):
         "required response format and any human feedback."
     )
     system += rules
-    # Both generations share a single deadline. A CPU cloud must not turn one
-    # failed response into two independent full-length model waits.
-    deadline = time.monotonic() + min(TIMEOUT, 165)
+    # Async cloud Workers can have a longer budget without extending the
+    # Planner, Reviewer or local calls. Both generations share this deadline.
+    try:
+        budget = int(os.getenv("CLOUD_WORKER_TIMEOUT_SECONDS", str(min(TIMEOUT, 165))))
+    except ValueError as exc:
+        raise AgentError("CLOUD_WORKER_TIMEOUT_SECONDS must be a positive integer.") from exc
+    if budget <= 0:
+        raise AgentError("CLOUD_WORKER_TIMEOUT_SECONDS must be a positive integer.")
+    deadline = time.monotonic() + budget
 
     def remaining():
         seconds = deadline - time.monotonic()
