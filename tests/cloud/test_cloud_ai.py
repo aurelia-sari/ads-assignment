@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from check_cloud_ai import (
     CheckFailed, CloudChecks, Response, assignments, body, validate_mcp,
-    main, validate_price_range_fact, validate_rag, validate_workflow,
+    main, validate_numbered_citations, validate_price_range_fact, validate_rag, validate_workflow,
 )
 
 
@@ -350,6 +350,21 @@ class CloudVerifierTests(unittest.TestCase):
             with self.subTest(patch=patch), self.assertRaises(CheckFailed):
                 validate_rag({**valid, **patch}, MODEL)
 
+    def test_grouped_citations_are_valid_only_when_all_numbers_are_retrieved(self):
+        validate_numbered_citations("Plan one activity per day [1, 2].", {1, 2})
+        validate_numbered_citations("Plan breaks [1], then allow travel time [2].", {1, 2})
+        for answer in ("No citation supplied.", "A tip [99].", "A tip [1, 99].",
+                       "A tip [1], with extra unsupported detail [99].",
+                       "A tip [1], and a range [1-99]."):
+            with self.subTest(answer=answer), self.assertRaisesRegex(CheckFailed, "allowed=.*cited=.*answer="):
+                validate_numbered_citations(answer, {1, 2})
+
+    def test_worker_citation_error_reports_available_and_actual_ids(self):
+        bad = workflow()
+        bad["attempts"][0]["worker"]["response"] = "Invented detail [E99]."
+        with self.assertRaisesRegex(CheckFailed, "usable=.*E1.*cited=.*E99.*answer="):
+            validate_workflow(bad, 2, MODEL)
+
     def test_price_range_grounding_rejects_wrong_price_and_not_free(self):
         validate_price_range_fact("A price_range value of 0 means that general entry is free. [1]")
         for answer in ("A price_range value of 0 means general entry is A$50. [1]",
@@ -403,7 +418,8 @@ class CloudVerifierTests(unittest.TestCase):
             def request(self, method, url, **kwargs):
                 if url.endswith("/search"):
                     return response({"confidence": "high", "hits": [
-                        {"source": "travel.md", "number": 1}]})
+                        {"source": "travel.md", "number": 1},
+                        {"source": "safety.md", "number": 2}]})
                 return self.app_response
         transport = RagTransport()
         for student in (1, 3):
@@ -417,7 +433,10 @@ class CloudVerifierTests(unittest.TestCase):
                             "<p>%s</p><ol class='citation-list'><li>travel.md</li></ol></div>")
             transport.app_response = response(template % "Plan one activity per day [1].")
             checks(transport).b3(student)
-            for answer in ("", "A plausible answer without citations.", "Something fabricated [99]."):
+            transport.app_response = response(template % "Plan one activity per day [1, 2].")
+            checks(transport).b3(student)
+            for answer in ("", "A plausible answer without citations.", "Something fabricated [99].",
+                           "An otherwise cited answer [1] with an invented source [99]."):
                 transport.app_response = response(template % answer)
                 with self.subTest(student=student, answer=answer), self.assertRaises(CheckFailed):
                     checks(transport).b3(student)

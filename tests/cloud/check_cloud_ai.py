@@ -146,6 +146,24 @@ def validate_mcp(result, student):
     return rows
 
 
+def validate_numbered_citations(answer, numbers, label="RAG answer"):
+    """Accept single or grouped numeric references, rejecting unknown numbers."""
+    cited = set()
+    malformed = []
+    for group in re.findall(r"\[([^\[\]]+)\]", answer):
+        if not re.match(r"\s*\d", group):
+            continue
+        if not re.fullmatch(r"\s*\d+(?:\s*,\s*\d+)*\s*", group):
+            malformed.append(group)
+            continue
+        cited.update(int(value) for value in re.findall(r"\d+", group))
+    excerpt = " ".join(answer.split())[:240]
+    require(numbers and cited and cited <= numbers and not malformed,
+            f"{label} does not reference retrieved citations: "
+            f"allowed={sorted(numbers)}, cited={sorted(cited)}, "
+            f"malformed={malformed}; answer={excerpt!r}")
+
+
 def validate_rag(result, model):
     require(result.get("grounded") is True, "RAG did not produce a grounded answer")
     require(result.get("confidence") in ("low", "medium", "high"), "RAG has insufficient context")
@@ -154,10 +172,10 @@ def validate_rag(result, model):
     require(result.get("model") == model, "RAG did not report the configured live model")
     citations = result.get("citations")
     require(isinstance(citations, list) and citations, "RAG answer has no citations")
-    require(all(c.get("source") and c.get("excerpt") for c in citations),
+    require(all(isinstance(c, dict) and c.get("source") and c.get("excerpt")
+                and type(c.get("number")) is int and c["number"] > 0 for c in citations),
             "RAG citations have no retrieved source/context")
-    require(any(f"[{c.get('number')}]" in result["answer"] for c in citations),
-            "RAG answer does not reference the retrieved citations")
+    validate_numbered_citations(result["answer"], {c["number"] for c in citations})
 
 
 def validate_price_range_fact(answer):
@@ -197,7 +215,10 @@ def validate_workflow(workflow, student, model):
                 for item in criteria), "Reviewer criteria need named checks and boolean evaluations")
     usable = {e["id"] for e in workflow.get("evidence", []) if isinstance(e, dict) and e.get("ok")}
     cited = set(re.findall(r"\[(E\d+)\]", worker["response"]))
-    require(usable and cited and cited <= usable, "Worker answer is not traceable to usable evidence")
+    require(usable and cited and cited <= usable,
+            "Worker answer is not traceable to usable evidence: "
+            f"usable={sorted(usable)}, cited={sorted(cited)}; "
+            f"answer={' '.join(worker['response'].split())[:240]!r}")
 
 
 MCP = {
@@ -309,8 +330,8 @@ class CloudChecks:
                 paragraphs = parsed.texts(tag="p", direct=True)
                 answer = paragraphs[1] if len(paragraphs) > 1 else ""
             require(len(answer.strip()) > 12, "Missing generated RAG answer")
-            require(any(f"[{hit.get('number')}]" in answer for hit in search["hits"]),
-                    "Rendered answer does not reference retrieved citations")
+            validate_numbered_citations(answer, {hit["number"] for hit in search["hits"]},
+                                        "Rendered answer")
         else:
             result = body(response)
             validate_rag(result, self.model)

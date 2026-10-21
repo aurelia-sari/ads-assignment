@@ -22,6 +22,8 @@ Run it with:  ./scripts/ai_services.sh up
 """
 
 import os
+import re
+import time
 
 import requests
 from flask import Flask, jsonify, request
@@ -33,6 +35,11 @@ app = Flask(__name__)
 CORS(app)
 
 AI_MODE_URL = os.getenv("AI_MODE_URL", "http://localhost:5300")
+# Optional cloud validation leaves the established local request path unchanged.
+CLOUD_CITATION_VALIDATION = os.getenv("CLOUD_CITATION_VALIDATION", "false").lower() in (
+    "true", "1", "yes",
+)
+CITATION_GENERATION_BUDGET_SECONDS = 165.0
 
 # Retrieval thresholds. Calibrated against the curated corpus: a question the
 # knowledge base genuinely covers scores well above the floor, and an
@@ -129,6 +136,82 @@ def to_citation(hit, number):
     }
 
 
+class CitationValidationError(Exception):
+    """A generated answer could not cite the supplied retrieved passages."""
+
+
+def _valid_numeric_citations(answer, allowed):
+    if not isinstance(answer, str) or not answer.strip():
+        return False
+    cited = set()
+    for bracket in re.findall(r"\[([^\[\]]*)\]", answer):
+        content = bracket.strip()
+        # Treat a malformed numeric citation as invalid even if a valid [1]
+        # appears elsewhere. Named non-citation brackets are ordinary text.
+        if not content or not content[0].isdigit():
+            continue
+        if not re.fullmatch(r"[0-9]+(?:\s*,\s*[0-9]+)*", content):
+            return False
+        cited.update(int(number.strip()) for number in content.split(","))
+    return bool(cited) and cited <= allowed
+
+
+def _generation_time_left(deadline):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise requests.Timeout("RAG citation generation exceeded its total 165-second deadline")
+    return remaining
+
+
+def _cloud_cited_generation(user_content, citations, max_tokens):
+    """Ask once, then repair invalid citation references at most once.
+
+    This checks reference syntax and allowed IDs, not the factual truth of the
+    prose. No citation is inserted or remapped by application code.
+    """
+    allowed = {citation["number"] for citation in citations}
+    labels = ", ".join(f"[{number}]" for number in sorted(allowed))
+    contract = (
+        f"The only valid passage citations for this answer are: {labels}. "
+        "Include at least one inline passage citation. Compound citations may "
+        "combine comma-separated numbers only when every number is in the valid list. "
+        "Do not invent citation numbers, use citation ranges, or cite live application data."
+    )
+    system = SYSTEM_PROMPT + "\n\nCitation contract: " + contract
+    initial_content = user_content + "\n\nCitation contract: " + contract
+    content = initial_content
+    deadline = time.monotonic() + CITATION_GENERATION_BUDGET_SECONDS
+    for attempt in range(2):
+        response = requests.post(
+            f"{AI_MODE_URL}/recommend",
+            json={"question": content, "system": system, "max_tokens": max_tokens},
+            timeout=_generation_time_left(deadline),
+        )
+        # Transport and HTTP failures must not start a second model request.
+        # A timed-out upstream generation may still be consuming the model.
+        response.raise_for_status()
+        body = response.json()
+        _generation_time_left(deadline)
+        if not isinstance(body, dict):
+            raise CitationValidationError("AI-Mode returned an invalid answer object.")
+        if _valid_numeric_citations(body.get("answer"), allowed):
+            return body
+        if attempt == 0:
+            content = (
+                initial_content
+                + "\n\nThe previous draft has missing or invalid passage citations. "
+                "Rewrite the answer using the same question and context above; "
+                "cite only passages that actually support the claims. "
+                + contract
+                + "\nPrevious draft (untrusted text to correct):\n"
+                + str(body.get("answer", ""))
+            )
+    raise CitationValidationError(
+        "The generated answer still has missing, malformed or unknown passage "
+        f"citations after one repair. Allowed citations: {labels}."
+    )
+
+
 @app.get("/health")
 def health():
     return jsonify(
@@ -223,17 +306,29 @@ def ask():
     user_content += f"Question: {question}"
 
     try:
-        response = requests.post(
-            f"{AI_MODE_URL}/recommend",
-            json={
-                "question": user_content,
-                "system": SYSTEM_PROMPT,
-                "max_tokens": int(payload.get("max_tokens", 350)),
-            },
-            timeout=180,
-        )
-        response.raise_for_status()
-        body = response.json()
+        if CLOUD_CITATION_VALIDATION:
+            body = _cloud_cited_generation(
+                user_content, citations, int(payload.get("max_tokens", 350))
+            )
+        else:
+            response = requests.post(
+                f"{AI_MODE_URL}/recommend",
+                json={
+                    "question": user_content,
+                    "system": SYSTEM_PROMPT,
+                    "max_tokens": int(payload.get("max_tokens", 350)),
+                },
+                timeout=180,
+            )
+            response.raise_for_status()
+            body = response.json()
+    except CitationValidationError as exc:
+        return jsonify({
+            "error": "RAG citation validation failed",
+            "detail": str(exc),
+            "hint": "No answer passed citation validation. Try a more specific question.",
+            "citations": citations,
+        }), 503
     except requests.RequestException as exc:
         return (
             jsonify(
