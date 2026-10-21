@@ -42,7 +42,48 @@ jobs:
       - name: Install the student-3 API dependencies and pytest
         run: pip install -r student-3/api/requirements.txt pytest
 
-      - name: Post-commit endpoint tests (student-3 API)
+      # Release 2, criterion 4: post-commit tests for two endpoint functions
+      # of the student-3 backend/API service: browse_trips (GET /trips) and
+      # multi_agent_start (POST /ai/multi-agent). The shared AI services are
+      # stubbed or disabled, so these run on a plain CI runner.
+      - name: Post-commit endpoint tests - GET /trips and POST /ai/multi-agent
+        env:
+          MULTI_AGENT_ENABLED: 'false'
+        run: >-
+          python -m pytest -v
+          student-3/tests/test_multi_agent_api.py
+          -k "test_browse_trips_returns_trip_cards or test_multi_agent_start_reports_switched_off"
+          --junitxml=reports/student-3-endpoint-tests.xml
+
+      - name: Publish the endpoint test report
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          path = Path("reports/student-3-endpoint-tests.xml")
+          if not path.exists():
+              print("## student-3 endpoint tests\n\nNo report: the tests did not run.")
+              raise SystemExit
+          suite = ET.parse(path).getroot().find("testsuite")
+          print("## student-3 endpoint tests (GET /trips, POST /ai/multi-agent)\n")
+          print(f"{suite.get('tests')} tests, {suite.get('failures')} failures, "
+                f"{suite.get('errors')} errors, {float(suite.get('time')):.2f}s\n")
+          print("| Test | Result |\n|---|---|")
+          for case in suite.iter("testcase"):
+              failed = case.find("failure") is not None or case.find("error") is not None
+              print(f"| `{case.get('name')}` | {'FAIL' if failed else 'pass'} |")
+          PY
+
+      - name: Upload the endpoint test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-3-endpoint-tests
+          path: reports/student-3-endpoint-tests.xml
+          if-no-files-found: ignore
+
+      - name: Full student-3 test suite
         env:
           MULTI_AGENT_ENABLED: 'false'
         run: python -m pytest student-3/tests -v
