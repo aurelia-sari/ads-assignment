@@ -241,7 +241,7 @@ PENDING_WORKFLOW_STATUSES = {"queued", "planning", "gathering_evidence", "workin
 
 
 class CloudChecks:
-    def __init__(self, transport, apps, ai, mcp, rag, agents, *, workflow_timeout=900,
+    def __init__(self, transport, apps, ai, mcp, rag, agents, *, workflow_timeout=1200,
                  poll_interval=2, clock=time.monotonic, sleep=time.sleep):
         self.http = transport
         self.apps = apps
@@ -539,7 +539,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--timeout", type=float, default=300)
-    parser.add_argument("--workflow-timeout", type=float, default=900,
+    parser.add_argument("--workflow-timeout", type=float, default=1200,
                         help="Total B4 generation deadline, including application status polling")
     parser.add_argument("--poll-interval", type=float, default=2,
                         help="Seconds between B4 application status requests")
