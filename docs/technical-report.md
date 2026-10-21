@@ -181,7 +181,7 @@ seeded from the Australian cities used as flight and hotel destinations in stude
 |---------|-------|--------|-----|----------|
 | Release 0 | Microservices, AI-Mode, agentic loop, DevOps | 20% | 6 September 2026 | Week 6 |
 | Release 1 | MCP, RAG, grounded AI responses | 30% | 27 September 2026 | Week 9 |
-| Release 2 | Multi-Agent System, testing, cloud deployment | 30% | 18 October 2026 | Week 12 |
+| Release 2 | Multi-Agent System, testing, cloud deployment | 30% | 25 October 2026 | Week 12 |
 
 Each release extends the previous one; nothing is rebuilt.
 
@@ -201,8 +201,8 @@ Each release extends the previous one; nothing is rebuilt.
 
 Multi-Agent System with Planner, Worker and Reviewer agents; pre-commit `pytest`
 and post-commit AI-assisted unit testing in every workflow; `cloud-deployment.yml`;
-and deployment to Azure or AWS with AI-Mode enabled and MCP, RAG and Multi-Agent
-disabled.
+and deployment to Azure or AWS with AI-Mode, MCP, RAG and Multi-Agent disabled
+by default.
 
 **Critical path.** The team's own dependency, not the specification's: Release 1
 cannot start cleanly until students 3, 4 and 5 replace their scaffolds, because
