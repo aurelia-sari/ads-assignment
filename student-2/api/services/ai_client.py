@@ -6,6 +6,8 @@ AI_MODE_URL = os.getenv(
     "AI_MODE_URL",
     "http://ai-mode:5300"
 )
+# Cloud CPU generation can need longer; local requests keep their 30-second limit.
+AI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30"))
 
 
 def ask_ai(question, system=None, context=None, max_tokens=300):
@@ -23,7 +25,7 @@ def ask_ai(question, system=None, context=None, max_tokens=300):
     response = requests.post(
         f"{AI_MODE_URL}/recommend",
         json=payload,
-        timeout=30,
+        timeout=AI_REQUEST_TIMEOUT_SECONDS,
     )
 
     response.raise_for_status()

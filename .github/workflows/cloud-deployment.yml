@@ -6,9 +6,27 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      enable_cloud_ai:
+        description: Enable the shared AI-Mode, MCP, RAG and Multi-Agent services
+        type: boolean
+        required: true
+        default: false
+      ollama_model:
+        description: Ollama model used by the shared cloud AI service
+        type: string
+        required: true
+        default: llama3.2:latest
+  pull_request:
+    paths:
+      - 'deploy/azure/**'
+      - 'ai-services/**'
+      - 'tests/cloud/**'
+      - 'docker-compose.cloud.yml'
+      - '.github/workflows/cloud-deployment.yml'
 
 concurrency:
-  group: cloud-deployment
+  group: cloud-deployment-${{ github.event_name == 'pull_request' && github.ref || 'vm' }}
   cancel-in-progress: false
 
 permissions:
@@ -16,11 +34,41 @@ permissions:
   actions: read
 
 jobs:
-  deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+  validate:
     runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install cloud test dependencies
+        run: python -m pip install -r ai-services/multi-agent-server/requirements.txt pytest==9.1.1
+      - name: Check deployment shell scripts
+        run: shellcheck deploy/azure/deploy.sh deploy/azure/deploy_remote.sh deploy/azure/configure_ai.sh deploy/azure/run_ai_service.sh deploy/azure/smoke_cloud.sh
+      - name: Test cloud configuration and failure handling without a VM
+        run: python -B -m unittest discover -s tests/cloud -p 'test_*.py' -v
+      - name: Test shared Multi-Agent execution and recovery
+        run: python -B -m pytest -q -p no:cacheprovider ai-services/multi-agent-server/tests
+      - name: Test shared RAG citation handling
+        run: python -B -m pytest -q -p no:cacheprovider ai-services/rag-server/tests
+      - name: Validate cloud Compose with shared AI off and on
+        run: |
+          for enabled in false true; do
+            AI_MODE_ENABLED=$enabled MCP_ENABLED=$enabled RAG_ENABLED=$enabled MULTI_AGENT_ENABLED=$enabled \
+            docker compose -f docker-compose.yml -f docker-compose.cloud.yml config --quiet
+          done
+
+  deploy:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     env:
       VM_HOST: ${{ secrets.VM_HOST }}
+      ENABLE_CLOUD_AI: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_cloud_ai && 'true' || 'false' }}
+      CLOUD_OLLAMA_MODEL: ${{ inputs.ollama_model || 'llama3.2:latest' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,23 +81,30 @@ jobs:
           EVENT: ${{ github.event_name }}
           SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            echo "Manual run, skipping gate."
-            echo "ok=true" >> "$GITHUB_OUTPUT"; exit 0
+          if [ "$EVENT" = workflow_dispatch ]; then
+            echo 'Manual run, skipping gate.'
+            echo 'ok=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          current_main=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')
+          if [ "$SHA" != "$current_main" ]; then
+            echo 'A newer main commit exists; skipping this queued deployment.'
+            echo 'ok=false' >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           for n in 1 2 3 4 5; do
             c=$(gh run list --workflow "student-$n.yml" --commit "$SHA" --limit 1 \
-                  --json conclusion --jq '.[0].conclusion // "none"')
+                  --json status,conclusion --jq 'if length == 0 then "none" elif .[0].status != "completed" then "pending" else .[0].conclusion end')
             echo "student-$n.yml -> $c"
             case "$c" in
               success|none) ;;
-              "") echo "student-$n is still running; a later run will deploy."
-                  echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
-              *)  echo "student-$n did not succeed ($c); not deploying."
-                  echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+              pending) echo "student-$n is still running; a later run will deploy."
+                       echo 'ok=false' >> "$GITHUB_OUTPUT"; exit 0 ;;
+              *) echo "student-$n did not succeed ($c); not deploying."
+                 echo 'ok=false' >> "$GITHUB_OUTPUT"; exit 0 ;;
             esac
           done
-          echo "ok=true" >> "$GITHUB_OUTPUT"
+          echo 'ok=true' >> "$GITHUB_OUTPUT"
 
       - name: Install SSH key
         if: steps.gate.outputs.ok == 'true'
@@ -60,7 +115,24 @@ jobs:
           printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/nextstop_deploy
           chmod 600 ~/.ssh/nextstop_deploy
 
-      - name: Deploy to Azure VM
+      - name: Retain cloud AI selection for automatic deployments
+        if: steps.gate.outputs.ok == 'true' && github.event_name == 'workflow_run'
+        run: |
+          selection=$(ssh -i ~/.ssh/nextstop_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+            "azureuser@$VM_HOST" 'selection="$HOME/.local/share/nextstop/cloud-ai-selection"; if [ -f "$selection" ]; then cat "$selection"; else printf "false\nllama3.2:latest\n"; fi')
+          IFS= read -r enabled <<< "$selection"
+          model=$(printf '%s\n' "$selection" | sed -n '2p')
+          line_count=$(printf '%s\n' "$selection" | wc -l | tr -d ' ')
+          if [ "$line_count" != 2 ]; then
+            echo 'Stored cloud AI selection must contain exactly two lines.' >&2
+            exit 1
+          fi
+          case "$enabled" in true|false) ;; *) echo 'Invalid stored cloud AI selection.' >&2; exit 1 ;; esac
+          [[ "$model" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]] || { echo 'Invalid stored cloud model.' >&2; exit 1; }
+          printf 'ENABLE_CLOUD_AI=%s\nCLOUD_OLLAMA_MODEL=%s\n' "$enabled" "$model" >> "$GITHUB_ENV"
+          echo "Retaining shared cloud AI enabled=$enabled."
+
+      - name: Deploy application and selected shared AI runtime to Azure VM
         if: steps.gate.outputs.ok == 'true'
         run: bash deploy/azure/deploy.sh
 
@@ -70,4 +142,8 @@ jobs:
 
       - name: Summary
         if: steps.gate.outputs.ok == 'true'
-        run: echo "Deployed to http://$VM_HOST (AI-Mode, MCP, RAG, Multi-Agent disabled)" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Deployed to http://$VM_HOST (shared cloud AI enabled=$ENABLE_CLOUD_AI)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove runner SSH key
+        if: always()
+        run: rm -f ~/.ssh/nextstop_deploy

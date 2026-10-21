@@ -19,6 +19,7 @@ asked to grade its own pipeline says "pass" almost unconditionally.
 import json
 import os
 import re
+import time
 from pathlib import Path
 
 import requests
@@ -27,10 +28,13 @@ import evidence as evidence_module
 
 AI_MODE_URL = os.getenv("AI_MODE_URL", "http://localhost:5300")
 TIMEOUT = int(os.getenv("MULTI_AGENT_LLM_TIMEOUT", "180"))
+CLOUD_CITATION_VALIDATION = os.getenv("CLOUD_CITATION_VALIDATION", "false").lower() in (
+    "true", "1", "yes",
+)
 
 
 class AgentError(Exception):
-    """AI-Mode could not be reached or did not answer."""
+    """AI-Mode failed, or an enabled cloud citation check could not be satisfied."""
 
 
 def _resolve_prompt_dir():
@@ -49,12 +53,12 @@ def load_prompt(name):
     return (PROMPT_DIR / "multi-agent" / name).read_text(encoding="utf-8").strip()
 
 
-def ask_ai_mode(system, content, max_tokens=500):
+def ask_ai_mode(system, content, max_tokens=500, timeout=None):
     try:
         response = requests.post(
             f"{AI_MODE_URL}/recommend",
             json={"system": system, "question": content, "max_tokens": max_tokens},
-            timeout=TIMEOUT,
+            timeout=TIMEOUT if timeout is None else timeout,
         )
         response.raise_for_status()
         body = response.json()
@@ -158,8 +162,79 @@ def work(task, plan_, evidence, feedback=None, previous=None):
         )
     content += "Write the response now."
 
-    raw, model = ask_ai_mode(load_prompt("worker_prompt.txt"), content, max_tokens=450)
+    system = load_prompt("worker_prompt.txt")
+    if CLOUD_CITATION_VALIDATION:
+        raw, model = _cloud_worker_response(system, content, evidence)
+    else:
+        # Keep the original local call contract, including existing test fakes.
+        raw, model = ask_ai_mode(system, content, max_tokens=450)
     return {"model": model, "response": raw.strip(), "applied_feedback": feedback}
+
+
+def _worker_citation_issues(response, evidence):
+    risks = list(deterministic_checks(response, evidence)["risks"])
+    # A response containing one valid reference and one combined reference must
+    # not pass merely because the old single-reference regex found the first.
+    groups = re.findall(r"\[([^\[\]\n]+)\]", response)
+    malformed = [group for group in groups
+                 if (re.search(r"\b[es]\s*\d", group, re.IGNORECASE)
+                     or re.match(r"\s*\d", group))
+                 and not re.fullmatch(r"E\d+", group)]
+    if malformed:
+        risks.append("Citations must each be one exact [E#] reference, not source IDs or combined IDs.")
+    return risks
+
+
+def _cloud_worker_response(system, content, evidence):
+    """Require traceable cloud output, with at most one model-authored repair."""
+    allowed = [item["id"] for item in evidence if item["ok"]]
+    if not allowed:
+        raise AgentError("No usable evidence is available for a grounded Worker response.")
+    allowed_text = ", ".join(f"[{item}]" for item in allowed)
+    rules = (
+        "\n\nCloud citation validation: The ONLY permitted evidence citations are "
+        f"{allowed_text}. Cite the enclosing evidence item's ID, never a row number "
+        f"or an S# source ID. Every citation must use exactly one ID, such as [{allowed[0]}]; "
+        "write separate references for separate items. Include at least one permitted "
+        "citation and never cite an unavailable item. Preserve the task, evidence facts, "
+        "required response format and any human feedback."
+    )
+    system += rules
+    # Both generations share a single deadline. A CPU cloud must not turn one
+    # failed response into two independent full-length model waits.
+    deadline = time.monotonic() + min(TIMEOUT, 165)
+
+    def remaining():
+        seconds = deadline - time.monotonic()
+        if seconds <= 0:
+            raise AgentError("Worker citation validation exceeded its generation deadline.")
+        return seconds
+
+    raw, model = ask_ai_mode(system, content, max_tokens=450, timeout=remaining())
+    remaining()
+    if not isinstance(raw, str):
+        raise AgentError("AI-Mode returned a non-text Worker response.")
+    issues = _worker_citation_issues(raw, evidence)
+    if not issues:
+        return raw, model
+
+    repair_content = (
+        content + "\n\nAutomatic citation validation (not human feedback) rejected your previous response:\n"
+        + raw + "\n\nProblems:\n- " + "\n- ".join(issues)
+        + f"\n\nPermitted citations: {allowed_text}.\n"
+        "Regenerate the complete answer from the original task, plan, evidence and human "
+        "feedback above. Correct the citation problems using that evidence. Do not invent "
+        "facts, evidence IDs or source mappings. Return only the complete corrected answer."
+    )
+    # Transport failures propagate immediately; they are not citation retries.
+    repaired, model = ask_ai_mode(system, repair_content, max_tokens=450, timeout=remaining())
+    remaining()
+    if not isinstance(repaired, str):
+        raise AgentError("AI-Mode returned a non-text Worker repair.")
+    issues = _worker_citation_issues(repaired, evidence)
+    if issues:
+        raise AgentError("Worker citation validation failed after one repair: " + " ".join(issues))
+    return repaired, model
 
 
 # --- Reviewer ---------------------------------------------------------------

@@ -12,6 +12,8 @@ services:
   student-1-api:
     ports: !override ["127.0.0.1:5101:5101"]
   student-2-api:
+    environment:
+      AI_REQUEST_TIMEOUT_SECONDS: "180"
     ports: !override ["127.0.0.1:5102:5102"]
   student-3-api:
     ports: !override ["127.0.0.1:5103:5103"]
