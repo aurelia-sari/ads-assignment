@@ -656,6 +656,219 @@ for place in MULTI_CITY_PLACES:
 PLACES.extend(MULTI_CITY_PLACES)
 
 
+# Wikimedia Commons external image URLs. No bundled files or Docker changes required.
+# The original seed URLs remain migration identifiers; preserve user-edited URLs.
+COMMONS_PLACE_IMAGES = {'Sydney Opera House': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Sydney_Opera_House_-_Dec_2008.jpg/960px-Sydney_Opera_House_-_Dec_2008.jpg',
+ 'Sydney Harbour Bridge': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Sydney_Harbour_Bridge_from_Circular_Quay.jpg/960px-Sydney_Harbour_Bridge_from_Circular_Quay.jpg',
+ 'Taronga Zoo': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Sydney_taronga_zoo.jpg/960px-Sydney_taronga_zoo.jpg',
+ 'Royal Botanic Garden Sydney': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Sydney_%28AU%29%2C_Royal_Botanic_Gardens_--_2019_--_3082.jpg/960px-Sydney_%28AU%29%2C_Royal_Botanic_Gardens_--_2019_--_3082.jpg',
+ 'Bondi Beach': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Bondi_Beach%2C_southwest_view_20230224_2.jpg/960px-Bondi_Beach%2C_southwest_view_20230224_2.jpg',
+ 'The Rocks': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/Sydney_%28AU%29%2C_The_Rocks%2C_George_Street_--_2019_--_3567.jpg/960px-Sydney_%28AU%29%2C_The_Rocks%2C_George_Street_--_2019_--_3567.jpg',
+ 'Manly Beach': 'https://upload.wikimedia.org/wikipedia/commons/d/d8/Manly_beach.jpg',
+ "Harry's Cafe de Wheels": 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Harrys_Cafe_de_Wheels_%286960417355%29.jpg/960px-Harrys_Cafe_de_Wheels_%286960417355%29.jpg',
+ 'Din Tai Fung World Square': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Din_Tai_Fung%2C_Sydney_20090516.jpg/960px-Din_Tai_Fung%2C_Sydney_20090516.jpg',
+ 'Chat Thai Haymarket': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Thawt_Mun_Pla_Thai_redfish_cakes_-_Chat_Thai%2C_Haymarket.jpg/960px-Thawt_Mun_Pla_Thai_redfish_cakes_-_Chat_Thai%2C_Haymarket.jpg',
+ 'Mamak': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Nasi_Lemak%2C_Mamak%2C_Sydney.jpg/960px-Nasi_Lemak%2C_Mamak%2C_Sydney.jpg',
+ 'The Grounds of Alexandria': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Flowers_at_Grounds_.jpg/960px-Flowers_at_Grounds_.jpg',
+ 'Tokyo Skytree': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/20181123_Tokyo_Skytree-2.jpg/960px-20181123_Tokyo_Skytree-2.jpg',
+ 'ICHIRAN Shibuya': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Ichiran_Ramen%2C_Shibuya_store_-_B1F_Iwamoto_Bldg.%2C_1-22-7_Jin%27nan%2C_Shibuya%2C_Tokyo_%282018-04-03_by_Ajay_Suresh%29.jpg/960px-Ichiran_Ramen%2C_Shibuya_store_-_B1F_Iwamoto_Bldg.%2C_1-22-7_Jin%27nan%2C_Shibuya%2C_Tokyo_%282018-04-03_by_Ajay_Suresh%29.jpg',
+ 'teamLab Planets Tokyo': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Teamlab_toyosu.jpg/960px-Teamlab_toyosu.jpg',
+ 'Osaka Castle': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Osaka_Castle%2C_Keep_tower%2C_South_view_20190415_1.jpg/960px-Osaka_Castle%2C_Keep_tower%2C_South_view_20190415_1.jpg',
+ 'Dotonbori Imai Honten': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/%E9%81%93%E9%A0%93%E5%A0%80%E4%BB%8A%E4%BA%95%E3%81%AE%E3%81%8D%E3%81%A4%E3%81%AD%E3%81%86%E3%81%A9%E3%82%93_%283739321692%29.jpg/960px-%E9%81%93%E9%A0%93%E5%A0%80%E4%BB%8A%E4%BA%95%E3%81%AE%E3%81%8D%E3%81%A4%E3%81%AD%E3%81%86%E3%81%A9%E3%82%93_%283739321692%29.jpg',
+ 'Universal Studios Japan': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Universal_Studios_Japan_entrance.jpg/960px-Universal_Studios_Japan_entrance.jpg',
+ 'Sapporo TV Tower': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Sapporo_TV_tower_20230709_01.jpg/960px-Sapporo_TV_tower_20230709_01.jpg',
+ 'Sapporo Beer Garden': 'https://upload.wikimedia.org/wikipedia/commons/9/90/Sapporo_beer_garden.jpg',
+ 'Shiroi Koibito Park': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Shiroi_Koibito_Park_20260703k.jpg/960px-Shiroi_Koibito_Park_20260703k.jpg',
+ 'NGV International': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/National_Gallery_of_Victoria_Australia_Winter_2019.jpg/960px-National_Gallery_of_Victoria_Australia_Winter_2019.jpg',
+ 'Melbourne Skydeck': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/Eureka_Tower%2C_Melbourne_-_Nov_2008.jpg/960px-Eureka_Tower%2C_Melbourne_-_Nov_2008.jpg',
+ 'Gallery of Modern Art': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Queensland_Gallery_of_Modern_Art_at_dusk%2C_Brisbane%2C_2019.jpg/960px-Queensland_Gallery_of_Modern_Art_at_dusk%2C_Brisbane%2C_2019.jpg',
+ 'Eat Street Northshore': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Eat_street_northshore.jpg/960px-Eat_street_northshore.jpg',
+ 'Story Bridge Adventure Climb': 'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Brisbane_Story_Bridge_%28IMG05653%29.jpg/960px-Brisbane_Story_Bridge_%28IMG05653%29.jpg'}
+PREVIOUS_BUNDLED_IMAGE_URLS = {'Sydney Opera House': '/api/student-2/static/place-images/sydney-opera-house.jpg',
+ 'Sydney Harbour Bridge': '/api/student-2/static/place-images/sydney-harbour-bridge.jpg',
+ 'Taronga Zoo': '/api/student-2/static/place-images/taronga-zoo.jpg',
+ 'Royal Botanic Garden Sydney': '/api/student-2/static/place-images/royal-botanic-garden-sydney.jpg',
+ 'Bondi Beach': '/api/student-2/static/place-images/bondi-beach.jpg',
+ 'The Rocks': '/api/student-2/static/place-images/the-rocks.jpg',
+ 'Manly Beach': '/api/student-2/static/place-images/manly-beach.jpg',
+ "Harry's Cafe de Wheels": '/api/student-2/static/place-images/harry-s-cafe-de-wheels.jpg',
+ 'Din Tai Fung World Square': '/api/student-2/static/place-images/din-tai-fung-world-square.jpg',
+ 'Chat Thai Haymarket': '/api/student-2/static/place-images/chat-thai-haymarket.jpg',
+ 'Mamak': '/api/student-2/static/place-images/mamak.jpg',
+ 'The Grounds of Alexandria': '/api/student-2/static/place-images/the-grounds-of-alexandria.jpg',
+ 'Bourke Street Bakery': '/api/student-2/static/place-images/bourke-street-bakery.jpg',
+ 'Gelato Messina Darlinghurst': '/api/student-2/static/place-images/gelato-messina-darlinghurst.jpg',
+ 'Mr Wong': '/api/student-2/static/place-images/mr-wong.jpg',
+ 'Tokyo Skytree': '/api/student-2/static/place-images/tokyo-skytree.jpg',
+ 'ICHIRAN Shibuya': '/api/student-2/static/place-images/ichiran-shibuya.jpg',
+ 'teamLab Planets Tokyo': '/api/student-2/static/place-images/teamlab-planets-tokyo.jpg',
+ 'Osaka Castle': '/api/student-2/static/place-images/osaka-castle.jpg',
+ 'Dotonbori Imai Honten': '/api/student-2/static/place-images/dotonbori-imai-honten.jpg',
+ 'Universal Studios Japan': '/api/student-2/static/place-images/universal-studios-japan.jpg',
+ 'Sapporo TV Tower': '/api/student-2/static/place-images/sapporo-tv-tower.jpg',
+ 'Sapporo Beer Garden': '/api/student-2/static/place-images/sapporo-beer-garden.jpg',
+ 'Shiroi Koibito Park': '/api/student-2/static/place-images/shiroi-koibito-park.jpg',
+ 'NGV International': '/api/student-2/static/place-images/ngv-international.jpg',
+ 'Melbourne Skydeck': '/api/student-2/static/place-images/melbourne-skydeck.jpg',
+ 'Gallery of Modern Art': '/api/student-2/static/place-images/gallery-of-modern-art.jpg',
+ 'Eat Street Northshore': '/api/student-2/static/place-images/eat-street-northshore.jpg',
+ 'Story Bridge Adventure Climb': '/api/student-2/static/place-images/story-bridge-adventure-climb.jpg'}
+LEGACY_PLACE_IMAGE_URLS = {'Sydney Opera House': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWnDJ75Mz0JyGRx-UtUH9Sp9HBf13PogCckXS3R3POPXGJYgdp-3RlLURNEo7mWmuEziU62_9zziKFXUEFM7rdf0glcDnPVU9OAWaBcOhEww5YfO1yefrYOzNQKQfHBcOOX9rjX9=w408-h306-k-no',
+ 'Sydney Harbour Bridge': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWk-hYefwc_wTTUCkH6PwVN5J7UYfj2zsrEqsQrhNMe8G45VnfUT7-i2vUBkpvqj014Xm2uBQlJ6EPAjczUABhXhQ6Orhn-49gT6q649n4SBpoe1EOyp1IkFDJSfUg7JsVZH9Msm=w408-h306-k-no',
+ 'Taronga Zoo': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWneYgtx9Dx9pqjy1KQRKb8nujythQN5ZpCobOJhaFfIhU-YO-nxLJgsNtVfzFpFDtjelZsapJr1bUhFmSYzdJW7gmSSfHARowXrtTBTZUmRW4mtf_dlcwXyfQqjlbU09ikxCyO7x0hH_e_E=w408-h269-k-no',
+ 'Royal Botanic Garden Sydney': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWn_HFOiA1joD_6pWC3zRJHBo2RGJxmkJJjY5yhV-76wPJrMaKXq-kxO0nMur243o2ApA5miayGSd6cWQkKaMXbamnz7vIDwe_k-4ibRHoD-ZS8-wdW16ripiCc08-Vz5uxB3KW10g=w408-h306-k-no',
+ 'Bondi Beach': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWkGIdEDUbT5cy1O7W_VwzmWdfdPFobcUZ7Y4__hz-c0BMySeSVpNJX--97YHUt7-uzTfCFJq3NzewywDH2z9KKBdAUMmqZ5IoLt8FPybRfMjRGPHc2hu5gPhZpXnP9R1rXrDgdQsaJhwaYN=w408-h306-k-no',
+ 'The Rocks': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWkdc83097jjvMKJOtC67ETdYGy7Z685J4vxg_WlxIGfE52q7Sp4ZEhIXWVy-MyHYRULlylqB3nEesfeGoVZFRq9YETFw80AM8bFs9aBGf5fKItqiHILsCHLnulc_xWOVVyd6s04=w408-h306-k-no',
+ 'Manly Beach': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWmTJ_j8hOWSdGeY5a9nqryKziYv2Sqh_d4AQDOPpGGVLgUvhPD4JSYshN04ynaohC6m5wkvBaAXYqZH1zjWD66SZR9V60FJXqs5hBS05XLmydtYyJ055qljevfThrTsJ0hv1hbZ=w433-h240-k-no',
+ "Harry's Cafe de Wheels": 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWnMjSEKGa68k30MEyeYV308mP8OUbpfsc9nxJjbCDjtB3NbKzV2uFZbJqKrfR-mhYmzYORZNyrQMNCcT3oxqBWK5B0_j8jK-trM_lcW22gJRnPnJOVTz2bW84PINVQsI9go9KXL=w408-h271-k-no',
+ 'Din Tai Fung World Square': 'https://cdn.gotoeat.net/dintaifungworldsquarerestaurant/16232-albums-1.jpg',
+ 'Chat Thai Haymarket': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWlHAbZyOcNw0daqEGzuaJXirsb_CUv8J_Je0bbO1Q6pXF8IOgMyaVJFFDKm842M8nThHU17tmltvg7JYFRxptAw4cKC5t_24RXmfyLIUbudVoywWtLFqkw24Lilq-6Ckhbk0Wuoxg=w408-h306-k-no',
+ 'Mamak': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWnxQaM4GboSENWHqnNTKongCLvkGa2TNP_fPoWUDoelsZxAcop5M3EtMQUIK6amhI_Iwha_ENGDhb9baZY06-Kg0OFqOvEFtZTAYzjA6WjAiDmM4ivZ_8Y7fxQf47KhBWS5JAnO=w512-h240-k-no',
+ 'The Grounds of Alexandria': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWlKfO6YDIOBcriDrcHVI4nWDk7t7uZvGttxBcPBwItOEvbM-nchbRoJtGeZERKiCXTHeE_ivW34fhgtq-P_ORLyRZ5MsGrgnVnBwKju8MV09uGltwMKE_0tCCqL3o6-p2vQ-5k=w408-h271-k-no',
+ 'Bourke Street Bakery': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWlwWIGYg9aey-knB_CD0Y42JOCDcbvMCdO_DKA390rD1amLTTh_BXDQI7rNEYtFMya8KVlW-OPVwK_ZoSckcj18I6sKMvmzTtbZckzJwUoY9-NBzK-FHWOmHb8ey2djiY3arwtA=w408-h285-k-no',
+ 'Gelato Messina Darlinghurst': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWnJJHy8R8Gr1bJt3oiKRX83ZwsvCOBjPVy1AUhb4_x8CiSsP8mkUmSU7f8xb4fIe1Dy1SDiD2Hz4A3IGqulMrBvlPaguTzK2vWcoxCgQgUtwRhHlzmplK7M2XqFV6zcp3pKYZc=w426-h240-k-no',
+ 'Mr Wong': 'https://lh3.googleusercontent.com/gps-cs-s/AHRPTWmgvkRwI_3H7riP8_AleCpoURJ1OJrtvpXS8nXbG7Yr_R_NK3DS9ImCUc8-YQ80Si37hTytVf0-7xwXzWjLVWbLQiR0qOQVvkGQHaVWdUs-yfnCkze31TZ9fBtsvoZZfY9EgfXG_A=w408-h256-k-no',
+ 'Tokyo Skytree': 'https://lh3.googleusercontent.com/grass-cs/ACvplmNEb0LF776bC1TBxdJ8JuTFZH66-1GWM0yy8j3zR4sJzr-Js8aaUgTAtN83WmfRcvcm82pbM78dTEuKSq1ov50xsdBPXxHJ7Aak5ms-irM48iBqlGPpyj400YKVXvpcW_ZOl1w1=w408-h725-k-no',
+ 'ICHIRAN Shibuya': 'https://lh3.googleusercontent.com/grass-cs/ACvplmOORjiqUZ-bUNClDtHLwwafex_LN2ueQPMuvjigkS1Fphyp7AMrdS2C96gyz2rI8_4W3WgYyHJoDBkodVxpiek6x8fuNwrybmydyjJoIJKuk5NerX85TCcyfY2JVCZAnFUI3Q_F=w408-h306-k-no',
+ 'teamLab Planets Tokyo': 'https://lh3.googleusercontent.com/grass-cs/ACvplmM-f9eDBLgPG6RUMMgawoBiZrtBuX4VMNy87JM54XcN7aNYBqUSgiMXHKloSFSLfOsgrMNdQAMskKkwWA6wPzABGkJVpEqCW4Dlh-Rc74IT6FYLbfYqVI_oJscMpnBFeysFkotEkA=w408-h272-k-no',
+ 'Osaka Castle': 'https://lh3.googleusercontent.com/grass-cs/AABkmLdinCddjsSnYM78xAQMprxWVcXwG6MikUVRVtaActzbnGnuvh0TY3uNkJ8imHsX35cMhr8aaPkJdpPCbxJoTKcPv9GivCcSIYe7hrhZsB7rHKL4ngx0IW6ODXX9KohCzdy6T8TdnDROOjNh=w408-h306-k-no',
+ 'Dotonbori Imai Honten': 'https://lh3.googleusercontent.com/grass-cs/AABkmLcw4U5fYbGFf7BE7qsn3RgWxLNwgFhxztjIVESUUEcoB0uQ-eHXJjB5f5xOFMOp-Wz8zvbdWX0YxOy7qun6mmMGRJ-0Gd-_ReaYY0ybmKUIpgFdoVj9grM1l5I36EOEXJ8VZdFfTnH8cH8=w408-h306-k-no',
+ 'Universal Studios Japan': 'https://lh3.googleusercontent.com/grass-cs/ACvplmNCG4_WFeKehM3I9i0ynZ80txpohUHd_Pe6G14DU6UDNvRzapGAfnYsWLyhMHckpW_sZztZOC48TeoSPt1vFEKn10tqXQDd4OVFNws8SCHwzHB4AcB6y27lS73NtYyds9-0maaG=w408-h306-k-no',
+ 'Sapporo TV Tower': 'https://lh3.googleusercontent.com/grass-cs/AABkmLduMVPeX_jlGnmErXqSADMe3rU0y1xNVjaAr16xAoIITTSqfe47GI-zmi6Ri4uNG7-5fgtaIrtO6rc-4t6BKJtMTfeB18EuwrbWtXeyEZiy2e4efuBre8UJWKomIZFLpx_79xg=w408-h544-k-no',
+ 'Sapporo Beer Garden': 'https://lh3.googleusercontent.com/grass-cs/AABkmLfU-vs2WAKo72F0uOrBCpzgRiHYJdoe6mlRU185whHZdmEcLg3twNM56R-91qAu-bKe61xps7BgXp6c_fPEqKpTKqhYCswKJwexoFAcECgqrOSFvMwPv-gDx_sfbo6Q-TPEMvJon53N_Z0U=w408-h306-k-no',
+ 'Shiroi Koibito Park': 'https://lh3.googleusercontent.com/grass-cs/ACvplmNYayoyrGSelnfiqiyglGLxaajqdBTaEtCBjfLXOhjeagA99fON9iPKOIy8PccY5K-UvMS1Y5-LqoN6KV34VTGexbr5Bvoh9oCRcTt_dmzungkOlrb_R4fzOIlM-CSH3KMhuO7CGg=w408-h271-k-no',
+ 'NGV International': 'https://lh3.googleusercontent.com/grass-cs/AABkmLeljab6GOQ0m6udsAADIginTdNiIQXjz6RFaJBKyfkmLfdK7ILsQ88nHQiD6zytRS5Rca8WvWZs9-D07NjHXowEaI2_kCnip1VT-7oUcQkYwKyM-2G76PBivG6Zvdnx-xBl6qc=w408-h306-k-no',
+ 'Melbourne Skydeck': 'https://lh3.googleusercontent.com/grass-cs/ACvplmNYNVAvekAP2Fk8MVC9wVSCgX-lt5SP_KA4_4tr4Ei1FMShHIxz22rEiaAQg0ZUCsBnRqFNSYfhJoRK64XCxl005qlmtTAjpcsy1yUCLIYgXMy6h9KoSGCO1kxtzO5JXnaIcVYktGaJwzsB=w408-h306-k-no',
+ 'Gallery of Modern Art': 'https://lh3.googleusercontent.com/grass-cs/AABkmLdvUoh79qR5TIgDTsaEm9TCbr5W1grjEDXGTjytoYtREUsQ10TEqXWCWSUjbGW5q_oKBxkLBjKQFRVzeLysYPuDiIR212YQQHxPNR6JGfnXut1D8yGZspmG3NCcNP6cdVrTYVwPsTjwdhdL=w408-h269-k-no',
+ 'Eat Street Northshore': 'https://lh3.googleusercontent.com/grass-cs/AABkmLdiPW_UHcIfLbhKLUSHhqbojODYXTeRtemlS3tbfFDfTm7TLADhoVyK7iwYexBX9vYg0rKh5bN1nKn5Rn2-IG_xr4B7JCcBqyluUgzovuScO9bxb5XViloQIDLCqkWS7b3sQ-1jYfSxSRub=w408-h307-k-no',
+ 'Story Bridge Adventure Climb': 'https://lh3.googleusercontent.com/grass-cs/AABkmLfJMYz6coyL3rzijwxt3IIfd-y_RlSpCzcxkT7f3n2NUUyjqpkGv-VnVRYhoH6wLDWvW1oPc06w9EXG-l2HbapkWMUgX8_o1HXyg3_1rpun7NSBUjJxxAfE7R6ONrUI0lgZs3V_OGJLjDuS=w408-h272-k-no'}
+# Exact-location official/tourism image URLs; source copyright is retained.
+OFFICIAL_PLACE_IMAGES = {'Bourke Street Bakery': 'https://www.bourkestreetbakery.com.au/wp-content/uploads/2024/06/Surry-Hills-1-683x1024.jpg',
+ 'Gelato Messina Darlinghurst': 'https://gelatomessina.com/cdn/shop/files/messina-darlinghurst-0.jpg?width=900',
+ 'Mr Wong': 'https://assets.atdw-online.com.au/images/d9599f7a5385643047464ee01a6d6880.jpeg?rect=0%2C0%2C2048%2C1536&w=1600&h=1200&&q=eyJ0eXBlIjoibGlzdGluZyIsImxpc3RpbmdJZCI6IjU4Yzc3YjI1NTU2Njk3NTI2ODM0Y2FmMyIsImRpc3RyaWJ1dG9ySWQiOiI1NmIxZWI5MzQ0ZmVjYTNkZjJlMzIwYzgiLCJhcGlrZXlJZCI6IjU2YjFlZTU5MGNmMjEzYWQyMGRjNTgxOSJ9'}
+OFFICIAL_PHOTO_SOURCES = {'Bourke Street Bakery': 'https://www.bourkestreetbakery.com.au/location/surry-hills/',
+ 'Gelato Messina Darlinghurst': 'https://gelatomessina.com/stores',
+ 'Mr Wong': 'https://www.sydney.com/destinations/sydney/sydney-city/city-centre/food-and-drink/mr-wong'}
+# Official Melbourne venue photo linked from its About page (125 Flinders Lane).
+OFFICIAL_PLACE_IMAGES["Chin Chin Melbourne"] = (
+    "https://www.chinchinrestaurant.com.au/melbourne/wp-content/uploads/sites/2/"
+    "2019/07/CHIN-CHIN-GOGO-OPENING-9791.jpg"
+)
+OFFICIAL_PHOTO_SOURCES["Chin Chin Melbourne"] = "https://www.chinchin.melbourne/about/"
+LEGACY_PLACE_IMAGE_URLS["Chin Chin Melbourne"] = MULTI_CITY_IMAGE_URLS["Chin Chin Melbourne"]
+
+# Retain provenance and licence information for attribution when reusing these photos.
+COMMONS_PHOTO_CREDITS = {'Sydney Opera House': {'source': 'https://commons.wikimedia.org/wiki/File:Sydney_Opera_House_-_Dec_2008.jpg',
+                        'author': 'Diliff',
+                        'license': 'CC BY-SA 3.0',
+                        'license_url': 'https://creativecommons.org/licenses/by-sa/3.0'},
+ 'Sydney Harbour Bridge': {'source': 'https://commons.wikimedia.org/wiki/File:Sydney_Harbour_Bridge_from_Circular_Quay.jpg',
+                           'author': 'JJ Harrison (https://www.jjharrison.com.au/)',
+                           'license': 'CC BY-SA 3.0',
+                           'license_url': 'https://creativecommons.org/licenses/by-sa/3.0'},
+ 'Taronga Zoo': {'source': 'https://commons.wikimedia.org/wiki/File:Sydney_taronga_zoo.jpg',
+                 'author': 'Jan Derk',
+                 'license': 'Public domain',
+                 'license_url': ''},
+ 'Royal Botanic Garden Sydney': {'source': 'https://commons.wikimedia.org/wiki/File:Sydney_(AU),_Royal_Botanic_Gardens_--_2019_--_3082.jpg',
+                                 'author': 'Dietmar Rabich',
+                                 'license': 'CC BY-SA 4.0',
+                                 'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Bondi Beach': {'source': 'https://commons.wikimedia.org/wiki/File:Bondi_Beach,_southwest_view_20230224_2.jpg',
+                 'author': 'DXR',
+                 'license': 'CC BY-SA 4.0',
+                 'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'The Rocks': {'source': 'https://commons.wikimedia.org/wiki/File:Sydney_(AU),_The_Rocks,_George_Street_--_2019_--_3567.jpg',
+               'author': 'Dietmar Rabich',
+               'license': 'CC BY-SA 4.0',
+               'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Manly Beach': {'source': 'https://commons.wikimedia.org/wiki/File:Manly_beach.jpg',
+                 'author': 'No machine-readable author provided. Petesmiles~commonswiki assumed (based on '
+                           'copyright claims).',
+                 'license': 'Public domain',
+                 'license_url': ''},
+ "Harry's Cafe de Wheels": {'source': 'https://commons.wikimedia.org/wiki/File:Harrys_Cafe_de_Wheels_(6960417355).jpg',
+                            'author': 'Eva Rinaldi',
+                            'license': 'CC BY-SA 2.0',
+                            'license_url': 'https://creativecommons.org/licenses/by-sa/2.0'},
+ 'Din Tai Fung World Square': {'source': 'https://commons.wikimedia.org/wiki/File:Din_Tai_Fung,_Sydney_20090516.jpg',
+                               'author': 'Alpha',
+                               'license': 'CC BY-SA 2.0',
+                               'license_url': 'https://creativecommons.org/licenses/by-sa/2.0'},
+ 'Chat Thai Haymarket': {'source': 'https://commons.wikimedia.org/wiki/File:Thawt_Mun_Pla_Thai_redfish_cakes_-_Chat_Thai,_Haymarket.jpg',
+                         'author': 'Alpha from Melbourne, Australia',
+                         'license': 'CC BY-SA 2.0',
+                         'license_url': 'https://creativecommons.org/licenses/by-sa/2.0'},
+ 'Mamak': {'source': 'https://commons.wikimedia.org/wiki/File:Nasi_Lemak,_Mamak,_Sydney.jpg',
+           'author': 'Mw12310',
+           'license': 'CC BY-SA 3.0',
+           'license_url': 'https://creativecommons.org/licenses/by-sa/3.0'},
+ 'The Grounds of Alexandria': {'source': 'https://commons.wikimedia.org/wiki/File:Flowers_at_Grounds_.jpg',
+                               'author': 'Watercolours1707',
+                               'license': 'CC BY-SA 4.0',
+                               'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Tokyo Skytree': {'source': 'https://commons.wikimedia.org/wiki/File:20181123_Tokyo_Skytree-2.jpg',
+                   'author': 'Balon Greyjoy',
+                   'license': 'CC0',
+                   'license_url': 'http://creativecommons.org/publicdomain/zero/1.0/deed.en'},
+ 'ICHIRAN Shibuya': {'source': 'https://commons.wikimedia.org/wiki/File:Ichiran_Ramen,_Shibuya_store_-_B1F_Iwamoto_Bldg.,_1-22-7_Jin%27nan,_Shibuya,_Tokyo_(2018-04-03_by_Ajay_Suresh).jpg',
+                     'author': 'Ajay Suresh from New York, NY, USA',
+                     'license': 'CC BY 2.0',
+                     'license_url': 'https://creativecommons.org/licenses/by/2.0'},
+ 'teamLab Planets Tokyo': {'source': 'https://commons.wikimedia.org/wiki/File:Teamlab_toyosu.jpg',
+                           'author': 'Syced',
+                           'license': 'CC0',
+                           'license_url': 'http://creativecommons.org/publicdomain/zero/1.0/deed.en'},
+ 'Osaka Castle': {'source': 'https://commons.wikimedia.org/wiki/File:Osaka_Castle,_Keep_tower,_South_view_20190415_1.jpg',
+                  'author': 'DXR',
+                  'license': 'CC BY-SA 4.0',
+                  'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Dotonbori Imai Honten': {'source': 'https://commons.wikimedia.org/wiki/File:%E9%81%93%E9%A0%93%E5%A0%80%E4%BB%8A%E4%BA%95%E3%81%AE%E3%81%8D%E3%81%A4%E3%81%AD%E3%81%86%E3%81%A9%E3%82%93_(3739321692).jpg',
+                           'author': 'Kiyonobu Ito from Shizuoka, Japan',
+                           'license': 'CC BY 2.0',
+                           'license_url': 'https://creativecommons.org/licenses/by/2.0'},
+ 'Universal Studios Japan': {'source': 'https://commons.wikimedia.org/wiki/File:Universal_Studios_Japan_entrance.jpg',
+                             'author': 'Csiiiyu',
+                             'license': 'CC BY-SA 4.0',
+                             'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Sapporo TV Tower': {'source': 'https://commons.wikimedia.org/wiki/File:Sapporo_TV_tower_20230709_01.jpg',
+                      'author': 'LR0725',
+                      'license': 'CC BY-SA 4.0',
+                      'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Sapporo Beer Garden': {'source': 'https://commons.wikimedia.org/wiki/File:Sapporo_beer_garden.jpg',
+                         'author': 'Nissy-KITAQ',
+                         'license': 'CC BY-SA 3.0',
+                         'license_url': 'https://creativecommons.org/licenses/by-sa/3.0'},
+ 'Shiroi Koibito Park': {'source': 'https://commons.wikimedia.org/wiki/File:Shiroi_Koibito_Park_20260703k.jpg',
+                         'author': '掬茶',
+                         'license': 'CC BY-SA 4.0',
+                         'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'NGV International': {'source': 'https://commons.wikimedia.org/wiki/File:National_Gallery_of_Victoria_Australia_Winter_2019.jpg',
+                       'author': 'Gracchus250',
+                       'license': 'CC BY-SA 4.0',
+                       'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Melbourne Skydeck': {'source': 'https://commons.wikimedia.org/wiki/File:Eureka_Tower,_Melbourne_-_Nov_2008.jpg',
+                       'author': 'Diliff',
+                       'license': 'CC BY-SA 3.0',
+                       'license_url': 'https://creativecommons.org/licenses/by-sa/3.0'},
+ 'Gallery of Modern Art': {'source': 'https://commons.wikimedia.org/wiki/File:Queensland_Gallery_of_Modern_Art_at_dusk,_Brisbane,_2019.jpg',
+                           'author': 'Chris Olszewski',
+                           'license': 'CC BY-SA 4.0',
+                           'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Eat Street Northshore': {'source': 'https://commons.wikimedia.org/wiki/File:Eat_street_northshore.jpg',
+                           'author': 'Misaochan2',
+                           'license': 'CC BY-SA 4.0',
+                           'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'},
+ 'Story Bridge Adventure Climb': {'source': 'https://commons.wikimedia.org/wiki/File:Brisbane_Story_Bridge_(IMG05653).jpg',
+                                  'author': 'Andrew Mercer (www.baldwhiteguy.co.nz)',
+                                  'license': 'CC BY-SA 4.0',
+                                  'license_url': 'https://creativecommons.org/licenses/by-sa/4.0'}}
+EXTERNAL_PLACE_IMAGES = {**COMMONS_PLACE_IMAGES, **OFFICIAL_PLACE_IMAGES}
+for place in PLACES:
+    if place["name"] in EXTERNAL_PLACE_IMAGES:
+        place["image_url"] = EXTERNAL_PLACE_IMAGES[place["name"]]
+
+
 # Keep existing databases in sync with the image URLs in the seed data.
 PLACE_IMAGE_URLS = {
     place["name"]: place["image_url"]
@@ -746,8 +959,26 @@ def create_schema(conn: sqlite3.Connection) -> None:
 # Places seed
 # ------------------------------------------------------------------
 
+def migrate_place_images(conn: sqlite3.Connection) -> int:
+    """Migrate known seed/bundled URLs only, preserving unrelated data and custom URLs."""
+    updated = 0
+    targets = EXTERNAL_PLACE_IMAGES
+    for name, new_url in targets.items():
+        result = conn.execute(
+            "UPDATE places SET image_url = ? WHERE name = ? "
+            "AND (image_url IN (?, ?) OR image_url IS NULL OR image_url = '') "
+            "AND (image_url IS NULL OR image_url != ?)",
+            (new_url, name, LEGACY_PLACE_IMAGE_URLS[name],
+             PREVIOUS_BUNDLED_IMAGE_URLS.get(name, LEGACY_PLACE_IMAGE_URLS[name]), new_url),
+        )
+        updated += result.rowcount
+    return updated
+
+
 def seed_places(conn: sqlite3.Connection) -> None:
     """Insert place records that are not already present."""
+
+    migrate_place_images(conn)
 
     for name, image_url in PLACE_IMAGE_URLS.items():
         conn.execute(
