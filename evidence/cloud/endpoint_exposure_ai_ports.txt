@@ -1,0 +1,6 @@
+== AI service ports from the internet (000 = blocked) ==
+5300 -> 000
+5400 -> 000
+5500 -> 000
+5600 -> 000
+11434 -> 000

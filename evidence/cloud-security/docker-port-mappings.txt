@@ -1,0 +1,20 @@
+NAMES                PORTS
+student-4-frontend   0.0.0.0:8084->80/tcp, [::]:8084->80/tcp
+student-1-frontend   0.0.0.0:8081->80/tcp, [::]:8081->80/tcp
+shared-frontend      0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+student-4-api        127.0.0.1:5104->5104/tcp
+student-1-api        127.0.0.1:5101->5101/tcp
+student-2-frontend   0.0.0.0:8082->80/tcp, [::]:8082->80/tcp
+student-3-frontend   0.0.0.0:8083->80/tcp, [::]:8083->80/tcp
+student-5-frontend   0.0.0.0:8085->80/tcp, [::]:8085->80/tcp
+shared-api           127.0.0.1:5000->5000/tcp
+student-2-api        127.0.0.1:5102->5102/tcp
+student-3-api        127.0.0.1:5103->5103/tcp
+student-5-api        127.0.0.1:5105->5105/tcp
+student-2-db         127.0.0.1:5202->5202/tcp
+student-3-db         127.0.0.1:5203->5203/tcp
+shared-db            127.0.0.1:5200->5200/tcp
+student-1-db         127.0.0.1:5201->5201/tcp
+student-5-db         127.0.0.1:5205->5205/tcp
+student-4-db         127.0.0.1:5204->5204/tcp
+mailpit              127.0.0.1:1025->1025/tcp, 127.0.0.1:8025->8025/tcp, 1110/tcp

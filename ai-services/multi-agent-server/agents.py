@@ -386,7 +386,7 @@ def _cloud_worker_response(system, content, evidence, task=""):
                 "You are the Worker in NextStop. Complete the original Task using ONLY its Evidence. "
                 "Return a JSON rows array according to the schema. Each row has cells in this "
                 f"exact order: {json.dumps(content_columns)}. Do not include the evidence column "
-                "in cells: select that row's enclosing evidence reference in citation. "
+                "in cells: choose that row's enclosing evidence reference in citation. "
                 "The server formats these model-authored cells and citations as the requested "
                 "Markdown table. Use one row per requested record. Copy all requested field values "
                 "and full reasons exactly from the supplied evidence. Do not combine records, "

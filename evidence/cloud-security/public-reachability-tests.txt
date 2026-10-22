@@ -1,0 +1,4 @@
+curl: (28) Connection timed out after 5004 milliseconds
+Student 3 API: HTTP 000
+curl: (28) Connection timed out after 5006 milliseconds
+Student 3 database port: HTTP 000

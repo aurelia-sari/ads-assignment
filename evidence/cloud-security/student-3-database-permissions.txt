@@ -1,0 +1,1 @@
+-rw------- 1 root root 12288 Oct 21 23:52 /app/data/student3.db
