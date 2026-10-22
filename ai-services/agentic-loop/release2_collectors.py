@@ -567,6 +567,29 @@ def _cloud_url():
     return url.rstrip("/")
 
 
+def _resolve_flag_value(raw, text):
+    """Turn an assignment's right-hand side into 'true' or 'false' where we can.
+
+    - A literal true/false is returned as is.
+    - A variable with a default in the same file (enable_ai=${1:-false}) resolves to it.
+    - A variable that is only the loop variable of `for X in false true` is a
+      deliberate off-and-on compose test, not the deployed setting, so it is
+      reported as 'test-matrix'.
+    - Anything else returns the variable name, so the check still FAILS.
+    """
+    value = raw.strip('"').lstrip("$").strip("{}").lower()
+    if value in ("true", "false"):
+        return value
+    default = re.search(
+        rf"(?im)^\s*(?:export\s+)?{re.escape(value)}=\$\{{[^}}]*:-(true|false)\}}", text
+    )
+    if default:
+        return default.group(1).lower()
+    if re.search(rf"(?m)for\s+{re.escape(value)}\s+in\s+(?:false\s+true|true\s+false)\b", text):
+        return "test-matrix"
+    return value
+
+
 def collect_cloud_evidence():
     lines = []
     checks = Checks()
@@ -621,21 +644,33 @@ def collect_cloud_evidence():
     for path in scanned:
         text = path.read_text(encoding="utf-8", errors="ignore")
         for flag in AI_FLAGS:
-            for value in re.findall(rf"{flag}\W{{1,4}}([A-Za-z0-9]+)", text):
-                flag_values[flag].add(value.lower())
+            # Only real assignments: FLAG=value or FLAG="value". Comments, prose
+            # and printenv lines are not assignments.
+            for raw in re.findall(rf"(?m)^[^#\n]*?\b{flag}=(\"?\$?[A-Za-z0-9_{{}}:\-]+\"?)", text):
+                flag_values[flag].add(_resolve_flag_value(raw, text))
         for match in SECRET_PATTERNS.finditer(text):
             leaks.append(f"{_rel(path)}: {match.group(0)[:24]}...")
+
     lines.append("\nAI services disabled by default in the cloud configuration:")
-    not_false = [flag for flag, values in flag_values.items() if values != {"false"}]
-    checks.add(not not_false, "all four AI flags are set to false in the cloud configuration"
-               if not not_false else f"not set to false in the cloud configuration: {', '.join(not_false)}")
+    not_false = [flag for flag, values in flag_values.items()
+                 if (values - {"test-matrix"}) != {"false"}]
+    checks.add(
+        not not_false,
+        "all four AI flags are set to false in the cloud configuration" if not not_false
+        else f"not set to false in the cloud configuration: {', '.join(not_false)}",
+    )
     if scanned:
         checks.add(not leaks, "no hard-coded credentials in deployment files" if not leaks
                    else f"possible hard-coded credentials: {leaks[:2]}")
     for flag, values in flag_values.items():
-        state = ("OK, false" if values == {"false"} else
-                 "NOT SET - would default to true" if not values else
-                 f"CHECK, set to {sorted(values)}")
+        real = values - {"test-matrix"}
+        state = (
+            "OK, false" + (" (plus a compose off/on test matrix in the workflow)"
+                           if "test-matrix" in values else "")
+            if real == {"false"} else
+            "NOT SET - would default to true" if not values else
+            f"CHECK, set to {sorted(values)}"
+        )
         lines.append(f"  {flag}: {state}")
     lines.append(
         "Hard-coded credentials in deployment files: "
