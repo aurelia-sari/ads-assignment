@@ -28,6 +28,7 @@ from werkzeug.security import generate_password_hash
 from routes.ai_chat import ai_chat_bp
 from routes.ai_tools import ai_tools_bp
 from routes.live_guides import live_guides_bp
+from routes.multi_agent import multi_agent_bp
 from services.weather import local_month
 from views.live_guides_formatter import live_rates_placeholder, live_weather_placeholder
 
@@ -36,6 +37,7 @@ CORS(app)
 app.register_blueprint(ai_chat_bp)
 app.register_blueprint(ai_tools_bp)
 app.register_blueprint(live_guides_bp)
+app.register_blueprint(multi_agent_bp)
 
 DB_SERVICE_URL = os.getenv("DB_SERVICE_URL", "http://student-4-db:5204")
 SHARED_API_URL = os.getenv("SHARED_API_URL", "http://shared-api:5000")

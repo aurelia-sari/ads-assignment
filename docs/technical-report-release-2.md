@@ -101,3 +101,11 @@ Resolution: Every pin was upgraded to a fixed version and requests was pinned. T
 Findings: Ruff and pip-audit findings, listed in the table above.
 
 Resolution: _student-5 to fill in: fixed, or reason this is acceptable as is_
+
+---
+
+## Multi-Agent Integration, Student 4 (Travel Guides)
+
+The Multi-Agent tab starts a pre-trip briefing for a city. `student-4-api` looks up the city, then sends the shared Multi-Agent Server the guide's currency, transport, visa, weather and safety facts as supplied evidence, plus one `lookup_destination_guide` MCP call. The Planner, Worker and Reviewer run on the server and the workflow stops at human review. The person approves, corrects, partly accepts or rejects it in the tab, and every step is shown in the audit trail.
+
+The client is `services/multi_agent_client.py` and the routes are in `routes/multi_agent.py`. Like the MCP and RAG clients, a `MULTI_AGENT_ENABLED=false` setting returns a notice with no network call and no database read. An unreachable server returns a 503 notice. In the cloud's async mode the workflow card refreshes itself until it reaches human review. Seventeen unit tests in `tests/test_multi_agent.py` cover the disabled, unavailable, refusal and decision paths with stubbed servers.

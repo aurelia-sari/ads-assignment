@@ -83,6 +83,11 @@
         }
         .guide-action { display: inline-block; margin-top: 0.85rem; }
 
+        /* Multi-Agent workflow cards */
+        .agent-card { border-top: 1px solid var(--color-slate-200); padding-top: 0.85rem; margin-top: 0.85rem; }
+        .agent-response { white-space: pre-wrap; font-size: 0.93rem; line-height: 1.55; }
+        .agent-decision { display: grid; gap: 0.5rem; margin-top: 0.75rem; }
+
         /* Live exchange rates and converter */
         .fx { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-slate-200); }
         .guide-section .fx-title { font-size: 0.82rem; font-weight: 600; color: var(--color-slate-500); margin: 0 0 0.5rem; }
@@ -177,6 +182,7 @@
         <button class="tab-btn" data-tab="ai" type="button">AI Assistant</button>
         <button class="tab-btn" data-tab="mcp" type="button">MCP Tools</button>
         <button class="tab-btn" data-tab="rag" type="button">Ask (grounded)</button>
+        <button class="tab-btn" data-tab="agents" type="button">Multi-Agent</button>
     </nav>
 
     <section class="tab-panel is-active" id="panel-guides">
@@ -334,6 +340,46 @@
             </div>
         </form>
     </section>
+
+    <section class="tab-panel card" id="panel-agents">
+        <div class="panel-intro">
+            <h3>Multi-Agent pre-trip briefing</h3>
+            <p class="muted" style="max-width:none">
+                A Planner, Worker and Reviewer on the shared Multi-Agent Server draft a briefing
+                from the destination guide and the MCP tool. Nothing is released until you
+                approve, correct, partly accept or reject it.
+            </p>
+        </div>
+
+        <form id="agent-form"
+              hx-post="/api/student-4/ai/multi-agent"
+              hx-target="#agent-result"
+              hx-swap="innerHTML">
+            <div class="form-grid">
+                <div>
+                    <label for="agent-city">City <span class="optional">required</span></label>
+                    <input id="agent-city" type="text" name="city" required maxlength="100"
+                           placeholder="e.g. Kyoto or Sydney" autocomplete="off">
+                </div>
+                <div>
+                    <label for="agent-reviewer">Reviewer name <span class="optional">filled from your account, you can edit it</span></label>
+                    <input id="agent-reviewer" type="text" name="reviewer" maxlength="60" autocomplete="off">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit">Start workflow</button>
+                <button type="button" class="chip chip--muted"
+                        hx-get="/api/student-4/ai/multi-agent"
+                        hx-target="#agent-result"
+                        hx-swap="innerHTML">Recent workflows</button>
+                <span class="spinner">agents working, this can take a minute...</span>
+            </div>
+        </form>
+
+        <div id="agent-result" class="result-area">
+            <p class="result-empty">Enter a city to start a workflow. The agents' steps and the review form appear here.</p>
+        </div>
+    </section>
 </main>
 
 <script>
@@ -343,6 +389,7 @@ const panels = {
     ai: document.getElementById("panel-ai"),
     mcp: document.getElementById("panel-mcp"),
     rag: document.getElementById("panel-rag"),
+    agents: document.getElementById("panel-agents"),
 };
 
 function activate(name) {
@@ -439,6 +486,14 @@ document.body.addEventListener("htmx:afterRequest", (event) => {
     }
 });
 
+// The decision form arrives from the server, so carry over the reviewer name already entered.
+document.body.addEventListener("htmx:afterSwap", () => {
+    const name = document.getElementById("agent-reviewer").value;
+    document.querySelectorAll(".agent-decision [name=reviewer]").forEach((input) => {
+        if (!input.value) input.value = name;
+    });
+});
+
 (async function () {
     const user = await NextStopSession.verifySession();
     if (!user) {
@@ -449,6 +504,7 @@ document.body.addEventListener("htmx:afterRequest", (event) => {
     NextStopSession.initSignOutButtons("logout.html");
 
     document.getElementById("chat-user-id").value = user.id;
+    if (user.name) document.getElementById("agent-reviewer").value = user.name;
     chatSessions.setAttribute("hx-get", `/api/student-4/users/${user.id}/guide-chat-sessions`);
     htmx.process(chatSessions);
 
