@@ -7,8 +7,9 @@ User accounts and access logs live in shared-db, not student-4-db: a user's
 id and sign-in state are things any feature may need (not just Account &
 Dashboard). This service reaches them through shared-api.
 
-Verification emails go through Mailpit locally. Swap for Resend in a later release, 
-only send_verification_email below should need to change.
+Sign-up and password reset emails leave through deliver_email. Locally and in CI
+that is Mailpit over SMTP. With MAIL_PROVIDER=resend, as in the cloud, it is the
+Resend HTTPS API.
 """
 
 import os
@@ -45,6 +46,12 @@ SHARED_API_URL = os.getenv("SHARED_API_URL", "http://shared-api:5000")
 MAILPIT_HOST = os.getenv("MAILPIT_HOST", "mailpit")
 MAILPIT_PORT = int(os.getenv("MAILPIT_PORT", "1025"))
 MAIL_FROM = os.getenv("MAIL_FROM", "no-reply@nextstop.local")
+MAIL_PROVIDER = os.getenv("MAIL_PROVIDER", "smtp").strip().lower()
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+RESEND_URL = "https://api.resend.com/emails"
+RESEND_TIMEOUT_SECONDS = 10
+if MAIL_PROVIDER not in ("smtp", "resend"):
+    raise ValueError("MAIL_PROVIDER must be smtp or resend")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8080")
 
 DB_DOWN = "Could not reach the Account & Dashboard database service."
@@ -96,6 +103,34 @@ def new_verification_token():
     ).isoformat(timespec="seconds")
     return token, expires_at
 
+def deliver_email(to, subject, body):
+    """Raises OSError when the message could not be sent, whichever provider is set."""
+    if MAIL_PROVIDER == "resend":
+        if not RESEND_API_KEY:
+            raise OSError("MAIL_PROVIDER is resend but RESEND_API_KEY is not set")
+        try:
+            response = requests.post(
+                RESEND_URL,
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+                json={"from": MAIL_FROM, "to": [to], "subject": subject, "text": body},
+                timeout=RESEND_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            # Resend explains a refusal, such as an unverified domain, in the body.
+            detail = exc.response.text[:200] if exc.response is not None else exc
+            app.logger.warning("Resend refused the email: %s", detail)
+            raise
+        return
+
+    message = MIMEText(body)
+    message["Subject"] = subject
+    message["From"] = MAIL_FROM
+    message["To"] = to
+
+    with smtplib.SMTP(MAILPIT_HOST, MAILPIT_PORT, timeout=5) as smtp:
+        smtp.send_message(message)
+
 def send_verification_email(name, email, token):
     verify_url = f"{PUBLIC_BASE_URL}/api/student-4/auth/verify/{token}"
     body = (
@@ -105,13 +140,7 @@ def send_verification_email(name, email, token):
         f"This link can only be used once and expires in {VERIFY_TOKEN_TTL_MINUTES} minutes.\n"
         "If you didn't request this, you can safely ignore this email."
     )
-    message = MIMEText(body)
-    message["Subject"] = "Verify your NextStop account"
-    message["From"] = MAIL_FROM
-    message["To"] = email
-
-    with smtplib.SMTP(MAILPIT_HOST, MAILPIT_PORT, timeout=5) as smtp:
-        smtp.send_message(message)
+    deliver_email(email, "Verify your NextStop account", body)
 
 def new_reset_token():
     token = secrets.token_urlsafe(32)
@@ -129,13 +158,7 @@ def send_reset_email(email, token):
         f"This link can only be used once and expires in {RESET_TOKEN_TTL_MINUTES} minutes.\n"
         "If you didn't request this, you can safely ignore this email."
     )
-    message = MIMEText(body)
-    message["Subject"] = "Reset your NextStop password"
-    message["From"] = MAIL_FROM
-    message["To"] = email
-
-    with smtplib.SMTP(MAILPIT_HOST, MAILPIT_PORT, timeout=5) as smtp:
-        smtp.send_message(message)
+    deliver_email(email, "Reset your NextStop password", body)
 
 def validate_email(value):
     if not value or len(value) > 254 or value.count("@") != 1 or " " in value:

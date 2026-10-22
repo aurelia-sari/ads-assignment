@@ -238,7 +238,10 @@ services:
       DB_SERVICE_URL: http://student-4-db:5204
       MAILPIT_HOST: mailpit
       MAILPIT_PORT: 1025
-      MAIL_FROM: no-reply@nextstop.local
+      MAIL_FROM: ${MAIL_FROM:-no-reply@nextstop.local}
+      # smtp sends to Mailpit. The cloud deploy sets resend and the API key.
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-smtp}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
       GUIDES_LIVE_DATA: ${GUIDES_LIVE_DATA:-true}
     depends_on:
