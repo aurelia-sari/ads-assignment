@@ -83,10 +83,83 @@
         }
         .guide-action { display: inline-block; margin-top: 0.85rem; }
 
-        /* Multi-Agent workflow cards */
-        .agent-card { border-top: 1px solid var(--color-slate-200); padding-top: 0.85rem; margin-top: 0.85rem; }
-        .agent-response { white-space: pre-wrap; font-size: 0.93rem; line-height: 1.55; }
-        .agent-decision { display: grid; gap: 0.5rem; margin-top: 0.75rem; }
+        /* Agents tab. The run card itself is styled by the shared theme. */
+        .agent-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--color-slate-200);
+            cursor: pointer;
+        }
+        .agent-row:hover .agent-row__task,
+        .agent-row:focus-visible .agent-row__task { color: var(--color-blue-500); }
+        .agent-row:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
+        .agent-row__text { min-width: 0; overflow-wrap: anywhere; }
+        .agent-row__task { font-weight: 600; }
+        .agent-row .pill { flex: 0 0 auto; }
+
+        /* Run card spacing, tuned to match the other student-4 tabs */
+        .agent-run .pill, .agent-row .pill { padding: 0.3rem 0.9rem; white-space: nowrap; }
+        .agent-run__head { gap: 1.25rem; }
+        .agent-run__head .pill { flex: 0 0 auto; }
+        .agent-stages { margin: 1.1rem 0 1.25rem; }
+        .agent-block { margin-top: 1.25rem; padding-top: 1.1rem; }
+        .agent-block h4 { margin-bottom: 0.65rem; }
+        .agent-block h4 .pill { margin-left: 0.15rem; }
+        .agent-block p { line-height: 1.5; }
+        .agent-block p + ul, .agent-block p + ol { margin-top: 0.5rem; }
+        .agent-label { margin-top: 0.9rem; }
+        .agent-released { padding: 1rem 1.1rem; }
+
+        /* Evidence: space between each item, its label and its text box */
+        .agent-evidence-list li { margin-bottom: 1.25rem; }
+        .agent-evidence-list li:last-child { margin-bottom: 0; }
+        .agent-evidence-list li .pill { margin-left: 0.5rem; }
+        .agent-evidence { margin: 0.7rem 0 0; padding: 0.85rem 1rem; line-height: 1.5; }
+
+        /* Decision form */
+        .agent-review-form p { margin-bottom: 1rem; }
+        .agent-decisions { flex-wrap: nowrap; gap: 0.5rem 1.5rem; margin: 0 0 1.1rem; }
+        .agent-decisions label { white-space: nowrap; }
+        .agent-decisions input, .agents-check input { width: auto; flex: 0 0 auto; }
+        .agent-review-form textarea { display: block; margin-bottom: 1rem; }
+        .agent-review-form .form-grid { margin-bottom: 1.1rem; }
+        .agent-review-form .agent-edit { margin-bottom: 1rem; }
+        .agent-review-form .agent-edit textarea { margin-bottom: 0; }
+        /* The gap above Submit decision is the 1rem the Guides search button has below its field. */
+        .agent-review-form .form-actions { margin-top: 0; }
+
+        /* Offer RAG: one line beside the City field, level with its input */
+        .agents-check { align-items: flex-end; padding-bottom: 0.6rem; }
+        .agents-check label { margin: 0; white-space: nowrap; }
+
+        /* Tablet */
+        @media (max-width: 900px) {
+            .agent-run { padding: 0.9rem; }
+            .agent-evidence { max-height: 10rem; }
+            .agent-decisions { gap: 0.5rem 1.1rem; }
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            #panel-agents .suggestions__label { flex: 0 0 100%; margin-bottom: -0.1rem; }
+            #panel-agents .chip { white-space: normal; text-align: left; }
+            .agent-run { padding: 0.8rem; }
+            .agent-run__head { flex-direction: column; gap: 0.5rem; }
+            .agent-run__head .pill { align-self: flex-start; }
+            .agent-stages li { font-size: 0.75rem; padding: 0.2rem 0.55rem; }
+            .agent-block { margin-top: 1.1rem; padding-top: 1rem; }
+            .agent-decisions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; }
+            .agent-decisions label { white-space: normal; }
+            .agents-check { padding-bottom: 0; }
+            .agents-check label { white-space: normal; }
+            .agent-evidence { padding: 0.75rem 0.85rem; }
+            .agent-review-form .form-actions { flex-wrap: wrap; }
+            .agent-review-form .form-actions button { width: 100%; }
+            .agent-row { flex-direction: column; align-items: flex-start; gap: 0.35rem; padding: 0.65rem 0; }
+        }
 
         /* Live exchange rates and converter */
         .fx { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-slate-200); }
@@ -182,7 +255,7 @@
         <button class="tab-btn" data-tab="ai" type="button">AI Assistant</button>
         <button class="tab-btn" data-tab="mcp" type="button">MCP Tools</button>
         <button class="tab-btn" data-tab="rag" type="button">Ask (grounded)</button>
-        <button class="tab-btn" data-tab="agents" type="button">Multi-Agent</button>
+        <button class="tab-btn" data-tab="agents" type="button">Agents</button>
     </nav>
 
     <section class="tab-panel is-active" id="panel-guides">
@@ -343,41 +416,59 @@
 
     <section class="tab-panel card" id="panel-agents">
         <div class="panel-intro">
-            <h3>Multi-Agent pre-trip briefing</h3>
+            <h3>Agents</h3>
             <p class="muted" style="max-width:none">
-                A Planner, Worker and Reviewer on the shared Multi-Agent Server draft a briefing
-                from the destination guide and the MCP tool. Nothing is released until you
-                approve, correct, partly accept or reject it.
+                Give the shared Multi-Agent Server a task about a destination. The Planner picks the
+                evidence, the Worker answers from the destination guide and an MCP lookup, and the
+                Reviewer checks it. Nothing is released until you approve, correct, partly accept
+                or reject it.
             </p>
         </div>
 
-        <form id="agent-form"
-              hx-post="/api/student-4/ai/multi-agent"
-              hx-target="#agent-result"
+        <div class="suggestions" aria-label="Suggested tasks">
+            <span class="suggestions__label">Try</span>
+            <button type="button" class="chip" data-city="Kyoto" data-task="Write a short pre-trip briefing covering currency, getting around, visa, weather and safety">Kyoto pre-trip briefing</button>
+            <button type="button" class="chip" data-city="Sydney" data-task="When is the best time to visit and what should I expect from the weather?">Best time for Sydney</button>
+            <button type="button" class="chip" data-city="Tokyo" data-task="Should I carry cash or use cards, and which transport options suit a first visit?">Tokyo cash and transport</button>
+        </div>
+
+        <form id="agents-form"
+              hx-post="/api/student-4/ai/agents"
+              hx-target="#agents-panel"
               hx-swap="innerHTML">
+            <input type="hidden" name="reviewer" class="reviewer-name">
+            <div style="margin-bottom:0.9rem">
+                <label for="agents-task">Task for the agents</label>
+                <input id="agents-task" type="text" name="task" maxlength="800" autocomplete="off" required
+                       placeholder="e.g. Is Osaka safe at night, and how do I get around?">
+            </div>
             <div class="form-grid">
                 <div>
-                    <label for="agent-city">City <span class="optional">required</span></label>
-                    <input id="agent-city" type="text" name="city" required maxlength="100"
-                           placeholder="e.g. Kyoto or Sydney" autocomplete="off">
+                    <label for="agents-city">City <span class="optional">optional, read from the task if blank</span></label>
+                    <input id="agents-city" type="text" name="city" maxlength="100" autocomplete="off"
+                           placeholder="e.g. Kyoto or Sydney">
                 </div>
-                <div>
-                    <label for="agent-reviewer">Reviewer name <span class="optional">filled from your account, you can edit it</span></label>
-                    <input id="agent-reviewer" type="text" name="reviewer" maxlength="60" autocomplete="off">
+                <div class="agents-check">
+                    <label><input type="checkbox" name="use_rag" checked> Also offer the knowledge base (RAG)</label>
                 </div>
             </div>
-            <div class="form-actions">
-                <button type="submit">Start workflow</button>
-                <button type="button" class="chip chip--muted"
-                        hx-get="/api/student-4/ai/multi-agent"
-                        hx-target="#agent-result"
-                        hx-swap="innerHTML">Recent workflows</button>
-                <span class="spinner">agents working, this can take a minute...</span>
-            </div>
+            <button type="submit">Run agents</button>
+            <span class="spinner">Planner &rarr; Worker &rarr; Reviewer, about 30-60 seconds on a local model...</span>
         </form>
 
-        <div id="agent-result" class="result-area">
-            <p class="result-empty">Enter a city to start a workflow. The agents' steps and the review form appear here.</p>
+        <div id="agents-panel" class="result-area">
+            <p class="result-empty">Run a task, or open a recent workflow below. Each step of the
+            workflow appears here, followed by your review.</p>
+        </div>
+
+        <div class="result-area">
+            <div class="panel-intro" style="margin-bottom:0.25rem"><h3>Recent workflows</h3></div>
+            <div id="agents-recent"
+                 hx-get="/api/student-4/ai/agents"
+                 hx-trigger="intersect once, refresh"
+                 hx-swap="innerHTML">
+                <p class="muted">loading...</p>
+            </div>
         </div>
     </section>
 </main>
@@ -486,12 +577,47 @@ document.body.addEventListener("htmx:afterRequest", (event) => {
     }
 });
 
-// The decision form arrives from the server, so carry over the reviewer name already entered.
-document.body.addEventListener("htmx:afterSwap", () => {
-    const name = document.getElementById("agent-reviewer").value;
-    document.querySelectorAll(".agent-decision [name=reviewer]").forEach((input) => {
-        if (!input.value) input.value = name;
+// Agents: a suggestion fills the task and city, and runs it.
+const agentsForm = document.getElementById("agents-form");
+
+document.querySelectorAll("#panel-agents .chip").forEach((chip) =>
+    chip.addEventListener("click", () => {
+        agentsForm.querySelector('[name="task"]').value = chip.dataset.task;
+        agentsForm.querySelector('[name="city"]').value = chip.dataset.city;
+        agentsForm.requestSubmit();
+    })
+);
+
+// Decisions are attributed to a person, so the reviewer name comes from the
+// signed-in account. The visible field on the review form can still be edited.
+function reviewerName() {
+    const user = (window.NextStopSession && NextStopSession.getSession()) || {};
+    const full = [user.first_name, user.last_name].filter(Boolean).join(" ");
+    return user.name || user.full_name || full || user.email || "";
+}
+
+function fillReviewer(root) {
+    root.querySelectorAll(".reviewer-name").forEach((field) => {
+        if (!field.value) field.value = reviewerName();
     });
+}
+
+document.body.addEventListener("htmx:afterSwap", (event) => {
+    fillReviewer(document);
+    if (event.target.id === "agents-panel") {
+        event.target.scrollIntoView({ behavior: "smooth", block: "start" });
+        htmx.trigger("#agents-recent", "refresh");
+    }
+});
+
+// The edited response box only applies to a partial acceptance. A disabled
+// field is not submitted, so it cannot leak into another decision.
+document.body.addEventListener("change", (event) => {
+    if (event.target.name !== "decision") return;
+    const edit = event.target.closest("form").querySelector(".agent-edit");
+    const partial = event.target.value === "partial";
+    edit.hidden = !partial;
+    edit.querySelector("textarea").disabled = !partial;
 });
 
 (async function () {
@@ -504,7 +630,6 @@ document.body.addEventListener("htmx:afterSwap", () => {
     NextStopSession.initSignOutButtons("logout.html");
 
     document.getElementById("chat-user-id").value = user.id;
-    if (user.name) document.getElementById("agent-reviewer").value = user.name;
     chatSessions.setAttribute("hx-get", `/api/student-4/users/${user.id}/guide-chat-sessions`);
     htmx.process(chatSessions);
 

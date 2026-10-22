@@ -49,12 +49,13 @@ def health():
     return _request("GET", "/health", 3)
 
 
-def start_workflow(task, mcp_calls, evidence=None, requested_by=FEATURE):
+def start_workflow(task, mcp_calls, evidence=None, use_rag=True, requested_by=FEATURE):
     return _request("POST", "/workflows", RUN_TIMEOUT, json={
         "feature": FEATURE,
         "task": task,
         "mcp_calls": mcp_calls,
         "evidence": evidence or [],
+        "use_rag": use_rag,
         "requested_by": requested_by,
     })
 
