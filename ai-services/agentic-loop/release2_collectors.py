@@ -154,11 +154,15 @@ def _repo_integration(n):
         _rel(p) for p in api.rglob("*.py")
         if "MULTI_AGENT_URL" in p.read_text(encoding="utf-8", errors="ignore")
     ] if api.exists() else []
+    page_sources = list(frontend.rglob("*.html")) if frontend.exists() else []
+    agents_js = frontend / "js" / "agents.js"
+    if agents_js.is_file() and any("js/agents.js" in p.read_text(encoding="utf-8") for p in page_sources):
+        page_sources.append(agents_js)
     page_hits = [
-        _rel(p) for p in frontend.rglob("*.html")
+        _rel(p) for p in page_sources
         if any(route in p.read_text(encoding="utf-8", errors="ignore")
-               for route in ("/ai/agents", "/ai/multi-agent"))
-    ] if frontend.exists() else []
+               for route in ("/ai/agents", "/ai/multi-agent", "/agents/workflows", f"/api/student-{n}/agents"))
+    ]
     return api_hits, page_hits
 
 
@@ -407,6 +411,18 @@ def _ci_test_files(workflow_text, n):
                 files.update(path.glob("test_*.py"))
             elif path.exists():
                 files.add(path)
+    # The Release 2 runner keeps its pytest target relative to student-N/.
+    runner_path = f"student-{n}/scripts/release-2/run_tests.py"
+    runner = REPO_ROOT / runner_path
+    if runner.is_file() and re.search(
+            rf"^\s*run:\s*python3?\s+(?:-B\s+)?{re.escape(runner_path)}\s+post_commit\s*$",
+            workflow_text, re.M):
+        text = runner.read_text(encoding="utf-8")
+        target = re.search(r"^\s*target\s*=\s*[\"'](tests/[^\"']+)[\"']\s*$", text, re.M)
+        if target and re.search(r"[\"']pytest[\"']\s*,\s*target\b", text):
+            path = (REPO_ROOT / f"student-{n}" / target[1]).resolve()
+            if path.is_relative_to((REPO_ROOT / f"student-{n}/tests").resolve()):
+                files.update(path.glob("test_*.py"))
     return sorted(files)
 
 
