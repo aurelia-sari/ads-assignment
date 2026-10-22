@@ -114,6 +114,10 @@ The client is `services/multi_agent_client.py` and the routes are in `routes/ai_
 
 With AI-Mode, MCP, RAG and the Multi-Agent Server running on the host and `student-4-api` built with every flag on, one Agents workflow ran from Planner through Evidence, Worker and Reviewer to human review in about 26 seconds. Its three evidence items were all fetched and the Reviewer passed it. A rejection without notes was refused, a correction re-ran the Worker with the feedback, a partial acceptance released the edited text, and a second decision on the closed workflow returned a 409. The audit log recorded every step. The Guides, AI Assistant, MCP and Ask tabs and the student-4 smoke test still passed alongside it.
 
+## Student 4 Cloud Behaviour
+
+The cloud baseline switches AI-Mode, MCP, RAG and Multi-Agent off. Every student-4 integration reads its own flag in one client module, and the frontend holds no service address, so nothing assumes a host service is running. With `student-4-api` started with all four flags false, the Guides tab, sign in and live rates worked and MCP, Ask and Agents each returned a notice with no call made. The AI Assistant answered a named month or a currency conversion from the guide and linked the guide for anything else. `PUBLIC_BASE_URL` is set by the deploy script so email links do not point at localhost. Sign-up and password reset emails go to Mailpit on the VM, so they are not delivered to a real inbox until a mail provider is configured. Seeded accounts sign in normally.
+
 ## Student 4 CI Testing
 
 `student-4.yml` runs in two stages. The pre-commit stage runs all nine unit test files with pytest before anything is built, and each stubs its services. The post-commit stage starts the containers and tests two endpoint functions over HTTP, `list_guides` (`GET /guides`) and `start` (`POST /ai/agents`), with five tests in `tests/test_endpoints.py`. The start tests cover task validation and the notice shown when `MULTI_AGENT_ENABLED` is false. The workflow publishes the results as a JUnit file, a job summary table and an uploaded artifact.
