@@ -266,7 +266,7 @@ def _workflow_row(workflow):
         f"hx-get='{API}/{wid}' hx-target='#agents-panel' hx-swap='innerHTML' "
         "hx-trigger=\"click, keyup[key=='Enter']\">"
         f"<span class='agent-row__text'><span class='agent-row__task'>{escape(_clip(task, TASK_PREVIEW_CHARS))}</span> "
-        f"<span class='muted'>{escape(stamp)}</span></span>"
+        f"<span class='muted agent-row__time'>{escape(stamp)}</span></span>"
         f"{_status_pill(workflow.get('status'))}"
         "</div>"
     )
