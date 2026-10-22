@@ -168,9 +168,11 @@ currency question quotes the guide, other questions link the guide page,
 answers that need no model still work, and the chat route returns 200, not
 503.
 
+`test_email_delivery.py` covers sign-up and reset email delivery. SMTP to Mailpit is the default, with a guard that fails on any Resend call. With `MAIL_PROVIDER=resend` it checks the request sent to the Resend API, a missing key, a refusal and a timeout, and that the forgot password route returns its 503 notice without leaking Resend's reason.
+
 `test_agents.py` covers the Agents tab routes with a stubbed Multi-Agent Server and student-4-db. It checks the disabled path with a guard that fails on any network call, an unreachable or refusing server, the evidence and MCP call that are sent, escaping of model output, the recent workflows list and the decision routes.
 
-The workflow runs these nine files as the pre-commit pytest validation, before the Docker build.
+The workflow runs these ten files as the pre-commit pytest validation, before the Docker build.
 
 ```bash
 python -m pip install -r student-4/tests/requirements.txt

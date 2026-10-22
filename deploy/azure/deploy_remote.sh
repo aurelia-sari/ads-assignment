@@ -10,6 +10,18 @@ case "$enable_ai" in true|false) ;; *) echo 'Cloud AI must be true or false' >&2
 [[ "$CLOUD_OLLAMA_MODEL" =~ ^[[:alnum:]][[:alnum:]_.:/-]*$ ]] || { echo 'Invalid model name' >&2; exit 2; }
 compose=(docker compose -f docker-compose.yml -f docker-compose.cloud.yml)
 export PUBLIC_BASE_URL="http://$vm_host:8080"
+# Real sign-up and reset email. The Resend settings live in a private file on the
+# VM, so no key is ever in git or on a command line. Without the file the app
+# keeps sending to Mailpit.
+mail_env="$HOME/.local/share/nextstop/mail.env"
+if [ -f "$mail_env" ]; then
+  [ "$(stat -c %a "$mail_env")" = 600 ] || { echo "$mail_env must be chmod 600" >&2; exit 2; }
+  while IFS='=' read -r key value || [ -n "$key" ]; do
+    case "$key" in
+      MAIL_PROVIDER|MAIL_FROM|RESEND_API_KEY) export "$key=$value" ;;
+    esac
+  done < "$mail_env"
+fi
 # Always set both directions explicitly: the API containers reach the host;
 # configure_ai.sh gives the host processes their loopback URLs separately.
 export AI_MODE_URL=http://host.docker.internal:5300
