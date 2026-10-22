@@ -168,12 +168,24 @@ currency question quotes the guide, other questions link the guide page,
 answers that need no model still work, and the chat route returns 200, not
 503.
 
-The workflow runs all eight files before the Docker build.
+`test_agents.py` covers the Agents tab routes with a stubbed Multi-Agent Server and student-4-db. It checks the disabled path with a guard that fails on any network call, an unreachable or refusing server, the evidence and MCP call that are sent, escaping of model output, the recent workflows list and the decision routes.
+
+The workflow runs these nine files as the pre-commit pytest validation, before the Docker build.
 
 ```bash
 python -m pip install -r student-4/tests/requirements.txt
-python -m pytest -q student-4/tests/test_ai_tools.py student-4/tests/test_ai_mode_flag.py student-4/tests/test_currency_request.py student-4/tests/test_currency_validation.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py student-4/tests/test_weather.py
+python -m pytest -q student-4/tests/test_agents.py student-4/tests/test_ai_tools.py student-4/tests/test_ai_mode_flag.py student-4/tests/test_currency_request.py student-4/tests/test_currency_validation.py student-4/tests/test_exchange_rates.py student-4/tests/test_init_db.py student-4/tests/test_orchestrator.py student-4/tests/test_weather.py
 ```
 
-Release 2 requires pre-commit `pytest` validation and post-commit AI-assisted
-unit testing. Further unit tests for this feature belong in this directory.
+## Post-commit endpoint tests
+
+`test_endpoints.py` calls two endpoint functions of student-4-api over HTTP once
+the containers are healthy, `list_guides` (`GET /guides`) and `start`
+(`POST /ai/agents`). The workflow publishes the result as a JUnit file, a job
+summary and an artifact. `start` is checked with `MULTI_AGENT_ENABLED=false`, so
+the test is skipped unless that flag is false in your shell and in the running stack.
+
+```bash
+MULTI_AGENT_ENABLED=false docker compose up -d --build student-4-db student-4-api shared-api shared-db mailpit
+MULTI_AGENT_ENABLED=false python -m pytest -v student-4/tests/test_endpoints.py
+```
