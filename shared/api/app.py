@@ -19,11 +19,14 @@ app = Flask(__name__)
 CORS(app)
 
 SHARED_DB_URL = os.getenv("SHARED_DB_URL", "http://shared-db:5200")
+# AI-Mode runs on the host, not in a container, so it is not reachable by a
+# compose service name.
+AI_MODE_URL = os.getenv("AI_MODE_URL", "http://host.docker.internal:5300")
 
 # The integrated application, as one place the team can check.
 SERVICES = [
     ("shared-db",         "http://shared-db:5200/health",     "Shared access database"),
-    ("ai-mode",           "http://ai-mode:5300/health",       "Shared AI-Mode service"),
+    ("ai-mode",           f"{AI_MODE_URL}/health",            "Shared AI-Mode service"),
     ("student-1-api",     "http://student-1-api:5101/health", "Trips & Itinerary"),
     ("student-1-db",      "http://student-1-db:5201/health",  "Trips & Itinerary database"),
     ("student-2-api",     "http://student-2-api:5102/health", "Attractions & Dining"),
