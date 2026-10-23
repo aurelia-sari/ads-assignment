@@ -80,7 +80,15 @@ caught.
 ### Student 1
 Findings: Ruff and pip-audit findings, listed in the table above.
 
-Resolution: _student-1 to fill in: fixed, or reason this is acceptable as is_
+Resolution: Confirmed the dependency upgrades: Flask 3.1.3, flask-cors 6.0.5,
+requests 2.34.2 and pytest 9.1.1 across the `api`, `db` and `tests`
+requirements. The two S104 findings are acceptable because both services must
+listen on all interfaces for other containers to reach them. The four S608
+findings build only column names, from the fixed `TRIP_FIELDS` and `DAY_FIELDS`
+lists, and bind every value as a parameter, so user input never reaches the
+SQL text. A rescan of the whole repository on 23 October passed all three
+hooks, and the student-1 smoke test and post-commit endpoint tests gave the
+same result before and after.
 
 ### Student 2
 Findings: Ruff, detect-secrets and pip-audit findings, listed in the table above.
