@@ -237,3 +237,94 @@ Sign-up verification and password reset need a real inbox in the cloud, and Mail
 ## Student 4 CI Testing
 
 `student-4.yml` runs in two stages. The pre-commit stage runs all ten unit test files with pytest before anything is built, and each stubs its services. The post-commit stage starts the containers and tests two endpoint functions over HTTP, `list_guides` (`GET /guides`) and `start` (`POST /ai/agents`), with five tests in `tests/test_endpoints.py`. The start tests cover task validation and the notice shown when `MULTI_AGENT_ENABLED` is false. The workflow publishes the results as a JUnit file, a job summary table and an uploaded artifact.
+
+---
+
+## Bonus: Cloud Extension
+
+The required cloud deployment keeps AI-Mode, MCP, RAG and the Multi-Agent
+Server off by default. `cloud-deployment.yml` sets all four flags to `false`
+unless a person runs it manually with `enable_cloud_ai=true`, and its smoke test
+fails if any flag is wrong for the mode chosen. The bonus items below build on
+that baseline. They do not replace it.
+
+### B1-B4: shared AI services in the cloud
+
+Kevin Kim (student 2) built the cloud AI profile. With `enable_cloud_ai=true`,
+`deploy/azure/configure_ai.sh` installs Ollama with `llama3.2:latest` and runs
+AI-Mode, MCP, RAG and the Multi-Agent Server as four systemd units on the VM,
+`nextstop-ai@<service>`. Each restarts on failure. They run on the host, not in
+Docker, as they do locally. Ollama listens on `127.0.0.1` only and serves one
+request at a time, so one shared model handles all five features.
+
+Generation on the VM's two CPUs is slow. A full Planner, Worker and Reviewer
+run took longer than the 240 second HTTP timeout. In the cloud the Multi-Agent
+Server therefore runs asynchronously (`MULTI_AGENT_ASYNC_ENABLED`): `POST
+/workflows` returns 202 straight away, one background worker runs workflows in
+order from a bounded queue, and the page reads the workflow by ID. After a
+restart, any workflow still in progress is marked failed rather than run again,
+so no decision is ever replayed. The Worker and Reviewer each have 360 seconds.
+
+After deploying, `tests/cloud/check_cloud_ai.py` runs live checks on the VM
+through each feature's own backend/API, not by calling the AI services
+directly. The latest run, from the push to main on 23 October, passed all 14
+checks in about 21 minutes:
+<https://github.com/aurelia-sari/ads-assignment/actions/runs/39883876495>
+
+| Bonus | What the check requires | Features | Result |
+|---|---|---|---|
+| B1 Cloud AI-Mode | The app returns a real model answer, not the fallback text | student 1 | PASS |
+| B2 Cloud MCP | A JSON-RPC `tools/call` through the app returns the tool's result | students 1-5 | 5 PASS |
+| B3 Cloud RAG | Retrieval has hits above "insufficient", the answer is not refused, and its citation list names a retrieved source | students 1-5 | 5 PASS |
+| B4 Cloud Multi-Agent | The workflow belongs to this run, and its audit log shows planner plan, then worker response, then reviewer review, in order | students 1-3 | 3 PASS |
+
+The B4 check closes its own test workflows by rejection, so test output is
+never approved for release, and the append-only audit log keeps them.
+Students 4 and 5 added their Agents tabs after the check was written, so it
+does not yet cover them. Their Planner, Worker and Reviewer workflows are
+shown locally in the Multi-Agent Workflow Evidence section.
+
+### B5: cloud endpoint security
+
+Only the frontends are public. Every other service is reachable only from the
+VM itself.
+
+| Control | Where it is set |
+|---|---|
+| The network security group allows only SSH (22), the home page (80) and the frontends (8080-8085) | `deploy/azure/provision.sh`, Aung Ko Khaing (student 5) |
+| Every backend/API, database and Mailpit port is bound to `127.0.0.1` on the VM | `docker-compose.cloud.yml` |
+| AI-Mode, MCP, RAG, the Multi-Agent Server and Ollama listen only on the VM | `deploy/azure/configure_ai.sh` |
+
+Tanishpreet Kour (student 3) checked this from outside the VM. All seven
+frontend ports return 200. Every API and database port (5000, 5101-5105,
+5200-5205), Mailpit (8025), and every AI port (5300, 5400, 5500, 5600, 11434)
+gets no connection. The results are in `evidence/cloud/endpoint_exposure.txt`,
+`evidence/cloud/endpoint_exposure_ai_ports.txt` and
+`evidence/cloud/nsg_rules.txt`.
+
+### B6: cloud data security
+
+| Control | Evidence |
+|---|---|
+| SSH accepts keys only, with password login disabled | `evidence/cloud/data_security.txt` |
+| The VM disk is encrypted at rest with a platform-managed key | `evidence/cloud/data_security.txt` |
+| The VM address and deploy key are GitHub Actions secrets, never in git, and the workflow has read-only repository permissions | `.github/workflows/cloud-deployment.yml` |
+| The email provider key lives in a file on the VM readable only by its owner (mode 600), never in git, a workflow or a command line | Student 4 Email Delivery section |
+| Databases sit in Docker volumes that only the containers on the VM can reach, and the volumes survive redeploys | `docker-compose.yml`, B5 above |
+| The model name given to the deploy is checked against a strict pattern before use, so it cannot inject shell commands | `deploy/azure/configure_ai.sh` |
+| detect-secrets blocks any commit that adds a credential | Pre-Commit Security Testing section |
+
+### Limitations
+
+Some of these protections are Azure defaults rather than controls the team
+built: disk encryption with a platform key, and key-only SSH from `az vm
+create`. The team verified both and recorded the results. The deployment also
+lacks three things a production system would have:
+
+- **HTTPS.** The app is served over plain HTTP on the VM's IP address. A domain
+  and a reverse proxy with a TLS certificate would be the next step.
+- **Authentication in front of the endpoints.** Only the application's own
+  sign-in protects them.
+- **A restricted SSH source.** SSH accepts connections from any address,
+  because GitHub's hosted runners have no fixed IP. A self-hosted runner or
+  Azure Bastion would allow narrowing it.
