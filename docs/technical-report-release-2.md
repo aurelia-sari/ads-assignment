@@ -112,6 +112,110 @@ Resolution: _student-5 to fill in: fixed, or reason this is acceptable as is_
 
 ---
 
+## Multi-Agent Workflow Evidence
+
+### The shared Multi-Agent Server
+
+One Multi-Agent Server, built by Caroline Zhou (student 1), serves all five
+features. It runs on the host on port 5600, like AI-Mode, MCP and RAG, and is
+not a Docker Compose service. Each feature's backend/API calls it, never the
+page directly, so every workflow follows the Release 2 design flow:
+
+```
+Frontend UI -> Backend/API -> Multi-Agent Server -> Planner -> Worker -> Reviewer
+            -> Human Review -> Response to Frontend UI
+```
+
+| Step | What it does |
+|---|---|
+| Planner | Reads the task, chooses the evidence sources (MCP tool calls, RAG retrieval, or data the backend supplied) and writes steps and acceptance criteria |
+| Evidence | The server fetches only the sources the Planner chose and numbers them E1, E2 and so on |
+| Worker | Answers from that evidence only, citing each claim as [E1], [E2] |
+| Reviewer | A model review against each acceptance criterion, plus deterministic checks in code that every cited item exists and that something is cited |
+| Human | Approve, correct (the Worker and Reviewer re-run with the feedback), partially accept, or reject. Nothing is released before this step |
+
+Every agent reaches the model through AI-Mode, so no agent holds its own model
+client. Each workflow is saved as a JSON record, and every step any agent or
+person takes is appended to an audit log, `audit.jsonl`. That log is the
+coordination evidence below.
+
+### One workflow per feature
+
+On 23 October the integrated application was rebuilt locally and one workflow
+was started through each feature's own backend/API route, the same route its
+Agents tab uses. Each was then given a human decision.
+
+| Feature | Route | Evidence the Planner used | Reviewer | Human decision |
+|---|---|---|---|---|
+| 1 Trips & Itinerary | `POST /ai/agents` | E1 MCP `get_trip_itinerary`, E2 RAG passages | concerns: no citations | Correct, then approve |
+| 2 Attractions & Dining | `POST /agents/workflows` | E1-E3 supplied Sydney places | pass | Approve |
+| 3 Travel Mate | `POST /ai/multi-agent` | E1 supplied open trips by other travellers | concerns: cites E2, which does not exist | Reject |
+| 4 Travel Guides | `POST /ai/agents` | E1-E2 supplied Kyoto guide facts, E3 MCP `lookup_destination_guide` | pass | Approve |
+| 5 Bookings & Budget | `POST /agents/workflows` | E1 supplied bookings and budget for trip 1 | concerns: no citations | Reject |
+
+Each first round took between 22 and 40 seconds on `llama3.2` running locally.
+
+The workflows show the review steps working as designed:
+
+- **Correction loop (student 1).** The first answer summarised the trip
+  accurately but cited nothing, and the Reviewer raised a concern. The human
+  correction asked for citations. The Worker re-ran, the second answer cited
+  E1, the Reviewer passed it, and it was approved.
+- **Invented citation caught (student 3).** The Worker recommended a Reykjavik
+  campervan trip for a beach companion request and cited E2, but the
+  workflow only had E1. The citation check flagged it in code, and the human
+  rejected it.
+- **Wrong arithmetic stopped (student 5).** The answer gave a total that did not
+  match its own breakdown and named the wrong booking as the most expensive.
+  The Reviewer flagged that nothing was cited, and the human rejected it,
+  so the answer was never released.
+
+The audit log for each workflow records every step in order. A single-round
+workflow logs 12 entries:
+
+```
+created -> planner plan -> server evidence -> worker response -> reviewer review
+-> human decision
+```
+
+Each of these steps also logs a status change. Student 1's corrected workflow
+logs 18 entries, with the second Worker and Reviewer round between the two
+human decisions.
+
+### Multi-Agent Workflow Review
+
+The shared agentic loop's Multi-Agent Workflow Review mode then read every
+workflow and audit log on the server. Its pass/fail verdicts are decided in
+code, not by the model. The full record is in
+`docs/evidence/agentic-loop-release2-multiagent-mode.md`.
+
+| Result | Check |
+|---|---|
+| PASS | The Multi-Agent Server is not a Docker Compose service |
+| PASS | Agents reach the model only through AI-Mode |
+| PASS | Integrated through backend/API and page: students 1 to 5 |
+| PASS | All 5 validation probes refused with the expected status |
+| PASS | No workflow reached a final status without a human decision |
+| PASS | Audit log complete and in order for all 15 workflows |
+| PASS | Every Planner and Reviewer reply parsed, with no fallbacks |
+| WARN | 10 of 17 Worker responses failed the citation checks |
+| WARN | Humans approved 2 responses the Reviewer had flagged |
+
+The 15 workflows are the five above plus ten earlier student-1 development runs
+from 9 October. Seven of those had been left awaiting review, and they were
+rejected as stale before the review ran.
+
+Both warnings come mostly from those early runs. Of the 10 citation failures,
+3 are in the five workflows above: student 1's first round, student 3 and
+student 5. Two of those were rejected, and student 1's was corrected. Both
+approvals over a Reviewer concern are 9 October runs. No workflow from 23
+October was approved over a concern.
+
+The model's own written summary of the review listed some items as "not
+shown" even though the coded checks cover them. This is why the verdicts are
+computed in code: the local 3B model can explain a verdict but misreads
+detailed evidence.
+
 ## Multi-Agent Integration, Student 4 (Travel Guides)
 
 The Agents tab takes a task about a destination, such as a pre-trip briefing, with three suggested tasks. The city comes from an optional field or from the task text, and a tick box offers the RAG knowledge base. `student-4-api` sends the shared Multi-Agent Server the guide's currency, transport, visa, weather and safety facts as supplied evidence, plus one `lookup_destination_guide` MCP call. The Planner, Worker and Reviewer run on the server and the workflow stops at human review. The person approves, corrects, partly accepts or rejects it in the tab, and a recent workflows list reopens past runs with their audit log.
