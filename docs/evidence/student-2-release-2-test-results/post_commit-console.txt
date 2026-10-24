@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.17, pytest-9.1.1, pluggy-1.7.0 -- /opt/hostedtoolcache/Python/3.11.17/x64/bin/python
+rootdir: /home/runner/work/ads-assignment/ads-assignment/student-2/tests/release-2
+configfile: pytest.ini
+collecting ... collected 18 items
+
+tests/release-2/post_commit/test_api_places.py::test_service_health PASSED [  5%]
+tests/release-2/post_commit/test_api_places.py::test_places_exist PASSED [ 11%]
+tests/release-2/post_commit/test_api_places.py::test_missing_place_fields_rejected PASSED [ 16%]
+tests/release-2/post_commit/test_api_places.py::test_cloud_integrations_disabled[ai/recommend-payload0] PASSED [ 22%]
+tests/release-2/post_commit/test_api_places.py::test_cloud_integrations_disabled[mcp/search-places-payload1] PASSED [ 27%]
+tests/release-2/post_commit/test_api_places.py::test_cloud_integrations_disabled[rag/search-payload2] PASSED [ 33%]
+tests/release-2/post_commit/test_api_places.py::test_cloud_integrations_disabled[rag/ask-payload3] PASSED [ 38%]
+tests/release-2/post_commit/test_api_places.py::test_cloud_integrations_disabled[rag/reindex-payload4] PASSED [ 44%]
+tests/release-2/post_commit/test_api_places.py::test_cloud_integrations_disabled[agents/workflows-payload5] PASSED [ 50%]
+tests/release-2/post_commit/test_api_places.py::test_unknown_place_returns_404 PASSED [ 55%]
+tests/release-2/post_commit/test_api_places.py::test_favourites_require_user_id PASSED [ 61%]
+tests/release-2/post_commit/test_api_places.py::test_frontend_proxy_reaches_backend PASSED [ 66%]
+tests/release-2/post_commit/test_runtime_safety.py::test_disabled_before_any_transport[AI_MODE_ENABLED-/ai/recommend] PASSED [ 72%]
+tests/release-2/post_commit/test_runtime_safety.py::test_disabled_before_any_transport[MCP_ENABLED-/mcp/search-places] PASSED [ 77%]
+tests/release-2/post_commit/test_runtime_safety.py::test_disabled_before_any_transport[RAG_ENABLED-/rag/reindex] PASSED [ 83%]
+tests/release-2/post_commit/test_runtime_safety.py::test_disabled_before_any_transport[MULTI_AGENT_ENABLED-/agents/workflows] PASSED [ 88%]
+tests/release-2/post_commit/test_runtime_safety.py::test_ai_enabled_keeps_input_validation PASSED [ 94%]
+tests/release-2/post_commit/test_runtime_safety.py::test_db_reinitialisation_preserves_data PASSED [100%]
+
+- generated xml file: /home/runner/work/ads-assignment/ads-assignment/student-2/reports/release-2/post_commit.xml -
+============================== 18 passed in 0.64s ==============================

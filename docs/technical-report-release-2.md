@@ -216,6 +216,15 @@ shown" even though the coded checks cover them. This is why the verdicts are
 computed in code: the local 3B model can explain a verdict but misreads
 detailed evidence.
 
+## Multi-Agent Integration, Student 2 (Attractions & Dining)
+The Agents tab accepts a recommendation request with optional city, category and place-name filters. The backend collects city-filtered evidence through the shared MCP search_places tool and supplies compact place records to the shared Multi-Agent Server. The Worker returns a table containing the place, city, recorded opening hours, recommendation reason and evidence citation.
+Student 2 also applies deterministic checks to the result. These verify the required categories, place names, city, recorded hours, recommendation reasons and citations against the supplied evidence. A model Reviewer verdict of pass does not override these checks: invalid results cannot be accepted. The user can reject the result or partially accept a corrected table after validation. Human decisions are saved on the shared server and can be retrieved with the workflow history. Recorded opening hours do not confirm live availability.
+
+## Student 2 CI Testing
+student-2.yml builds and starts the frontend, API and database with all four AI integrations disabled. The Release 2 suite contains 18 pytest cases: 12 HTTP cases and six runtime-safety cases. It tests backend functions including places() (GET /places) and create_place_route() (POST /places), input validation, disabled integration responses and the frontend proxy. Safety checks confirm that disabled integrations make no network request and that database initialisation preserves existing data.
+CI also runs 23 offline Multi-Agent contract tests with mocked model and MCP responses, followed by the CRUD smoke test. The workflow uploads JUnit XML, console output, a Markdown result log and a JSONL execution audit as the student-2-release-2-test-results artifact. A downloaded copy is stored in the repository under docs/evidence/student-2-release-2-test-results/.
+
+
 ## Multi-Agent Integration, Student 4 (Travel Guides)
 
 The Agents tab takes a task about a destination, such as a pre-trip briefing, with three suggested tasks. The city comes from an optional field or from the task text, and a tick box offers the RAG knowledge base. `student-4-api` sends the shared Multi-Agent Server the guide's currency, transport, visa, weather and safety facts as supplied evidence, plus one `lookup_destination_guide` MCP call. The Planner, Worker and Reviewer run on the server and the workflow stops at human review. The person approves, corrects, partly accepts or rejects it in the tab, and a recent workflows list reopens past runs with their audit log.
@@ -242,32 +251,17 @@ Sign-up verification and password reset need a real inbox in the cloud, and Mail
 
 ## Bonus: Cloud Extension
 
-The required cloud deployment keeps AI-Mode, MCP, RAG and the Multi-Agent
-Server off by default. `cloud-deployment.yml` sets all four flags to `false`
-unless a person runs it manually with `enable_cloud_ai=true`, and its smoke test
-fails if any flag is wrong for the mode chosen. The bonus items below build on
-that baseline. They do not replace it.
+The required cloud deployment keeps AI-Mode, MCP, RAG and the Multi-Agent Server off by default. cloud-deployment.yml defaults all four flags to false when no previous cloud AI selection is saved. Manual workflow runs use the selected enable_cloud_ai value, while subsequent automatic deployments retain the saved AI setting and model. The smoke test fails if any flag does not match the selected mode. The bonus items below build on that baseline. They do not replace it.
 
 ### B1-B4: shared AI services in the cloud
 
-Kevin Kim (student 2) built the cloud AI profile. With `enable_cloud_ai=true`,
-`deploy/azure/configure_ai.sh` installs Ollama with `llama3.2:latest` and runs
-AI-Mode, MCP, RAG and the Multi-Agent Server as four systemd units on the VM,
-`nextstop-ai@<service>`. Each restarts on failure. They run on the host, not in
-Docker, as they do locally. Ollama listens on `127.0.0.1` only and serves one
-request at a time, so one shared model handles all five features.
+Kevin Kim (student 2) built the cloud AI profile. With `enable_cloud_ai=true`, `deploy/azure/configure_ai.sh` installs Ollama with `llama3.2:latest` and runs AI-Mode, MCP, RAG and the Multi-Agent Server as four systemd units on the VM, `nextstop-ai@<service>`. Each restarts on failure. They run on the host, not in Docker, as they do locally. Ollama listens on `127.0.0.1` only and serves one request at a time, so one shared model handles all five features.
 
-Generation on the VM's two CPUs is slow. A full Planner, Worker and Reviewer
-run took longer than the 240 second HTTP timeout. In the cloud the Multi-Agent
-Server therefore runs asynchronously (`MULTI_AGENT_ASYNC_ENABLED`): `POST
-/workflows` returns 202 straight away, one background worker runs workflows in
-order from a bounded queue, and the page reads the workflow by ID. After a
-restart, any workflow still in progress is marked failed rather than run again,
-so no decision is ever replayed. The Worker and Reviewer each have 360 seconds.
+Generation on the VM's two CPUs is slow. A full Planner, Worker and Reviewer run took longer than the 240 second HTTP timeout. In the cloud the Multi-Agent Server therefore runs asynchronously (`MULTI_AGENT_ASYNC_ENABLED`): `POST /workflows` returns 202 straight away, one background worker runs workflows in order from a bounded queue, and the page reads the workflow by ID. After a restart, any workflow still in progress is marked failed rather than run again, so no decision is ever replayed. The Worker and Reviewer each have 360 seconds. 
 
-After deploying, `tests/cloud/check_cloud_ai.py` runs live checks on the VM
-through each feature's own backend/API, not by calling the AI services
-directly. The latest run, from the push to main on 23 October, passed all 14
+The cloud profile also enables structured model outputs and stricter citation validation. Worker citations are restricted to usable evidence IDs. If an answer fails validation, the model receives at most one repair attempt within the same generation deadline. If the repaired answer remains invalid, the workflow fails explicitly. These controls use cloud-specific settings, preserving the existing local execution path.
+
+After deploying, tests/cloud/check_cloud_ai.py exercises live feature interactions through each feature's own backend/API. It also calls the shared services directly to check their readiness and obtain reference results for comparison. The latest run, from the push to main on 23 October, passed all 14
 checks in about 21 minutes:
 <https://github.com/aurelia-sari/ads-assignment/actions/runs/39883876495>
 
