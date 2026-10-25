@@ -97,7 +97,7 @@ Student 2's results are also saved under `docs/evidence/student-2-release-2-test
 
 ## Testing Review
 
-The agentic loop's Testing Review mode read the scan report and every `student-x.yml` on 23 October (`docs/evidence/agentic-loop-release2-testing-mode.md`). The checks, decided in code, gave 9 PASS, 0 FAIL, 0 WARN. All three hooks run on commit, a scan report is saved, and students 1 to 5 test 2, 9, 17, 16 and 5 distinct endpoints. Its suggested next change, publishing results for every student, is now in every workflow.
+The agentic loop's Testing Review on 23 October recorded 9 PASS, 0 FAIL and 0 WARN (docs/evidence/agentic-loop-release2-testing-mode.md). Its endpoint counts are static estimates from test-source inspection, not measured execution totals. The tested functions and result publication formats are described in Post-Commit CI/CD Testing above.
 
 ## Local Deployment Evidence
 
@@ -207,7 +207,7 @@ https://github.com/aurelia-sari/ads-assignment/commits/main. Release 2 work is i
 | Student | Release 2 contribution |
 |---|---|
 | 1 Caroline Zhou | Multi-Agent Server, Trips Agents tab, `create_trip` and `list_trip_days` endpoint tests, Testing and Multi-Agent reviews with human decisions, report evidence and bonus sections |
-| 2 Kevin Kim | _student-2 to fill in_ |
+| 2 Kevin Kim | Implemented city-scoped Multi-Agent recommendations and CI tests for Attractions & Dining, along with shared Azure AI deployment, asynchronous Multi-Agent execution, citation validation and cloud checks. |
 | 3 Tanishpreet Kour | _student-3 to fill in_ |
 | 4 Aurelia Sari | _student-4 to fill in_ |
 | 5 Aung Ko Khaing | _student-5 to fill in_ |
