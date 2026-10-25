@@ -37,36 +37,15 @@ docs/                reports, diagrams, evidence                 R1, R2 review r
 
 Every feature keeps its Release 1 paths. Only the backend/API talks to the host services.
 
-```mermaid
-flowchart LR
-  UI[Frontend UI<br/>nginx :8081-8085] --> API[Backend/API<br/>:5101-5105] --> DB[(Database service<br/>:5201-5205)]
-  API -->|AI-Mode| AIM[AI-Mode :5300] --> LLM[Ollama llama3.2]
-  API -->|MCP| MCP[MCP server :5400] --> DB
-  API -->|RAG| RAG[RAG server :5500]
-  API -->|Release 2| MAS[Multi-Agent Server :5600]
-  MAS --> P[Planner] --> W[Worker] --> R[Reviewer] --> H[Human review<br/>in the Agents tab]
-  P -. evidence .-> MCP & RAG
-  H -->|approve, correct, partial, reject| API
-  API -->|released response| UI
-```
+![Release 2 design flow](evidence/release-2-design-flow.png)
+
+_Source: `docs/diagrams/release-2-design-flow.mmd`_
 
 ## Cloud Deployment and CI/CD Architecture
 
-```mermaid
-flowchart LR
-  Dev[Developer commit] --> PC[pre-commit<br/>Ruff S, detect-secrets, pip-audit] --> GH[GitHub main]
-  GH --> SX[student-1..5.yml<br/>build, smoke test,<br/>two endpoint functions]
-  GH --> CV[cloud-deployment.yml validate<br/>script checks, cloud tests,<br/>Compose with AI off and on]
-  SX --> GATE{gate on student CI}
-  CV --> GATE --> RS[deploy.sh<br/>rsync over SSH] --> VM
-  subgraph Azure[Azure nextstop-rg, East Asia]
-    NSG[NSG: 22, 80, 8080-8085] --> VM[nextstop-vm<br/>Ubuntu 22.04, B2s v2]
-    VM --> FE[6 frontends public<br/>:8080-8085]
-    FE --> APIs[shared-api and 5 APIs<br/>127.0.0.1 only] --> DBs[(6 databases<br/>named volumes, 127.0.0.1)]
-    APIs -. off by default .-> AI[AI-Mode, MCP, RAG,<br/>Multi-Agent, Ollama on host]
-  end
-  VM --> SM[smoke_cloud.sh validation]
-```
+![Azure cloud reference architecture and CI/CD pipeline](evidence/release-2-cloud-cicd.png)
+
+_Source: `docs/diagrams/release-2-cloud-cicd.mmd`_
 
 The cloud runs the same images as local. `docker-compose.cloud.yml` binds every API and database to loopback, so only the frontends are reachable. `provision.sh` creates the resource group, VM and network rules and is safe to re-run. On each push to main, `cloud-deployment.yml` validates, waits for the five student workflows to pass, syncs the code, runs `deploy_remote.sh` on the VM and checks the live site. The AI services stay off unless a manual run sets `enable_cloud_ai`.
 
