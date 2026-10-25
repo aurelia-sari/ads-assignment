@@ -1,0 +1,13 @@
+flowchart LR
+  Dev[Developer commit] --> PC[pre-commit<br/>Ruff S, detect-secrets, pip-audit] --> GH[GitHub main]
+  GH --> SX[student-1..5.yml<br/>build, smoke test,<br/>two endpoint functions]
+  GH --> CV[cloud-deployment.yml validate<br/>script checks, cloud tests,<br/>Compose with AI off and on]
+  SX --> GATE{gate on student CI}
+  CV --> GATE --> RS[deploy.sh<br/>rsync over SSH] --> VM
+  subgraph Azure[Azure nextstop-rg, East Asia]
+    NSG[NSG: 22, 80, 8080-8085] --> VM[nextstop-vm<br/>Ubuntu 22.04, B2s v2]
+    VM --> FE[6 frontends public<br/>:8080-8085]
+    FE --> APIs[shared-api and 5 APIs<br/>127.0.0.1 only] --> DBs[(6 databases<br/>named volumes, 127.0.0.1)]
+    APIs -. off by default .-> AI[AI-Mode, MCP, RAG,<br/>Multi-Agent, Ollama on host]
+  end
+  VM --> SM[smoke_cloud.sh validation]

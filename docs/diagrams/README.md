@@ -18,6 +18,8 @@ export PNGs into `docs/evidence/` for the report.
 | `student-4-erd.mmd` | Data design - entity-relationship diagram (student-4) |
 | `release-1-architecture.mmd` | Release 1 architecture, with the containerisation boundary (Release 1 report section 4) |
 | `mcp-rag-flow.mmd` | MCP and RAG interaction flow and registered tools (Release 1 report section 5) |
+| `release-2-design-flow.mmd` | Release 2 design flow with the Multi-Agent path (Release 2 report) |
+| `release-2-cloud-cicd.mmd` | Azure cloud reference architecture and CI/CD pipeline (Release 2 report) |
 
 Students 2, 3, 5: copy `student-1-architecture.mmd` and change the service
 names, ports, and tables to your own feature.

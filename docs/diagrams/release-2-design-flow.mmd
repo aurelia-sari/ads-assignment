@@ -1,0 +1,10 @@
+flowchart LR
+  UI[Frontend UI<br/>nginx :8081-8085] --> API[Backend/API<br/>:5101-5105] --> DB[(Database service<br/>:5201-5205)]
+  API -->|AI-Mode| AIM[AI-Mode :5300] --> LLM[Ollama llama3.2]
+  API -->|MCP| MCP[MCP server :5400] --> DB
+  API -->|RAG| RAG[RAG server :5500]
+  API -->|Release 2| MAS[Multi-Agent Server :5600]
+  MAS --> P[Planner] --> W[Worker] --> R[Reviewer] --> H[Human review<br/>in the Agents tab]
+  P -. evidence .-> MCP & RAG
+  H -->|approve, correct, partial, reject| API
+  API -->|released response| UI
