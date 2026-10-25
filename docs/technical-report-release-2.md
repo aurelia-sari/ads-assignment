@@ -5,6 +5,76 @@
 
 ---
 
+## Project Overview
+
+NextStop is an agentic AI travel planning application built by five students, each owning one feature with its own frontend, backend/API and database microservice.
+
+| Student | Name | Feature |
+|---|---|---|
+| 1 | Caroline Zhou | Trips & Itinerary |
+| 2 | Kevin Kim | Attractions & Dining |
+| 3 | Tanishpreet Kour | Travel Mate |
+| 4 | Aurelia Sari | Account, Dashboard & Travel Guides |
+| 5 | Aung Ko Khaing | Bookings & Budget |
+
+Release 1 delivered the 18-container application with AI-Mode, MCP, RAG and the shared agentic loop running on the host. Release 2 extends it, without replacing anything, with a shared non-containerised Multi-Agent Server (Planner, Worker, Reviewer, human review) used by every feature's new Agents tab, three new agentic-loop review modes (Multi-Agent, Testing and Cloud Deployment), local pre-commit security scans, post-commit endpoint tests in each `student-x.yml`, and deployment to Microsoft Azure.
+
+## Final Repository Structure
+
+```
+ads-assignment/
+  .github/workflows/      student-1..5.yml, cloud-deployment.yml        (R2: endpoint tests, cloud)
+  .pre-commit-config.yaml, .secrets.baseline                             (R2: security hooks)
+  ai-services/
+    ai-mode/ mcp-server/ rag-server/ agentic-loop/ prompts/               (R1)
+    multi-agent-server/                                                   (R2)
+  deploy/azure/           provision, deploy, deploy_remote, configure_ai, smoke_cloud (R2)
+  docker-compose.yml, docker-compose.cloud.yml                           (R1, R2 cloud override)
+  security/               run_scan.py and tests                          (R2)
+  shared/                 home page, shared-api, shared-db              (R1)
+  student-1..5/           frontend/, api/, db/, tests/                   (R1, R2 Agents tab and tests)
+  tests/cloud/            cloud AI checks                                (R2)
+  scripts/                ai_services.sh, dev.sh, smoke_test.py          (R1)
+  docs/                   reports, diagrams/, evidence/                  (R1, R2 review records)
+```
+
+## Release 2 Design Flow
+
+Every feature keeps the Release 1 paths. The Multi-Agent path is new, and only the backend/API talks to the host services.
+
+```mermaid
+flowchart LR
+  UI[Frontend UI<br/>nginx :8081-8085] --> API[Backend/API<br/>:5101-5105] --> DB[(Database service<br/>:5201-5205)]
+  API -->|AI-Mode| AIM[AI-Mode :5300] --> LLM[Ollama llama3.2]
+  API -->|MCP| MCP[MCP server :5400] --> DB
+  API -->|RAG| RAG[RAG server :5500]
+  API -->|Release 2| MAS[Multi-Agent Server :5600]
+  MAS --> P[Planner] --> W[Worker] --> R[Reviewer] --> H[Human review<br/>in the Agents tab]
+  P -. evidence .-> MCP & RAG
+  H -->|approve, correct, partial, reject| API
+  API -->|released response| UI
+```
+
+## Cloud Deployment and CI/CD Architecture
+
+```mermaid
+flowchart LR
+  Dev[Developer commit] --> PC[pre-commit<br/>Ruff S, detect-secrets, pip-audit] --> GH[GitHub main]
+  GH --> SX[student-1..5.yml<br/>build, smoke test,<br/>two endpoint functions]
+  GH --> CV[cloud-deployment.yml validate<br/>script checks, cloud tests,<br/>Compose with AI off and on]
+  SX --> GATE{gate on student CI}
+  CV --> GATE --> RS[deploy.sh<br/>rsync over SSH] --> VM
+  subgraph Azure[Azure nextstop-rg, East Asia]
+    NSG[NSG: 22, 80, 8080-8085] --> VM[nextstop-vm<br/>Ubuntu 22.04, B2s v2]
+    VM --> FE[6 frontends public<br/>:8080-8085]
+    FE --> APIs[shared-api and 5 APIs<br/>127.0.0.1 only] --> DBs[(6 databases<br/>named volumes, 127.0.0.1)]
+    APIs -. off by default .-> AI[AI-Mode, MCP, RAG,<br/>Multi-Agent, Ollama on host]
+  end
+  VM --> SM[smoke_cloud.sh validation]
+```
+
+The cloud runs the same images as local, with `docker-compose.cloud.yml` binding every API and database to loopback so only the frontends are reachable. `provision.sh` creates the resource group, VM and network rules once and is safe to re-run. On each push to main, `cloud-deployment.yml` validates, waits for the five student workflows to pass, syncs the code, runs `deploy_remote.sh` on the VM and validates the live site. The AI services stay off unless a manual run sets `enable_cloud_ai`.
+
 ## Pre-Commit Security Testing
 
 Set up by Aurelia Sari for the whole team.
@@ -111,6 +181,10 @@ Findings: Ruff and pip-audit findings, listed in the table above.
 Resolution: _student-5 to fill in: fixed, or reason this is acceptable as is_
 
 ---
+
+## Testing Review
+
+The agentic loop's Testing Review mode read the pre-commit scan report and every `student-x.yml` on 23 October (`docs/evidence/agentic-loop-release2-testing-mode.md`). The results were decided in code: 9 PASS, 0 FAIL, 0 WARN. The three hooks run on commit and a scan report is saved, and students 1 to 5 test 2, 9, 17, 16 and 5 distinct endpoints in CI. Its suggested next change, publishing JUnit, a job summary and an artifact for each student, is now in every workflow.
 
 ## Multi-Agent Workflow Evidence
 
@@ -267,6 +341,10 @@ Sign-up verification and password reset need a real inbox in the cloud, and Mail
 
 ---
 
+## Cloud Deployment Report and Review
+
+The baseline is deployed at `http://20.205.12.91:8080`, with each feature on ports 8081 to 8085. The latest `cloud-deployment.yml` run on main passed on 24 October (run 40057869147). The Cloud Deployment Review on 22 October (`docs/evidence/agentic-loop-release2-cloud-mode.md`) passed 10 of 10 checks: the workflow and scripts exist, no credentials are in the deployment files, the frontend serves NextStop, all five APIs answer through it, a CRUD read works, and AI-Mode, MCP, RAG and Multi-Agent all answer disabled. The computed release gate was GO, and the human decision was **GO**, recorded with the reason that HTTP-only is a known limitation. An earlier run computed NO-GO from a false positive in its flag check. The human deferred the decision, the check was fixed and the review re-run, and that record is kept alongside it.
+
 ## Bonus: Cloud Extension
 
 The required cloud deployment keeps AI-Mode, MCP, RAG and the Multi-Agent Server off by default. cloud-deployment.yml defaults all four flags to false when no previous cloud AI selection is saved. Manual workflow runs use the selected enable_cloud_ai value, while subsequent automatic deployments retain the saved AI setting and model. The smoke test fails if any flag does not match the selected mode. The bonus items below build on that baseline. They do not replace it.
@@ -340,3 +418,25 @@ lacks three things a production system would have:
 - **A restricted SSH source.** SSH accepts connections from any address,
   because GitHub's hosted runners have no fixed IP. A self-hosted runner or
   Azure Bastion would allow narrowing it.
+
+---
+
+## GitHub Commit Logs
+
+Repository and commit history: https://github.com/aurelia-sari/ads-assignment/commits/main
+
+Each student's Release 2 work is identifiable by author and by pull request (#54 onwards).
+
+## Contribution Logs
+
+| Student | Release 2 contribution |
+|---|---|
+| 1 Caroline Zhou | Trips Agents tab, `create_trip` and `list_trip_days` endpoint tests, Testing and Multi-Agent reviews with human decisions, Multi-Agent evidence and bonus report sections, home health fix, security resolution |
+| 2 Kevin Kim | _student-2 to fill in_ |
+| 3 Tanishpreet Kour | _student-3 to fill in_ |
+| 4 Aurelia Sari | _student-4 to fill in_ |
+| 5 Aung Ko Khaing | _student-5 to fill in_ |
+
+## Showcase Video
+
+_Video URL to be added._
