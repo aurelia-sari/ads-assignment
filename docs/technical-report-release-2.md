@@ -216,6 +216,24 @@ shown" even though the coded checks cover them. This is why the verdicts are
 computed in code: the local 3B model can explain a verdict but misreads
 detailed evidence.
 
+## Multi-Agent Integration, Student 1 (Trips & Itinerary)
+
+The Agents tab takes a task, an optional trip ID and a tick box for the RAG knowledge base. `student-1-api` offers the shared Multi-Agent Server one MCP call, `get_trip_itinerary` for a given trip or `list_trips` otherwise, so the agents can only read what this feature's MCP tools already expose. The Planner, Worker and Reviewer run on the server and the workflow stops at human review. The reviewer approves, corrects, partly accepts or rejects it in the tab, and a correction re-runs the Worker with the feedback. A recent workflows list reopens past runs with their audit history.
+
+The client is `services/multi_agent_client.py` and the routes are in `routes/ai_agents.py`. With `MULTI_AGENT_ENABLED=false` the client raises before any network call and the tab shows a disabled notice. An unreachable server returns a 503 notice that names the start command. Workflow IDs are checked against a fixed pattern before they reach the server.
+
+## Student 1 CI Testing
+
+`student-1.yml` builds and starts `student-1-db`, `student-1-api` and the frontends with every AI integration off, waits for health and runs the CRUD smoke test. It then tests two endpoint functions over HTTP with six tests in `tests/test_endpoints.py`: `create_trip` (`POST /trips`) for a stored trip, an end date before the start date and missing fields, and `list_trip_days` (`GET /trips/<id>/days`) for day order, a trip with no days and no leakage between trips. Each test creates and deletes its own trip, so seed data is never touched. All six passed on main (run 39880694254). The workflow writes a JUnit file, a job summary table and an uploaded artifact.
+
+## Student 1 Local Deployment
+
+On 23 October the stack was rebuilt locally. One terminal ran AI-Mode, MCP, RAG and the Multi-Agent Server with `./scripts/ai_services.sh up`, a second ran `docker compose up --build`, and a third ran the tests. The home page health panel showed 18 of 18 services up. A student-1 workflow from the Agents tab used the trip itinerary from MCP (E1) and RAG passages (E2). The Reviewer raised a concern because nothing was cited, a correction asked for citations, and the second round cited E1, passed review and was approved. Its history logged all 18 steps. The smoke test and endpoint tests passed alongside it.
+
+## Student 1 Cloud Behaviour
+
+In the cloud baseline all four AI flags are false. The Cloud Deployment Review on 22 October confirmed the trips table is served through the cloud frontend at `http://20.205.12.91:8081`, and that AI-Mode, MCP, RAG and Multi-Agent all answer disabled, so the Agents tab shows the notice with no call made. The trips page still answered on 25 October. With the bonus AI services enabled, the same tab reaches the server on the VM. In async mode the server returns at once and the card shows the current stage, but it does not refresh on its own, so the run is reopened from the recent workflows list.
+
 ## Multi-Agent Integration, Student 2 (Attractions & Dining)
 The Agents tab accepts a recommendation request with optional city, category and place-name filters. The backend collects city-filtered evidence through the shared MCP search_places tool and supplies compact place records to the shared Multi-Agent Server. The Worker returns a table containing the place, city, recorded opening hours, recommendation reason and evidence citation.
 Student 2 also applies deterministic checks to the result. These verify the required categories, place names, city, recorded hours, recommendation reasons and citations against the supplied evidence. A model Reviewer verdict of pass does not override these checks: invalid results cannot be accepted. The user can reject the result or partially accept a corrected table after validation. Human decisions are saved on the shared server and can be retrieved with the workflow history. Recorded opening hours do not confirm live availability.
