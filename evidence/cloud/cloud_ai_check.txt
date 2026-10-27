@@ -1,0 +1,29 @@
+== Public frontends ==
+PASS  home page
+PASS  home page (8080)
+PASS  student-1 frontend
+PASS  student-2 frontend
+PASS  student-3 frontend
+PASS  student-4 frontend
+PASS  student-5 frontend
+== Application AI flags (expected: true) ==
+PASS  student-1-api flags
+PASS  student-2-api flags
+PASS  student-3-api flags
+PASS  student-4-api flags
+PASS  student-5-api flags
+== One shared cloud AI runtime: B1-B4 application interactions ==
+PASS shared runtime and live model: llama3.2:latest
+RUN B1 student-1 AI-Mode application interaction
+PASS B1 student-1 AI-Mode application interaction
+RUN B2 student-1 MCP application interaction
+PASS B2 student-1 MCP application interaction
+RUN B2 student-2 MCP application interaction
+PASS B2 student-2 MCP application interaction
+RUN B2 student-3 MCP application interaction
+PASS B2 student-3 MCP application interaction
+RUN B2 student-4 MCP application interaction
+PASS B2 student-4 MCP application interaction
+RUN B2 student-5 MCP application interaction
+FAIL B2 student-5 MCP application interaction: HTTP 405, expected (200,)
+RUN B3 student-1 grounded RAG application interaction

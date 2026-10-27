@@ -17,7 +17,7 @@ from html import escape
 
 import requests
 from flask import Flask, jsonify, render_template_string, request, send_from_directory
-
+from datetime import date
 from services import mcp_client, rag_client, multi_agent_client
 from views import agent_formatter
 from agentic_loop.core.orchestrator import run as run_match_turn, score_candidates, LLM_ERRORS
@@ -661,48 +661,62 @@ def _own_posts_evidence():
     )
     return [{"label": "The traveller's OWN trips (never recommend these)", "content": lines}]
 
-def _other_posts_evidence(destination=""):
-    """Supplied evidence: open trips posted by OTHER travellers (best effort)."""
+def _other_posts_evidence(destination="", style=""):
+    """Supplied evidence: open trips posted by OTHER travellers (best effort).
+
+    If the destination/style filters match nobody, fall back to every other open
+    trip (the Adapt step) and say so in the label, so the Worker is never left
+    with only the traveller's own trip to recommend.
+    """
     try:
         r = requests.get(f"{DB_SERVICE_URL}/trip_posts", params={"status": "open"}, timeout=5)
         posts = r.json() if r.status_code == 200 else []
     except requests.RequestException:
         posts = []
     others = [p for p in posts if p["traveller_id"] != CURRENT_TRAVELLER_ID]
+    chosen = others
     if destination:
-        others = [p for p in others if destination.lower() in p["destination"].lower()]
-    if not others:
+        chosen = [p for p in chosen if destination.lower() in p["destination"].lower()]
+    if style:
+        chosen = [p for p in chosen if style.lower() in p["travel_style"].lower()]
+    label = "Open trips posted by OTHER travellers (recommend one of these)"
+    if (destination or style) and not chosen:
+        chosen = others
+        label += " - nobody matched the filters, so every other open trip is listed"
+    if not chosen:
         return []
     lines = "\n".join(
         f'post_id={p["post_id"]}, traveller_id={p["traveller_id"]}: {p["destination"].strip()}, '
         f'{p["start_date"]} to {p["end_date"]}, style: {p["travel_style"].strip()}, '
         f'note: {p["note"]}'
-        for p in others
+        for p in chosen
     )
-    return [{"label": "Open trips posted by OTHER travellers (recommend one of these)",
-             "content": lines}]
+    return [{"label": label, "content": lines}]
+
 
 @app.post("/ai/multi-agent")
 def multi_agent_start():
     task = request.form.get("task", "").strip() or DEFAULT_AGENT_TASK
     destination = request.form.get("destination", "").strip()
+    style = request.form.get("style", "").strip()
     reviewer = request.form.get("reviewer", "").strip() or "student-3 page"
     use_rag = request.form.get("use_rag") == "on"
-    if len(task) > 1000:
-        return agent_formatter.error_fragment("Keep the task under 1,000 characters."), 400
+    if len(task) > 800:
+        return agent_formatter.error_fragment("Keep the task under 800 characters."), 400
 
-    agent_task = (f"{task} Recommend one trip posted by another traveller (not traveller_id "
-            f"{CURRENT_TRAVELLER_ID}). State its destination and post_id, and cite the "
-            "evidence id in square brackets, for example [E2].")
+    agent_task = (
+        f"{task.rstrip(' .?!')}. Recommend one trip posted by another traveller "
+        f"(not traveller_id {CURRENT_TRAVELLER_ID}). State its destination and post_id, "
+        "and cite the evidence id in square brackets, for example [E1]."
+    )
 
-    args = {"status": "open"}
-    if destination:
-        args["destination"] = destination
-    mcp_calls = [{"tool": "find_travel_mates", "arguments": args}]
+    # The MCP tool cannot exclude the traveller's own trips, so it gets no
+    # destination filter; the supplied evidence above does the filtering.
+    mcp_calls = [{"tool": "find_travel_mates", "arguments": {"status": "open"}}]
 
     workflow, failure = _agent_call(lambda: multi_agent_client.start_workflow(
         agent_task, mcp_calls,
-        evidence=_other_posts_evidence(destination) + _own_posts_evidence(),
+        evidence=_other_posts_evidence(destination, style) + _own_posts_evidence(),
         use_rag=use_rag,
         requested_by=f"student-3-ui:{reviewer}",
     ))

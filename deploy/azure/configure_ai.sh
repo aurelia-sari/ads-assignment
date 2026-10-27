@@ -89,7 +89,9 @@ sudo tee /etc/systemd/system/nextstop-ai@.service >/dev/null <<UNIT
 Description=NextStop shared AI service (%i)
 After=network-online.target docker.service ollama.service
 Wants=network-online.target
-
+CLOUD_WORKER_TIMEOUT_SECONDS=360
+CLOUD_REVIEWER_TIMEOUT_SECONDS=360
+MULTI_AGENT_LLM_TIMEOUT=360
 [Service]
 Type=simple
 User=$owner

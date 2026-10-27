@@ -130,7 +130,7 @@
         </div>
     </section>
 
-    <!-- MY POSTS - edit / delete own trip_posts -->
+    <!-- MY POSTSs -->
     <section class="tab-panel card" id="panel-mine">
         <h3 style="margin-top:0">My posts</h3>
         <div id="mine-list"
@@ -141,7 +141,7 @@
         </div>
     </section>
 
-    <!-- AI MODE - travel-mate compatibility chat (Release 0) -->
+    <!-- AI MODE - travel-mate compattt (R0) -->
     <section class="tab-panel card" id="panel-ai">
         <h3 style="margin-top:0">Travel Mate AI</h3>
         <p class="muted">Runs locally through AI-Mode and Ollama. Compares your trip post against other travellers and explains the match.</p>
@@ -189,7 +189,7 @@
         </div>
     </section>
 
-    <!-- RAG KNOWLEDGE BASE (Release 1) -->
+    <!-- RAG KNOWLEDGE  -->
     <section class="tab-panel card" id="panel-rag">
         <div class="panel-intro">
             <h3>Ask the NextStop knowledge base</h3>
@@ -212,7 +212,7 @@
         </div>
     </section>
 
-    <!-- MULTI-AGENT (Release 2) -->
+    <!-- MULTI AGENT (R2) -->
     <section class="tab-panel card" id="panel-agents">
         <div class="panel-intro">
             <h3>Multi-Agent review</h3>
@@ -223,32 +223,60 @@
             <div class="form-grid">
                 <div style="grid-column:1/-1">
                     <label for="agent-task">Task <span class="optional">(optional)</span></label>
-                    <textarea id="agent-task" name="task" rows="2"
+                    <textarea id="agent-task" name="task" rows="2" maxlength="800"
                         placeholder="Which open trip is the best match for mine, and why?"></textarea>
                 </div>
+            </div>
+            <p class="muted" style="margin:0.5rem 0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center">
+                Try
+                <button type="button" class="btn-sm agent-try" data-task="Which traveller is the best match for my trip, and why?" data-dest="" data-style="">Best match</button>
+                <button type="button" class="btn-sm agent-try" data-task="Find me a travel mate who likes hiking and travels on a budget." data-dest="" data-style="hiking">Hiking buddy</button>
+                <button type="button" class="btn-sm agent-try" data-task="Who is travelling to Italy, and would we be compatible?" data-dest="Italy" data-style="">Italy</button>
+                <button type="button" class="btn-sm agent-try" data-task="Which open trip overlaps most with my dates?" data-dest="" data-style="">Date overlap</button>
+            </p>
+            <div class="form-grid">
                 <div>
                     <label for="agent-dest">Destination <span class="optional">(optional)</span></label>
                     <input id="agent-dest" name="destination" placeholder="e.g. Bali">
                 </div>
                 <div>
-                    <label for="agent-reviewer">Your name</label>
+                    <label for="agent-style">Travel style <span class="optional">(optional)</span></label>
+                    <select id="agent-style" name="style">
+                        <option value="">Any style</option>
+                        <option value="hiking">Hiking</option>
+                        <option value="budget">Budget</option>
+                        <option value="food">Food</option>
+                        <option value="culture">Culture</option>
+                        <option value="adventure">Adventure</option>
+                        <option value="diving">Diving</option>
+                        <option value="road trip">Road trip</option>
+                        <option value="nightlife">Nightlife</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="agent-reviewer">Your name (reviewer)</label>
                     <input id="agent-reviewer" name="reviewer" placeholder="Your name">
                 </div>
             </div>
             <label style="display:flex; gap:0.5rem; align-items:center; margin:0.75rem 0">
                 <input type="checkbox" name="use_rag" style="width:auto"> Also use the knowledge base (RAG)
             </label>
+            <p class="muted">All fields are optional. The Planner is offered other travellers' open trips, your own open trips and the <code>find_travel_mates</code> MCP tool, and picks the evidence it needs. Nothing is released until you decide.</p>
             <div class="form-actions">
-                <button type="submit">Run</button>
-                <button type="button" class="btn-sm"
-                    hx-get="/api/student-3/ai/multi-agent"
-                    hx-target="#agent-result" hx-swap="innerHTML">Recent workflows</button>
+                <button type="submit">Run workflow</button>
                 <span class="spinner">agents working...</span>
             </div>
         </form>
 
         <div class="result-area" id="agent-result">
             <p class="result-empty">Run the agents to see the plan, answer and review here.</p>
+        </div>
+
+        <h4 style="margin:1.5rem 0 0.5rem">Recent workflows</h4>
+        <button type="button" class="btn-sm" hx-get="/api/student-3/ai/multi-agent"
+                hx-target="#agent-recent" hx-swap="innerHTML">Refresh recent workflows</button>
+        <div id="agent-recent" hx-get="/api/student-3/ai/multi-agent" hx-trigger="load" hx-swap="innerHTML">
+            <p class="muted">Loading...</p>
         </div>
     </section>
 
@@ -279,7 +307,7 @@
         if (b.dataset.tab) b.addEventListener("click", () => activate(b.dataset.tab));
     });
 
-    // Inbox sub-tabs (incoming / outgoing)
+
     const subButtons = Array.from(document.querySelectorAll("#panel-inbox .tab-btn[data-subtab]"));
     const subPanels = {
         incoming: document.getElementById("subpanel-incoming"),
@@ -294,10 +322,19 @@
         });
     });
 
-    // Show server error messages (400/409/502/503) instead of silently ignoring them
+    document.querySelectorAll(".agent-try").forEach((b) =>
+        b.addEventListener("click", () => {
+            document.getElementById("agent-task").value = b.dataset.task;
+            document.getElementById("agent-dest").value = b.dataset.dest || "";
+            document.getElementById("agent-style").value = b.dataset.style || "";
+        })
+    );
+
     document.body.addEventListener("htmx:beforeSwap", (e) => {
-        const status = e.detail.xhr.status;
-        if (xhr.status >= 400 && xhr.responseText.trim().startsWith("<")) {
+        const xhr = e.detail.xhr;
+        const url = xhr.responseURL || "";
+        if (xhr.status >= 400 && (url.includes("/ai/") || url.includes("/mcp/"))
+                && xhr.responseText.trim().startsWith("<")) {
             e.detail.shouldSwap = true;
             e.detail.isError = false;
         }
