@@ -590,6 +590,16 @@ document.querySelectorAll("#panel-agents .chip").forEach((chip) =>
     })
 );
 
+// htmx drops error responses by default. The Agents routes explain a refusal in
+// the body and keep the review form on the page, so those responses must swap in.
+document.body.addEventListener("htmx:beforeSwap", (event) => {
+    const path = event.detail.pathInfo.requestPath || "";
+    if (path.includes("/ai/agents") && event.detail.xhr.status >= 400) {
+        event.detail.shouldSwap = true;
+        event.detail.isError = false;
+    }
+});
+
 // Decisions are attributed to a person, so the reviewer name comes from the
 // signed-in account. The visible field on the review form can still be edited.
 function reviewerName() {

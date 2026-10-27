@@ -79,6 +79,13 @@ The first full scan flagged every folder. PR 59 upgraded the vulnerable pins and
 
 **Student 4.** All pins upgraded and requests pinned. The rest are reviewed false positives: container binding, bound SQL values, a seed script run with the current interpreter, and test account passwords. All tests unchanged.
 
+Student 4 evidence. A planted password was blocked by both Ruff and detect-secrets, and the test file was never committed. Staging a requirements file triggered pip-audit, and a full scan on the final code passed all three hooks.
+
+![Ruff blocks password](evidence/student4-release2/student-4-precommit-blocked-ruff-security.png)
+![detect-secrets blocks password](evidence/student4-release2/student-4-precommit-blocked-detect-secrets.png)
+![pip-audit runs](evidence/student4-release2/student-4-precommit-pipaudit.png)
+![Full scan passes](evidence/student4-release2/student-4-precommit-pass.png)
+
 **Student 5.** _student-5 to fill in: fixed, or reason this is acceptable as is_
 
 ## Post-Commit CI/CD Testing
@@ -95,15 +102,40 @@ Each `student-x.yml` builds and starts that feature's containers with every AI i
 
 Student 2's results are also saved under `docs/evidence/student-2-release-2-test-results/`.
 
+Student 4's `student-4.yml` run 129 passed in 1 minute 11 seconds. Its job summary lists the five endpoint tests for `list_guides` and `start`, and the run uploaded one artifact. Locally, the student-4 tests and the Multi-Agent Server tests gave 509 passed and 1 skipped.
+
+![Run 129 summary](evidence/student4-release2/student-4-ci-summary.png)
+![Local tests](evidence/student4-release2/student-4-tests-terminal.png)
+
 ## Testing Review
 
 The agentic loop's Testing Review on 23 October recorded 9 PASS, 0 FAIL and 0 WARN (docs/evidence/agentic-loop-release2-testing-mode.md). Its endpoint counts are static estimates from test-source inspection, not measured execution totals. The tested functions and result publication formats are described in Post-Commit CI/CD Testing above.
+
+Student 4 reran the Testing Review on 28 October and it recorded 9 PASS, 0 FAIL and 0 WARN. The Observe text comes from a small local model and some of its issue lines contradict the checks decided in code, so the PASS and FAIL lines are the evidence.
+
+![Testing Review 1](evidence/student4-release2/loop-testing-1.png)
+![Testing Review 2](evidence/student4-release2/loop-testing-2.png)
+![Testing Review 3](evidence/student4-release2/loop-testing-3.png)
 
 ## Local Deployment Evidence
 
 On 23 October the integrated application was rebuilt locally. One terminal ran AI-Mode, MCP, RAG and the Multi-Agent Server with `./scripts/ai_services.sh up`, a second ran `docker compose up --build`, and a third ran the tests and review modes. The home page health panel showed 18 of 18 services up. One workflow per feature then ran through its Agents tab route (next section), and the smoke and endpoint tests still passed.
 
 Student 4 also checked the failure paths locally: a rejection without notes was refused, a partial acceptance released the edited text, and a second decision on a closed workflow returned 409.
+
+The terminal health check shows all 18 containers and the four host AI services up, the home page panel agrees, and the Multi-Agent Server answers its own health check on port 5600. The Guides, AI Assistant, MCP Tools and Ask tabs worked beside the Agents tab. The page used to drop refused requests without a message, so Student 4 added a handler that shows the reason and keeps the review form.
+
+![Container health](evidence/student4-release2/health-services.png)
+![Home health panel](evidence/student4-release2/student-4-home-health.png)
+![AI services status](evidence/student4-release2/ai-service-status.png)
+![Multi-Agent health](evidence/student4-release2/multiagent-health.png)
+![Guides 1](evidence/student4-release2/student-4-guides-1.png)
+![Guides 2](evidence/student4-release2/student-4-guides-2.png)
+![AI Assistant](evidence/student4-release2/student-4-ai-assistant.png)
+![MCP Tools](evidence/student4-release2/student-4-mcp-tools.png)
+![Ask tab](evidence/student4-release2/student-4-rag-tools.png)
+![Reject without notes refused](evidence/student4-release2/student-4-agents-failure-paths-1-no-notes.png)
+![Second decision 409](evidence/student4-release2/student-4-agents-failure-paths-2-409.png)
 
 ## Multi-Agent Workflow Evidence
 
@@ -135,6 +167,21 @@ Feature-specific details:
 - **Student 2:** gathers city-filtered places through MCP `search_places`, and checks in code that the Worker's table matches the evidence. A model pass cannot override a failed check.
 - **Student 4:** supplies currency, transport, visa, weather and safety facts plus one MCP call, and offers RAG.
 
+Student 4's workflow wf-20261027-145527-9ede00 asked for a Kyoto pre-trip briefing on the Agents tab. The Planner chose five guide facts, the Worker answered from them with citations, the Reviewer checked the answer and the run stopped at human review. The audit log below it lists each step.
+
+![Planner](evidence/student4-release2/student-4-agents-1-planner.png)
+![Evidence 1](evidence/student4-release2/student-4-agents-1-evidence-1.png)
+![Evidence 2](evidence/student4-release2/student-4-agents-1-evidence-2.png)
+![Worker](evidence/student4-release2/student-4-agents-1-worker.png)
+![Reviewer](evidence/student4-release2/student-4-agents-1-reviewer.png)
+![Human review](evidence/student4-release2/student-4-agents-1-human-review.png)
+![Audit log](evidence/student4-release2/student-4-agents-1-audit-log.png)
+
+The same four roles run from the terminal with `./scripts/dev.sh agents run`. That client supplies no guide facts, so the Planner offered only RAG, nothing relevant came back, the Worker declined to answer and the Reviewer failed the run. The review caught an unsupported answer.
+
+![Terminal run](evidence/student4-release2/student-4-agents-terminal-1.png)
+![Terminal decision](evidence/student4-release2/student-4-agents-terminal-2.png)
+
 With `MULTI_AGENT_ENABLED=false`, each client returns a notice without any network call. An unreachable server gives a 503 notice.
 
 **Multi-Agent Workflow Review** (`docs/evidence/agentic-loop-release2-multiagent-mode.md`), decided in code over all 15 workflows:
@@ -147,9 +194,15 @@ With `MULTI_AGENT_ENABLED=false`, each client returns a notice without any netwo
 
 The 15 include ten student-1 development runs from 9 October. Both warnings come mostly from those runs. Of the 23 October runs, only the three flagged above failed citations, and none was approved over a concern.
 
+Student 4 also ran the review on its own machine.
+
+![Multi-Agent Review 1](evidence/student4-release2/loop-multiagent-1.png)
+![Multi-Agent Review 2](evidence/student4-release2/loop-multiagent-2.png)
+![Multi-Agent Review 3](evidence/student4-release2/loop-multiagent-3.png)
+
 ## Cloud Deployment Report and Review
 
-The baseline is live at `http://20.205.12.91:8080`, with the features on ports 8081 to 8085. The latest `cloud-deployment.yml` run on main passed on 24 October (run 40057869147).
+The deployment is live at `http://20.239.248.67:8080`, with the features on ports 8081 to 8085. The latest `cloud-deployment.yml` run on main passed on 24 October (run 40057869147).
 
 The Cloud Deployment Review on 22 October (`docs/evidence/agentic-loop-release2-cloud-mode.md`) passed 10 of 10 checks:
 
@@ -163,6 +216,20 @@ The Cloud Deployment Review on 22 October (`docs/evidence/agentic-loop-release2-
 The computed gate and the **human decision were both GO**. HTTP-only is noted as a known limitation. An earlier run computed NO-GO from a false positive in the flag check. The human deferred, the check was fixed and the review re-run, and that record is kept.
 
 Every client reads its own flag and the frontends hold no service addresses, so nothing assumes a host service. With the flags off, Student 4's guides, sign-in and live rates work and the AI tabs show notices. Sign-up and reset emails go through Resend in the cloud. Its key is in a mode-600 file on the VM, never in git.
+
+Student 4 evidence on the bonus deployment at `http://20.239.248.67`. The `cloud-deployment.yml` run 69 passed both its validate and deploy jobs, and its summary reads "shared cloud AI enabled=true". Student 4 reran the Cloud Deployment Review against that address on 28 October. The computed gate was NO-GO because the review expects every AI path to answer disabled, and MCP and Multi-Agent answered with real results. The model recommended GO, the code kept the NO-GO gate, and the human decision was DEFERRED because the bonus deployment runs all four AI services on. The baseline GO above stays as the record for the all-disabled mode.
+
+![Cloud run 69](evidence/student4-release2/cloud-run.png)
+![Cloud Review 1](evidence/student4-release2/loop-cloud-1.png)
+![Cloud Review 2](evidence/student4-release2/loop-cloud-2.png)
+![Cloud Review decision](evidence/student4-release2/loop-cloud-3.png)
+
+With the AI services on, the Agents tab runs a workflow on the live site. A Kyoto briefing reached human review and was approved, and the released response is shown below.
+
+![Cloud Agents 1](evidence/student4-release2/student-4-cloud-agents-on-1.png)
+![Cloud Agents 2](evidence/student4-release2/student-4-cloud-agents-on-2.png)
+![Cloud Agents 3](evidence/student4-release2/student-4-cloud-agents-on-3.png)
+![Cloud Agents approved](evidence/student4-release2/student-4-cloud-agents-decided.png)
 
 ## Bonus: Cloud Extension
 
@@ -209,7 +276,7 @@ https://github.com/aurelia-sari/ads-assignment/commits/main. Release 2 work is i
 | 1 Caroline Zhou | Multi-Agent Server, Trips Agents tab, `create_trip` and `list_trip_days` endpoint tests, Testing and Multi-Agent reviews with human decisions, report evidence and bonus sections |
 | 2 Kevin Kim | Implemented city-scoped Multi-Agent recommendations and CI tests for Attractions & Dining, along with shared Azure AI deployment, asynchronous Multi-Agent execution, citation validation and cloud checks. |
 | 3 Tanishpreet Kour | _student-3 to fill in_ |
-| 4 Aurelia Sari | _student-4 to fill in_ |
+| 4 Aurelia Sari | Set up the pre-commit security scans (Ruff, detect-secrets, pip-audit) and upgraded the vulnerable pins. Built the Agents tab and Multi-Agent client for Travel Guides, including the page handler that shows refused decisions. Wrote the `student-4.yml` unit stage and the `list_guides` and `start` endpoint tests. Added Resend email delivery for the cloud. Checked the feature locally with every AI service on and on the cloud deployment, and ran the Testing, Multi-Agent and Cloud Deployment reviews. |
 | 5 Aung Ko Khaing | _student-5 to fill in_ |
 
 ## Showcase Video
