@@ -106,6 +106,14 @@ jobs:
                   print(f"- {'FAIL' if bad else 'PASS'} {case.get('name')}")
           PY
 
+      - name: Upload the endpoint test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-5-endpoint-tests
+          path: reports/student-5-endpoint-tests.xml
+          if-no-files-found: ignore
+          
       - name: Confirm the frontend microservice serves its page
         run: curl --fail --silent --show-error http://localhost:8085 > /dev/null
 
